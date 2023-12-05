@@ -27,8 +27,29 @@ def segment_prawns(image):
 
     return segmented_prawns
 
-# Rest of your script including the 'main' function
-# ...
+def generate_save_path(original_path, count):
+    directory, filename = os.path.split(original_path)
+    name, ext = os.path.splitext(filename)
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    new_filename = f"{name}_{count}_{timestamp}{ext}"
+    return os.path.join(directory, 'cropped', new_filename)
+
+def main():
+    images = select_images()
+    df = pd.DataFrame(columns=['File', 'Category'])
+
+    for image_path in images:
+        image = cv2.imread(image_path)
+        cropped_images = segment_prawns(image)
+        count = 0
+        for cropped in cropped_images:
+            count += 1
+            save_path = generate_save_path(image_path, count)
+            cv2.imwrite(save_path, cropped)
+            category = input(f"Enter category for segmented prawn {count} from {image_path}: ")
+            df = df.append({'File': save_path, 'Category': category}, ignore_index=True)
+
+    df.to_csv('image_data.csv', index=False)
 
 if __name__ == "__main__":
     main()
