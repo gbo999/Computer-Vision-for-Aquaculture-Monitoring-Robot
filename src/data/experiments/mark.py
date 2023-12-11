@@ -12,7 +12,11 @@ def manual_marking(image):
     # Display the image
     plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     plt.title('Click on the corners of the top surface of the red box')
-    
+    # Assuming the points are selected in the following order:
+    # points[0]: top left corner
+    # points[1]: top right corner
+    # points[2]: bottom right corner
+    # points[3]: bottom left corner
     # Let the user select the corners of the red box's top surface
     print("Please click on the corners of the red box's top surface, then close the window.")
     points = plt.ginput(4)  # Let user pick 4 points
@@ -21,10 +25,17 @@ def manual_marking(image):
 
 # Function to calculate and display measurements
 def calculate_and_display(image, points):
-    # Calculate width and height in pixels (approximation using the distance between first two points)
-    width_px = np.linalg.norm(np.array(points[0]) - np.array(points[1]))
-    height_px = np.linalg.norm(np.array(points[1]) - np.array(points[2]))
-    
+  # Assuming points are ordered as follows:
+# Top Left, Top Right, Bottom Right, Bottom Left
+
+# Width calculation (average of top and bottom side lengths)
+    width_px = (np.linalg.norm(np.array(points[0]) - np.array(points[1])) + 
+                np.linalg.norm(np.array(points[2]) - np.array(points[3]))) / 2
+
+    # Height calculation (average of left and right side lengths)
+    height_px = (np.linalg.norm(np.array(points[0]) - np.array(points[3])) + 
+                np.linalg.norm(np.array(points[1]) - np.array(points[2]))) / 2
+
     # Calculate centroid of the box
     centroid_x, centroid_y = np.mean(points, axis=0)
     
