@@ -1,0 +1,56 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+
+# Load the image using OpenCV
+image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/1.jpeg'
+image = cv2.imread(image_path)
+image_to_show = image.copy()
+
+# Function to display the image and collect manual input
+def manual_marking(image):
+    # Display the image
+    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    plt.title('Click on the corners of the top surface of the red box')
+    
+    # Let the user select the corners of the red box's top surface
+    print("Please click on the corners of the red box's top surface, then close the window.")
+    points = plt.ginput(4)  # Let user pick 4 points
+    plt.close()
+    return points
+
+# Function to calculate and display measurements
+def calculate_and_display(image, points):
+    # Calculate width and height in pixels (approximation using the distance between first two points)
+    width_px = np.linalg.norm(np.array(points[0]) - np.array(points[1]))
+    height_px = np.linalg.norm(np.array(points[1]) - np.array(points[2]))
+    
+    # Calculate centroid of the box
+    centroid_x, centroid_y = np.mean(points, axis=0)
+    
+    # Calculate distance from the center of the image
+    image_center = (image.shape[1] / 2, image.shape[0] / 2)
+    distance_from_center = np.linalg.norm(np.array([centroid_x, centroid_y]) - np.array(image_center))
+    
+    # Calculate the angle with respect to the horizontal axis (assuming right side is 0 degrees)
+    angle_rad = np.arctan2(centroid_y - image_center[1], centroid_x - image_center[0])
+    angle_degrees = np.degrees(angle_rad)
+    
+    # Annotate and draw on the image
+    cv2.line(image, (int(centroid_x), int(centroid_y)), (int(image_center[0]), int(image_center[1])), (255, 0, 0), 2)
+    for point in points:
+        cv2.circle(image, (int(point[0]), int(point[1])), 5, (0, 255, 0), -1)
+    cv2.putText(image, f'Width: {width_px:.2f}px', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(image, f'Height: {height_px:.2f}px', (50, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(image, f'Distance from center: {distance_from_center:.2f}px', (50, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(image, f'Angle: {angle_degrees:.2f} degrees', (50, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    
+    # Show the final image
+    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    plt.title('Marked Top Surface of the Red Box')
+    plt.axis('off')
+    plt.show()
+
+# Main workflow
+points = manual_marking(image_to_show)
+calculate_and_display(image_to_show, points)
