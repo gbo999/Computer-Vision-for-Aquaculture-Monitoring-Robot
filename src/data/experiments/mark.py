@@ -3,9 +3,32 @@ import numpy as np
 import cv2
 
 # Load the image using OpenCV
-image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/3.jpg'
+image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/2.jpeg'
 image = cv2.imread(image_path)
 image_to_show = image.copy()
+
+camera_matrix = np.array([[9.03421502e+03, 0.00000000e+00, 1.72545905e+02],
+                          [0.00000000e+00, 1.09758217e+04, 2.33416705e+02],
+                          [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+distortion_coeffs = np.array([-6.09645602e-01,  1.45423021e-01, -3.64203971e-01, -1.52023397e-02,
+                              1.25904521e-04])
+
+# Compute the optimal new camera matrix
+h, w = image.shape[:2]
+new_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(camera_matrix, distortion_coeffs, (w, h), 1, (w, h))
+
+# Undistort the image
+undistorted_image = cv2.undistort(image, camera_matrix, distortion_coeffs, None, new_camera_matrix)
+
+
+# Save the undistorted image
+#cv2.imwrite('undistorted_image.jpg', undistorted_image)
+
+
+
+
+
+
 
 # Function to display the image and collect manual input
 def manual_marking(image):
@@ -63,5 +86,5 @@ def calculate_and_display(image, points):
     plt.show()
 
 # Main workflow
-points = manual_marking(image_to_show)
-calculate_and_display(image_to_show, points)
+points = manual_marking(undistorted_image)
+calculate_and_display(undistorted_image, points)

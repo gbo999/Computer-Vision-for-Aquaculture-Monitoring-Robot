@@ -19,11 +19,16 @@ objpoints = []  # 3d point in real world space
 imgpoints = []  # 2d points in image plane
 
 # Extracting path of individual image stored in a given directory
-images = glob.glob('./calib/*.jpeg')
+images = glob.glob('./calib/*.jpg')
 
 for fname in images:
     img = cv2.imread(fname)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    scale_percent = 10  # percent of original size, adjust as necessary
+    width = int(img.shape[1] * scale_percent / 100)
+    height = int(img.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    resized = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
+    gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
 
     # Find the chess board corners
     ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, None)
@@ -36,8 +41,8 @@ for fname in images:
         imgpoints.append(corners2)
 
         # Draw and display the corners
-        img = cv2.drawChessboardCorners(img, CHECKERBOARD, corners2, ret)
-        cv2.imshow('img', img)
+        resized = cv2.drawChessboardCorners(resized, CHECKERBOARD, corners2, ret)
+        cv2.imshow('img', resized)
         cv2.waitKey(500)
 
 cv2.destroyAllWindows()
