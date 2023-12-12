@@ -7,21 +7,31 @@ vertical_fov_deg = 55.9
 # Calculate the vertical FOV in radians
 vertical_fov_rad = np.radians(vertical_fov_deg)
 
+
 # Image resolution in pixels
-resolution_width_px = 1600
-resolution_height_px = 1200
+resolution_width_px = 1200
+resolution_height_px = 1600
 
 # Calculate the viewable height at the floor level based on the vertical FOV
 viewable_height_cm = 2 * (camera_height_cm * np.tan(vertical_fov_rad / 2))
 
+
+
+print(f"The viewable height at the floor level is: {viewable_height_cm:.2f} cm")
+
 # The aspect ratio (width:height) of the image is 3:4
 aspect_ratio = 3 / 4
 
-# Calculate the viewable width using the aspect ratio
-# Divide the viewable height by the aspect ratio to find the corresponding width
-viewable_width_cm = viewable_height_cm / aspect_ratio
+
+# # Calculate the viewable width using the aspect ratio
+# # Divide the viewable height by the aspect ratio to find the corresponding width
+viewable_width_cm = viewable_height_cm * aspect_ratio
+
+# print(f"The viewable width at the floor level is: {viewable_width_cm:.2f} cm")
 
 # Calculate the width and height in cm that each pixel represents
+
+
 cm_per_pixel_width = viewable_width_cm / resolution_width_px
 cm_per_pixel_height = viewable_height_cm / resolution_height_px
 
