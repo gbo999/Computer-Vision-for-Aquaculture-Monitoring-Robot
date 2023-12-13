@@ -22,6 +22,29 @@ def calculate_real_width(focal_length, distance_to_object, width_in_pixels, pixe
 
     return real_width_cm
 
+def calculate_distance(focal_length, real_width, width_in_pixels, pixel_size):
+    """
+    Calculate the distance to an object.
+
+    Parameters:
+    focal_length (float): Focal length of the camera lens in millimeters (mm).
+    real_width (float): Real-life width of the object in centimeters (cm).
+    width_in_pixels (int): Width of the object in pixels on the image sensor.
+    pixel_size (float): Size of a pixel on the image sensor in millimeters (mm).
+
+    Returns:
+    float: Distance from the camera to the object in millimeters (mm).
+    """
+    # Calculate the width of the object in the image sensor plane in millimeters
+    width_in_sensor = width_in_pixels * pixel_size
+
+    # Calculate the distance to the object using the similar triangles principle
+    distance_mm = (real_width * focal_length) / width_in_sensor
+
+    return distance_mm
+
+
+
 # Example usage
 focal_length = 25.4  # Focal length in millimeters
 distance_to_object = 735.0  # Distance to object in millimeters
