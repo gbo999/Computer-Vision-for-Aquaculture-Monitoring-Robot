@@ -1,47 +1,33 @@
-import numpy as np
+def calculate_real_width(focal_length, distance_to_object, width_in_pixels, pixel_size):
+    """
+    Calculate the real-life width of an object.
 
-# Camera height from the floor in cm and FOV in degrees
-camera_height_cm = 73.5
-vertical_fov_deg = 55.9
+    Parameters:
+    focal_length (float): Focal length of the camera lens in millimeters (mm).
+    distance_to_object (float): Distance from the camera to the object in millimeters (mm).
+    width_in_pixels (int): Width of the object in pixels on the image sensor.
+    pixel_size (float): Size of a pixel on the image sensor in millimeters (mm).
 
-# Calculate the vertical FOV in radians
-vertical_fov_rad = np.radians(vertical_fov_deg)
+    Returns:
+    float: Real-life width of the object in centimeters (cm).
+    """
+    # Calculate the width of the object in the image sensor plane in millimeters
+    width_in_sensor = width_in_pixels * pixel_size
 
+    # Calculate the real-life width of the object using the similar triangles principle
+    real_width_mm = (width_in_sensor * distance_to_object) / focal_length
 
-# Image resolution in pixels
-resolution_width_px = 1200
-resolution_height_px = 1600
+    # Convert the width from millimeters to centimeters
+    real_width_cm = real_width_mm 
 
-# Calculate the viewable height at the floor level based on the vertical FOV
-viewable_height_cm = 2 * (camera_height_cm * np.tan(vertical_fov_rad / 2))
+    return real_width_cm
 
+# Example usage
+focal_length = 26.0  # Focal length in millimeters
+distance_to_object = 735.0  # Distance to object in millimeters
+width_in_pixels = 211  # Width of the object in pixels
+pixel_size =0.005   # Pixel size in millimeters (0.8 micrometers)
 
-
-print(f"The viewable height at the floor level is: {viewable_height_cm:.2f} cm")
-
-# The aspect ratio (width:height) of the image is 3:4
-aspect_ratio = 3 / 4
-
-
-# # Calculate the viewable width using the aspect ratio
-# # Divide the viewable height by the aspect ratio to find the corresponding width
-viewable_width_cm = viewable_height_cm * aspect_ratio
-
-# print(f"The viewable width at the floor level is: {viewable_width_cm:.2f} cm")
-
-# Calculate the width and height in cm that each pixel represents
-
-
-cm_per_pixel_width = viewable_width_cm / resolution_width_px
-cm_per_pixel_height = viewable_height_cm / resolution_height_px
-
-# Box dimensions in pixels (assuming the box is square, the width and height will be the same)
-box_dimension_px = 76.92
-
-# Calculate the real-world dimensions of the box using the ratios
-box_width_cm = box_dimension_px * cm_per_pixel_width
-box_height_cm = box_dimension_px * cm_per_pixel_height
-
-# Print the calculated real-world dimensions of the box
-print(f"The box's real-world width is approximately: {box_width_cm:.2f} cm")
-print(f"The box's real-world height is approximately: {box_height_cm:.2f} cm")
+# Calculate the real-life width
+real_width = calculate_real_width(focal_length, distance_to_object, width_in_pixels, pixel_size)
+print(f"The real-life width of the object is {real_width} mm.")
