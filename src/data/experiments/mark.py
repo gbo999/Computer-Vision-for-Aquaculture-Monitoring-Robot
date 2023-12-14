@@ -107,7 +107,8 @@ def calculate_and_display(image, points):
                 np.linalg.norm(np.array(points[1]) - np.array(points[2]))) / 2
     
     # corrected_image = perspective_warp_correction(image, points,width_px,height_px)
-
+    print(f"Width: {width_px:.2f}px")
+    print(f"Height: {height_px:.2f}px")
     # Width calculation (average of top and bottom side lengths)
     # width_px = (abs(points[0][0] - points[1][0]) + 
     #             abs(points[2][0] - points[3][0])) / 2
