@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 # Load the image using OpenCV
-image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/1.jpeg'
+image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/14.12/ts.jpeg'
 image = cv2.imread(image_path)
 image_to_show = image.copy()
 
@@ -31,19 +31,40 @@ image_to_show = image.copy()
 
 # Function to display the image and collect manual input
 def manual_marking(image):
-    # Display the image
-    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    plt.title('Click on the corners of the top surface of the red box')
-    # Assuming the points are selected in the following order:
-    # points[0]: top left corner
-    # points[1]: top right corner
-    # points[2]: bottom right corner
-    # points[3]: bottom left corner
-    # Let the user select the corners of the red box's top surface
-    print("Please click on the corners of the red box's top surface, then close the window.")
-    points = plt.ginput(4)  # Let user pick 4 points
-    plt.close()
-    return points
+    fig, ax = plt.subplots()
+    ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    plt.title('Click once to zoom, then select the 4 corners of the object')
+
+    points = []  # List to store points
+    zoom_point = None  # Variable to store the first click for zoom
+
+    def onclick(event):
+        nonlocal zoom_point
+        if not zoom_point:
+            # First click - set zoom point
+            zoom_point = (event.xdata, event.ydata)
+            ax.plot(zoom_point[0], zoom_point[1], 'ro')  # Mark the zoom point
+            plt.draw()
+        else:
+            # Subsequent clicks - add to points list
+            if len(points) < 4:
+                points.append((event.xdata, event.ydata))
+                ax.plot(event.xdata, event.ydata, 'go')  # Mark the point
+                plt.draw()
+
+    # Connect the click event to the onclick function
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+
+    # Show the image and wait for the user to click 5 times
+    plt.show()
+
+    # Disconnect the event after 5 clicks
+    fig.canvas.mpl_disconnect(cid)
+
+    # Implement zooming to the selected point (optional)
+    # This could be a specific zoom level or a region around the zoom_point
+
+    return np.array(points)
 
 
 # def perspective_warp_correction(image, points,measured_width_px, measured_height_px):
