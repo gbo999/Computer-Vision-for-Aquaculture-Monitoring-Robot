@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 # Load the image using OpenCV
-image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/new.jpg'
+image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/1.jpeg'
 image = cv2.imread(image_path)
 image_to_show = image.copy()
 
@@ -45,10 +45,37 @@ def manual_marking(image):
     plt.close()
     return points
 
+
+# def perspective_warp_correction(image, points,measured_width_px, measured_height_px):
+#     # Define points on the image (source points)
+#     src_pts = np.array(points, dtype='float32')
+    
+#     # Define corresponding points where the source points should be mapped to (destination points)
+#     # Assuming the object is a square in real life with a given size in millimeters
+#     width_px = max(measured_width_px, measured_height_px)
+#     height_px = width_px  # Assuming you want a square, make the height equal to the width
+
+#     dst_pts = np.array([
+#         [0, 0],
+#         [width_px, 0],
+#         [width_px, height_px],
+#         [0, height_px]
+#     ], dtype='float32')
+#     # Compute the perspective transform matrix
+#     M = cv2.getPerspectiveTransform(src_pts, dst_pts)
+    
+#     # Perform the warp perspective
+#     warped = cv2.warpPerspective(image, M, (int(width_px),int( width_px)))
+#     return warped
+
+
 # Function to calculate and display measurements
 def calculate_and_display(image, points):
   # Assuming points are ordered as follows:
 # Top Left, Top Right, Bottom Right, Bottom Left
+
+
+    
 
 # Width calculation (average of top and bottom side lengths)
     width_px = (np.linalg.norm(np.array(points[0]) - np.array(points[1])) + 
@@ -57,6 +84,16 @@ def calculate_and_display(image, points):
     # Height calculation (average of left and right side lengths)
     height_px = (np.linalg.norm(np.array(points[0]) - np.array(points[3])) + 
                 np.linalg.norm(np.array(points[1]) - np.array(points[2]))) / 2
+    
+    # corrected_image = perspective_warp_correction(image, points,width_px,height_px)
+
+    # Width calculation (average of top and bottom side lengths)
+    # width_px = (abs(points[0][0] - points[1][0]) + 
+    #             abs(points[2][0] - points[3][0])) / 2
+
+    # # Height calculation (average of left and right side lengths)
+    # height_px = (abs(points[0][1] - points[3][1]) + 
+    #             abs(points[1][1] - points[2][1])) / 2
 
     # Calculate centroid of the box
     centroid_x, centroid_y = np.mean(points, axis=0)
@@ -71,7 +108,6 @@ def calculate_and_display(image, points):
     # Calculate the angle with respect to the horizontal axis (assuming right side is 0 degrees)
     angle_rad = np.arctan2(centroid_y - image_center[1], centroid_x - image_center[0])
     angle_degrees = np.degrees(angle_rad)
-    
     # Annotate and draw on the image
     cv2.line(image, (int(centroid_x), int(centroid_y)), (int(image_center[0]), int(image_center[1])), (255, 0, 0), 2)
     for point in points:
@@ -90,3 +126,5 @@ def calculate_and_display(image, points):
 # Main workflow
 points = manual_marking(image_to_show)
 calculate_and_display(image_to_show, points)
+
+
