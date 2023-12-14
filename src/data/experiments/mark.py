@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 # Load the image using OpenCV
-image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/14.12/ts.jpeg'
+image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/14.12/ht.jpg'
 image = cv2.imread(image_path)
 image_to_show = image.copy()
 
