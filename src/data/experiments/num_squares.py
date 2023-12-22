@@ -46,6 +46,20 @@ class GridOverlayApp:
         self.start_x = None
         self.start_y = None
 
+        self.grid_size_slider = tk.Scale(master, from_=10, to=200, orient='horizontal', label='Grid Size', command=self.update_grid_size)
+        self.grid_size_slider.pack(side=tk.TOP, fill=tk.X)
+
+        # Set initial grid size
+        self.grid_size = self.grid_size_slider.get()
+    
+    
+    def update_grid_size(self, event=None):
+        new_grid_size = self.grid_size_slider.get()
+        if new_grid_size != self.grid_size:
+            self.grid_size = new_grid_size
+            self.draw_grid()
+
+
     def load_image(self):
         file_path = filedialog.askopenfilename()
         if not file_path:
@@ -82,6 +96,7 @@ class GridOverlayApp:
         self.draw_grid()
 
     def draw_grid(self):
+        self.clear_grid()
         img_width, img_height = self.image.size
         for i in range(0, img_width, self.grid_size):
             line = self.canvas.create_line(i, 0, i, img_height, fill=self.grid_color)
