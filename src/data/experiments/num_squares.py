@@ -3,6 +3,7 @@
 import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
+import math
 
 class GridOverlayApp:
     def __init__(self, master):
@@ -50,9 +51,34 @@ class GridOverlayApp:
         if not file_path:
             return
 
+        # Load the image with PIL
         self.image = Image.open(file_path)
-        self.photo_image = ImageTk.PhotoImage(self.image)
-        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo_image)
+
+        # Resize the image to fit the canvas, maintaining aspect ratio
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        img_width, img_height = self.image.size
+
+        # Calculate the new size to fit the canvas
+        scale_width = canvas_width / img_width
+        scale_height = canvas_height / img_height
+        scale_factor = min(scale_width, scale_height)
+
+        # Avoid upscaling the image if it's smaller than the canvas
+        scale_factor = min(scale_factor, 1)
+
+        new_width = int(img_width * scale_factor)
+        new_height = int(img_height * scale_factor)
+
+        # Resize and display the image
+        self.image = self.image.resize((new_width, new_height), Image.LANCZOS)
+        self.display_image()
+
+
+    def display_image(self):
+        self.photo = ImageTk.PhotoImage(self.image)
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo)
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
         self.draw_grid()
 
     def draw_grid(self):
@@ -87,10 +113,37 @@ class GridOverlayApp:
         self.grid_size = int(self.grid_size * scale_factor)
         self.draw_grid()
 
-    def rotate_grid(self, event):
-        # Code to handle rotating the grid
-        pass
+    def rotate_grid(self, event=None, angle_degrees=5):
+    # Placeholder function to demonstrate rotation
+        self.rotation_angle = (self.rotation_angle + angle_degrees) % 360
+        angle_radians = math.radians(self.rotation_angle)
+        cos_val = math.cos(angle_radians)
+        sin_val = math.sin(angle_radians)
 
+        img_width, img_height = self.image.size
+        for line in self.grid_lines:
+            self.canvas.delete(line)
+        self.grid_lines.clear()
+
+        for i in range(0, img_width, self.grid_size):
+            x1, y1 = self.rotate_point((i, 0), (img_width / 2, img_height / 2), cos_val, sin_val)
+            x2, y2 = self.rotate_point((i, img_height), (img_width / 2, img_height / 2), cos_val, sin_val)
+            line = self.canvas.create_line(x1, y1, x2, y2, fill=self.grid_color)
+            self.grid_lines.append(line)
+        for i in range(0, img_height, self.grid_size):
+            x1, y1 = self.rotate_point((0, i), (img_width / 2, img_height / 2), cos_val, sin_val)
+            x2, y2 = self.rotate_point((img_width, i), (img_width / 2, img_height / 2), cos_val, sin_val)
+            line = self.canvas.create_line(x1, y1, x2, y2, fill=self.grid_color)
+            self.grid_lines.append(line)
+
+    def rotate_point(self, point, origin, cos_val, sin_val):
+        # Rotate a point counterclockwise by a given angle around a given origin.
+        ox, oy = origin
+        px, py = point
+
+        qx = ox + cos_val * (px - ox) - sin_val * (py - oy)
+        qy = oy + sin_val * (px - ox) + cos_val * (py - oy)
+        return qx, qy
     def save_data(self):
         # Code to save grid data to file
         pass
