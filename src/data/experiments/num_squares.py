@@ -17,11 +17,14 @@ class GridOverlayApp:
         # Bind events for grid manipulation
         self.canvas.bind('<ButtonPress-1>', self.start_move)  # Move grid
         self.canvas.bind('<B1-Motion>', self.move_grid)
-        self.canvas.bind('<MouseWheel>', self.scale_grid)  # Windows/Linux, Zoom in/out
         self.canvas.bind('<Button-4>', self.scale_grid)  # Linux scroll up
         self.canvas.bind('<Button-5>', self.scale_grid)  # Linux scroll down
-        self.canvas.bind('<Shift-MouseWheel>', self.rotate_grid)  # Rotate grid
-
+        self.canvas.bind('<Shift-MouseWheel>', self.rotate_grid)
+        self.canvas.bind('<Control-MouseWheel>', self.zoom_image)  # For zoom and rotation
+        self.pan_start_x = None
+        self.pan_start_y = None
+        self.canvas.bind("<ButtonPress-2>", self.start_pan)
+        self.canvas.bind("<B2-Motion>", self.pan_image)
         # Menu for additional actions
         menu = tk.Menu(self.master)
         self.master.config(menu=menu)
@@ -35,13 +38,16 @@ class GridOverlayApp:
         # Image related attributes
         self.image = None
         self.photo_image = None
+        self.zoom_level = 1
+        self.image_on_canvas = None
 
         # Grid related attributes
         self.grid_lines = []
         self.grid_size = 50
         self.grid_color = 'blue'
         self.rotation_angle = 0
-
+        self.pan_start_x = None
+        self.pan_start_y = None
         # Store the start position for moving the grid
         self.start_x = None
         self.start_y = None
@@ -52,14 +58,30 @@ class GridOverlayApp:
         # Set initial grid size
         self.grid_size = self.grid_size_slider.get()
     
+    def start_pan(self, event):
+        self.pan_start_x = event.x
+        self.pan_start_y = event.y
     
+    def on_mouse_wheel(self, event):
+        if event.state == 1:  # Shift key pressed
+            self.rotate_grid(angle_degrees=event.delta / 120)
+        elif event.state == 4:  # Ctrl key pressed
+            self.zoom_image(zoom_in=event.delta > 0)
+        
     def update_grid_size(self, event=None):
         new_grid_size = self.grid_size_slider.get()
         if new_grid_size != self.grid_size:
             self.grid_size = new_grid_size
             self.draw_grid()
 
+    def pan_image(self, event):
+        dx = event.x - self.pan_start_x
+        dy = event.y - self.pan_start_y
+        self.canvas.scan_dragto(event.x, event.y, gain=1)
 
+        # Update the start point for the next pan
+        self.pan_start_x = event.x
+        self.pan_start_y = event.y
 
     def load_image(self):
         file_path = filedialog.askopenfilename()
@@ -68,26 +90,22 @@ class GridOverlayApp:
 
         # Load the image with PIL
         self.image = Image.open(file_path)
+        self.photo_image = ImageTk.PhotoImage(self.image)
 
-        # Resize the image to fit the canvas, maintaining aspect ratio
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
-        img_width, img_height = self.image.size
+        # Create an image item on the canvas and keep a reference to it
+        if self.image_on_canvas is not None:
+            self.canvas.delete(self.image_on_canvas)
+        self.image_on_canvas = self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo_image)
 
-        # Calculate the new size to fit the canvas
-        scale_width = canvas_width / img_width
-        scale_height = canvas_height / img_height
-        scale_factor = min(scale_width, scale_height)
+        # Set the initial zoom level
+        self.zoom_level = 1
 
-        # Avoid upscaling the image if it's smaller than the canvas
-        scale_factor = min(scale_factor, 1)
+        # Update the scroll region to the size of the image
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
 
-        new_width = int(img_width * scale_factor)
-        new_height = int(img_height * scale_factor)
+        # Draw the grid on the image
+        self.draw_grid()
 
-        # Resize and display the image
-        self.image = self.image.resize((new_width, new_height), Image.LANCZOS)
-        self.display_image()
 
 
     def display_image(self):
@@ -138,9 +156,13 @@ class GridOverlayApp:
         self.draw_grid()
 
     
-    def rotate_grid(self, event=None, angle_degrees=5):
-        self.rotation_angle = (self.rotation_angle + angle_degrees) % 360
-        self.draw_grid()
+    def rotate_grid(self, event):
+            # Adjust rotation amount based on OS
+            rotation_amount = event.delta
+            if os.name == 'nt':  # Windows
+                rotation_amount /= 120
+            self.rotation_angle = (self.rotation_angle + rotation_amount) % 360
+            self.draw_grid()
 
 
     def rotate_point(self, point, origin):
@@ -154,6 +176,33 @@ class GridOverlayApp:
     def save_data(self):
         # Code to save grid data to file
         pass
+
+    def scale_image(self, zoom_in):
+        scale_factor = 1.1 if zoom_in else 0.9
+        self.canvas.scale("all", 0, 0, scale_factor, scale_factor)
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+    
+    def zoom_image(self, event):
+        # Zoom in or out
+        zoom_factor = 1.1
+        if event.delta > 0:  # Zoom in
+            self.zoom_level *= zoom_factor
+        else:  # Zoom out
+            self.zoom_level /= zoom_factor
+
+        # Resize the image
+        new_width = int(self.image.size[0] * self.zoom_level)
+        new_height = int(self.image.size[1] * self.zoom_level)
+        resized_image = self.image.resize((new_width, new_height), Image.LANCZOS)
+
+        # Update the image on the canvas
+        self.photo_image = ImageTk.PhotoImage(resized_image)
+        self.canvas.itemconfig(self.image_on_canvas, image=self.photo_image)
+
+        # Update the scroll region
+        self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
+
+import os
 
 if __name__ == '__main__':
     root = tk.Tk()
