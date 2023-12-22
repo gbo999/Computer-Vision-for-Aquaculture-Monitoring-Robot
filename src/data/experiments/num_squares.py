@@ -1,45 +1,101 @@
-import cv2
-import numpy as np
 
-# Load the image
-image = cv2.imread('path_to_your_image.png')
+# Load your image
+import tkinter as tk
+from tkinter import filedialog
+from PIL import Image, ImageTk
 
-# Convert to grayscale
-gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+class GridOverlayApp:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Grid Overlay App")
 
-# Apply a blur to the grayscale image
-blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        # Create a canvas for image display
+        self.canvas = tk.Canvas(self.master, bg='white', width=800, height=600)
+        self.canvas.pack(expand=tk.YES, fill=tk.BOTH)
 
-# Threshold the image to get a binary image of the prawn
-_, thresholded_image = cv2.threshold(blurred_image, your_threshold_value, 255, cv2.THRESH_BINARY)
+        # Bind events for grid manipulation
+        self.canvas.bind('<ButtonPress-1>', self.start_move)  # Move grid
+        self.canvas.bind('<B1-Motion>', self.move_grid)
+        self.canvas.bind('<MouseWheel>', self.scale_grid)  # Windows/Linux, Zoom in/out
+        self.canvas.bind('<Button-4>', self.scale_grid)  # Linux scroll up
+        self.canvas.bind('<Button-5>', self.scale_grid)  # Linux scroll down
+        self.canvas.bind('<Shift-MouseWheel>', self.rotate_grid)  # Rotate grid
 
-# Perform morphological operations
-kernel = np.ones((5, 5), np.uint8)
-cleaned_image = cv2.morphologyEx(thresholded_image, cv2.MORPH_OPEN, kernel)
+        # Menu for additional actions
+        menu = tk.Menu(self.master)
+        self.master.config(menu=menu)
+        file_menu = tk.Menu(menu, tearoff=0)
+        menu.add_cascade(label='File', menu=file_menu)
+        file_menu.add_command(label='Open Image', command=self.load_image)
+        file_menu.add_command(label='Save Grid Data', command=self.save_data)
+        file_menu.add_separator()
+        file_menu.add_command(label='Exit', command=self.master.quit)
 
-# Find contours of the prawn
-contours, _ = cv2.findContours(cleaned_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # Image related attributes
+        self.image = None
+        self.photo_image = None
 
-# Assuming the largest contour is the prawn
-prawn_contour = max(contours, key=cv2.contourArea)
+        # Grid related attributes
+        self.grid_lines = []
+        self.grid_size = 50
+        self.grid_color = 'blue'
+        self.rotation_angle = 0
 
-# Calculate the bounding rectangle around the prawn
-x, y, w, h = cv2.boundingRect(prawn_contour)
+        # Store the start position for moving the grid
+        self.start_x = None
+        self.start_y = None
 
-# Assume you know the size of a grid square (e.g., grid_square_size in cm or mm)
-grid_square_size = your_grid_square_size
+    def load_image(self):
+        file_path = filedialog.askopenfilename()
+        if not file_path:
+            return
 
-# Estimate the number of squares covered
-num_squares_width = w / grid_square_size
-num_squares_height = h / grid_square_size
+        self.image = Image.open(file_path)
+        self.photo_image = ImageTk.PhotoImage(self.image)
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.photo_image)
+        self.draw_grid()
 
-# Assuming the prawn is approximately rectangular and covers a full grid square
-num_squares_covered = int(round(num_squares_width)) * int(round(num_squares_height))
+    def draw_grid(self):
+        img_width, img_height = self.image.size
+        for i in range(0, img_width, self.grid_size):
+            line = self.canvas.create_line(i, 0, i, img_height, fill=self.grid_color)
+            self.grid_lines.append(line)
+        for i in range(0, img_height, self.grid_size):
+            line = self.canvas.create_line(0, i, img_width, i, fill=self.grid_color)
+            self.grid_lines.append(line)
 
-print(f"The prawn covers approximately {num_squares_covered} squares.")
+    def clear_grid(self):
+        for line in self.grid_lines:
+            self.canvas.delete(line)
+        self.grid_lines.clear()
 
-# Display the result
-cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-cv2.imshow('Prawn', image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+
+    def start_move(self, event):
+        self.start_x = event.x
+        self.start_y = event.y
+
+    def move_grid(self, event):
+        dx = event.x - self.start_x
+        dy = event.y - self.start_y
+        for line in self.grid_lines:
+            self.canvas.move(line, dx, dy)
+        self.start_x = event.x
+        self.start_y = event.y
+
+    def scale_grid(self, event):
+        scale_factor = 1.1 if event.delta > 0 else 0.9
+        self.grid_size = int(self.grid_size * scale_factor)
+        self.draw_grid()
+
+    def rotate_grid(self, event):
+        # Code to handle rotating the grid
+        pass
+
+    def save_data(self):
+        # Code to save grid data to file
+        pass
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    app = GridOverlayApp(root)
+    root.mainloop()

@@ -4,7 +4,7 @@ import cv2
 
 # Load the image using OpenCV
 # Please ensure the path is correct for your system or pass it as a parameter
-image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/prawn.png'
+image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/num.png'
 image = cv2.imread(image_path)
 image_to_show = image.copy()
 

@@ -49,7 +49,7 @@ def calculate_distance(focal_length, real_width, width_in_pixels, pixel_size):
 
 # Example usage
 focal_length = 24.4  # Focal length in millimeters
-distance_to_object = 700 # Distance to object in millimeters
+distance_to_object = 670 # Distance to object in millimeters
 width_in_pixels = 586 # Width of the object in pixels
 pixel_size =0.00716844   # Pixel size in millimeters (0.8 micrometers)
 
