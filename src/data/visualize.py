@@ -39,4 +39,4 @@ def visualize_labels(image_folder, label_folder, output_folder):
         cv2.imwrite(os.path.join(output_folder, image_name), image_with_boxes)
 
 # Example usage
-visualize_labels('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/train/images', 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/train/labelTxt', 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/viz')
+visualize_labels('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/valid/images', 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/valid/labelTxt', 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/viz')

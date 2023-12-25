@@ -2,7 +2,7 @@ import cv2
 import os
 import numpy as np
 
-def resize_image(image_path, target_size=(640, 352)):
+def resize_image(image_path, target_size=(640, 640)):
     image = cv2.imread(image_path)
     return cv2.resize(image, target_size)
 
@@ -28,7 +28,7 @@ def adjust_labels(label_path, orig_size, target_size):
 
     return new_lines
 
-def process_images_and_labels(images_folder, labels_folder, output_images_folder, output_labels_folder, target_size=(640, 352)):
+def process_images_and_labels(images_folder, labels_folder, output_images_folder, output_labels_folder, target_size=(640, 640)):
     for image_name in os.listdir(images_folder):
         image_path = os.path.join(images_folder, image_name)
         label_path = os.path.join(labels_folder, os.path.splitext(image_name)[0] + '.txt')
@@ -44,4 +44,4 @@ def process_images_and_labels(images_folder, labels_folder, output_images_folder
             file.writelines(adjusted_labels)
 
 # Example usage
-process_images_and_labels('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/false/valid/images', 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/false/valid/labelTxt', "C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/valid/images", "C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/valid/labelTxt")
+process_images_and_labels('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/false/train/images', 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/false/train/labelTxt', "C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/train/images", "C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/train/labelTxt")
