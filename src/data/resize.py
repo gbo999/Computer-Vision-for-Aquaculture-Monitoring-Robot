@@ -1,0 +1,47 @@
+import cv2
+import os
+import numpy as np
+
+def resize_image(image_path, target_size=(640, 352)):
+    image = cv2.imread(image_path)
+    return cv2.resize(image, target_size)
+
+def adjust_labels(label_path, orig_size, target_size):
+    with open(label_path, 'r') as file:
+        lines = file.readlines()
+    
+    new_lines = []
+    for line in lines:
+        parts = line.strip().split()
+        coords = list(map(float, parts[:8]))  # Extracting the coordinates
+        class_name, difficulty = parts[8], parts[9]
+
+        # Scale coordinates
+        scaled_coords = []
+        for i in range(0, len(coords), 2):  # Processing x, y pairs
+            x_scaled = coords[i] * target_size[0] / orig_size[0]
+            y_scaled = coords[i + 1] * target_size[1] / orig_size[1]
+            scaled_coords.extend([x_scaled, y_scaled])
+
+        new_line = ' '.join(map(str, scaled_coords)) + f" {class_name} {difficulty}\n"
+        new_lines.append(new_line)
+
+    return new_lines
+
+def process_images_and_labels(images_folder, labels_folder, output_images_folder, output_labels_folder, target_size=(640, 352)):
+    for image_name in os.listdir(images_folder):
+        image_path = os.path.join(images_folder, image_name)
+        label_path = os.path.join(labels_folder, os.path.splitext(image_name)[0] + '.txt')
+
+        resized_image = resize_image(image_path, target_size)
+        adjusted_labels = adjust_labels(label_path, (640, 360), target_size)
+
+        # Save resized image
+        cv2.imwrite(os.path.join(output_images_folder, image_name), resized_image)
+
+        # Save adjusted labels
+        with open(os.path.join(output_labels_folder, os.path.splitext(image_name)[0] + '.txt'), 'w') as file:
+            file.writelines(adjusted_labels)
+
+# Example usage
+process_images_and_labels('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/false/valid/images', 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/false/valid/labelTxt', "C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/valid/images", "C:/Users/gbo10/Videos/research/counting_research_algorithms/src/true/valid/labelTxt")
