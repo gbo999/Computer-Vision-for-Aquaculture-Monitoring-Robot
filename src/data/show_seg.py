@@ -35,7 +35,8 @@ def draw_diameter_line(img, points, focal_length, distance_to_object, pixel_size
     # Calculate the scaling factor due to image resizing
     scale_width = original_size[0] / resized_size[0]
     scale_height = original_size[1] / resized_size[1]
-    
+    length_in_squares = max_distance / 6
+
     # Assuming the scaling factor is the same for width and height
     # If not, you need to calculate the width and height separately
     scale_factor = (scale_width + scale_height) / 2
@@ -49,6 +50,8 @@ def draw_diameter_line(img, points, focal_length, distance_to_object, pixel_size
     # Draw the real-life width as text on the image
     text_position = (min(point1[0], point2[0]), min(point1[1], point2[1]) - 10)  # Adjust text position as needed
     cv2.putText(img, f"{real_width_cm:.2f} mm", text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    text_position_squares = (text_position[0], text_position[1] - 20)
+    cv2.putText(img, f"{length_in_squares:.2f} squares", text_position_squares, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
 
  # Resized image size (width, height)
 
@@ -75,7 +78,27 @@ def calculate_real_width(focal_length, distance_to_object, width_in_pixels, pixe
     real_width_cm = real_width_mm 
 
     return real_width_cm
+def diameter_length_in_squares(points, square_size_pixels):
+    # Find the two farthest points in the segmentation
+    max_distance = 0
+    point1 = points[0][0]
+    point2 = points[0][0]
 
+    for i in range(len(points)):
+        for j in range(i + 1, len(points)):
+            p1 = points[i][0]
+            p2 = points[j][0]
+            distance = np.linalg.norm(p1 - p2)
+            if distance > max_distance:
+                max_distance = distance
+                point1 = p1
+                point2 = p2
+
+    # Calculate the length of the diameter in squares
+    length_in_squares = max_distance / square_size_pixels
+    return length_in_squares
+    
+    return covered_squares
 def process_image(image_path, label_path):
     # Load the image and resize
     img = cv2.imread(image_path)
@@ -91,6 +114,11 @@ def process_image(image_path, label_path):
             points = [(float(parts[i]), float(parts[i + 1])) for i in range(1, len(parts) - 1, 2)]
             pts = draw_polygon(img, class_id, points)
             draw_diameter_line(img, pts,focal_length=24.4, distance_to_object=670, pixel_size=0.00716844, original_size=(5312, 2988), resized_size=(640, 360))
+            square_size_pixels = 6 # size of a 10x10 mm square in pixels
+# Calculate the length of the diameter in squares
+            length_in_squares = diameter_length_in_squares(pts, square_size_pixels)
+            print(f"The diameter is approximately {length_in_squares:.2f} squares long.")
+
 
     # Display the image
     cv2.imshow('Segmented Image with Diameters', img)
@@ -99,3 +127,8 @@ def process_image(image_path, label_path):
 # Example usage
 process_image('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/to_colab/valid/images/GX010063_MP4-37_jpg.rf.1e299b123582106ea7e5baa9dd3cc866.jpg'
 , 'C:/Users/gbo10/Dropbox/research videos/21.12/seg/zipfile (2)/content/runs/segment/predict/labels/GX010063_MP4-37_jpg.rf.1e299b123582106ea7e5baa9dd3cc866.txt')
+
+
+
+# You would call this function with your list of polygons and the size of a square in pixels
+# This requires you to calculate 'square_size_pixels' based on your image scale
