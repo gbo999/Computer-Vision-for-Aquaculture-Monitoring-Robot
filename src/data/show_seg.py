@@ -90,103 +90,12 @@ def process_image(image_path, label_path):
             class_id = int(parts[0])
             points = [(float(parts[i]), float(parts[i + 1])) for i in range(1, len(parts) - 1, 2)]
             pts = draw_polygon(img, class_id, points)
-            draw_diameter_line(img, pts,focal_length=24.4, distance_to_object=700, pixel_size=0.00716844, original_size=(5312, 2988), resized_size=(640, 360))
+            draw_diameter_line(img, pts,focal_length=24.4, distance_to_object=670, pixel_size=0.00716844, original_size=(5312, 2988), resized_size=(640, 360))
 
-    return img
     # Display the image
-    # cv2.imshow('Segmented Image with Diameters', img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    cv2.imshow('Segmented Image with Diameters', img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 # Example usage
-
-import cv2
-import numpy as np
-from tkinter import *
-from PIL import Image, ImageTk
-
-# ... (Other function definitions remain unchanged) ...
-
-# Initialize global variables for grid position and size
-grid_x = 0
-grid_y = 0
-grid_size = 20  # Initial grid size
-grid_angle = 0  # Initial grid rotation angle
-
-def draw_grid_overlay(img, offset_x, offset_y, size, angle):
-    # Create a new transparent overlay
-    overlay = np.zeros_like(img, dtype=np.uint8)
-
-    # Calculate rotation matrix
-    rows, cols, _ = img.shape
-    M = cv2.getRotationMatrix2D((cols/2, rows/2), angle, 1)
-    
-    # Draw the grid lines on the overlay
-    for i in range(0, rows, size):
-        cv2.line(overlay, (0, i), (cols, i), (0, 255, 0), 1)
-    for j in range(0, cols, size):
-        cv2.line(overlay, (j, 0), (j, rows), (0, 255, 0), 1)
-
-    # Apply rotation to the grid
-    rotated_overlay = cv2.warpAffine(overlay, M, (cols, rows))
-    
-    # Apply the offset to the grid
-    M_offset = np.float32([[1, 0, offset_x], [0, 1, offset_y]])
-    translated_overlay = cv2.warpAffine(rotated_overlay, M_offset, (cols, rows))
-
-    # Blend the overlay with the original image
-    combined_img = cv2.addWeighted(img, 1, translated_overlay, 0.5, 0)
-
-    return combined_img
-
-def update_canvas(canvas, img, window):
-    # Convert the processed image to PIL format and then to ImageTk format
-    tk_img = ImageTk.PhotoImage(image=Image.fromarray(img))
-    
-    # If the canvas already has an image, remove it
-    canvas.delete("all")
-    
-    # Add the new image to the canvas
-    canvas.create_image(0, 0, image=tk_img, anchor=NW)
-    canvas.image = tk_img  # Keep a reference!
-    
-    # Update the window
-    window.update()
-
-def main():
-    # Process the image and get the result
-    img = process_image('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/to_colab/valid/images/GX010063_MP4-37_jpg.rf.1e299b123582106ea7e5baa9dd3cc866.jpg'
+process_image('C:/Users/gbo10/Videos/research/counting_research_algorithms/src/to_colab/valid/images/GX010063_MP4-37_jpg.rf.1e299b123582106ea7e5baa9dd3cc866.jpg'
 , 'C:/Users/gbo10/Dropbox/research videos/21.12/seg/zipfile (2)/content/runs/segment/predict/labels/GX010063_MP4-37_jpg.rf.1e299b123582106ea7e5baa9dd3cc866.txt')
-    original_img = img.copy()
-
-    # Create the main window and canvas
-    window = Tk()
-    window.title("Grid Overlay Interface")
-    canvas = Canvas(window, width=img.shape[1], height=img.shape[0])
-    canvas.pack()
-
-    # Add sliders for grid control
-    size_slider = Scale(window, from_=2, to=100, orient=HORIZONTAL, label="Grid Size")
-    size_slider.pack()
-    angle_slider = Scale(window, from_=-180, to=180, orient=HORIZONTAL, label="Grid Angle")
-    angle_slider.pack()
-    
-    # Function to update the grid based on slider values
-    def update_grid(event):
-        global grid_size, grid_angle
-        grid_size = size_slider.get()
-        grid_angle = angle_slider.get()
-        updated_img = draw_grid_overlay(original_img, grid_x, grid_y, grid_size, grid_angle)
-        update_canvas(canvas, updated_img, window)
-
-    # Bind the sliders to the update function
-    size_slider.bind("<B1-Motion>", update_grid)
-    angle_slider.bind("<B1-Motion>", update_grid)
-    
-    # Start with an initial grid
-    update_grid(None)
-
-    # Start the GUI event loop
-    window.mainloop()
-
-if __name__ == "__main__":
-    main()
