@@ -84,7 +84,7 @@ yolo_output = [
 
 # Image dimensions (replace with actual dimensions of your images)
 image_width = 640
-image_height = 480
+image_height = 640
 
 # Convert YOLO output to pixel coordinates
 pixel_coordinates = convert_to_pixel_coordinates(yolo_output, image_width, image_height)
