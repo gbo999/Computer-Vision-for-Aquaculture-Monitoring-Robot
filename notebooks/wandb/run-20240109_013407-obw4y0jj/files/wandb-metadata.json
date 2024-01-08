@@ -1,0 +1,52 @@
+{
+    "os": "Windows-10-10.0.22621-SP0",
+    "python": "3.9.7",
+    "heartbeatAt": "2024-01-08T23:34:09.093594",
+    "startedAt": "2024-01-08T23:34:07.727326",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "<python with no main file>",
+    "codePathLocal": null,
+    "git": {
+        "remote": "https://github.com/gbo999/counting_research_algorithms.git",
+        "commit": "f7b1808583d5d415e881f0f524ae29c42cb77261"
+    },
+    "email": "gbo10001@gmail.com",
+    "root": "C:/Users/gbo10/Videos/research/counting_research_algorithms",
+    "host": "DESKTOP-TOB5LPP",
+    "username": "gbo10",
+    "executable": "c:\\Users\\gbo10\\Videos\\research\\counting_research_algorithms\\.venv\\Scripts\\python.exe",
+    "cpu_count": 6,
+    "cpu_count_logical": 12,
+    "cpu_freq": {
+        "current": 2592.0,
+        "min": 0.0,
+        "max": 2592.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2592.0,
+            "min": 0.0,
+            "max": 2592.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 931.4257774353027,
+            "used": 656.0526695251465
+        }
+    },
+    "gpu": "NVIDIA GeForce GTX 1660 Ti",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce GTX 1660 Ti",
+            "memory_total": 6442450944
+        }
+    ],
+    "memory": {
+        "total": 15.76727294921875
+    }
+}

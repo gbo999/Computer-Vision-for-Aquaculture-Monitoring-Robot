@@ -1,10 +1,7 @@
 from typing import Any, Callable, Dict, List, Optional
 
 from ultralytics import YOLO
-from ultralytics.yolo.engine.trainer import BaseTrainer
-from ultralytics.yolo.utils import RANK
-from ultralytics.yolo.utils.torch_utils import get_flops, get_num_params
-from ultralytics.yolo.v8.classify.train import ClassificationTrainer
+
 
 import wandb
 from wandb.sdk.lib import telemetry
@@ -213,112 +210,93 @@ class WandbCallback:
         self.resume = resume
         self.kwargs = kwargs
 
-    def on_pretrain_routine_start(self, trainer: BaseTrainer) -> None:
+    def on_pretrain_routine_start(self, trainer) -> None:
         """Starts a new wandb run to track the training process and log to Weights & Biases.
 
         Args:
             trainer: A task trainer that's inherited from `:class:ultralytics.yolo.engine.trainer.BaseTrainer`
                     that contains the model training and optimization routine.
         """
-        if wandb.run is None:
-            self.run = wandb.init(
-                name=self.run_name if self.run_name else trainer.args.name,
-                project=self.project
-                if self.project
-                else trainer.args.project or "YOLOv8",
-                tags=self.tags if self.tags else ["YOLOv8"],
-                config=vars(trainer.args),
-                save_code=True,
-                resume=self.resume if self.resume else None,
-                **self.kwargs,
-            )
-        else:
-            self.run = wandb.run
-        self.run.define_metric("epoch", hidden=True)
-        self.run.define_metric(
-            "train/*", step_metric="epoch", step_sync=True, summary="min"
+        
+        self.run = wandb.init(
+            name=self.run_name if self.run_name else trainer.args.name,
+            project=self.project
+            if self.project
+            else trainer.args.project or "YOLOv8",
+            tags=self.tags if self.tags else ["YOLOv8"],
+            config=vars(trainer.args),
+            save_code=True,
+            resume=self.resume if self.resume else None,
+            **self.kwargs,
         )
+       
 
-        self.run.define_metric(
-            "val/*", step_metric="epoch", step_sync=True, summary="min"
-        )
+    # def on_pretrain_routine_end(self, trainer: BaseTrainer) -> None:
+    #     self.run.summary.update(
+    #         {
+    #             "model/parameters": get_num_params(trainer.model),
+    #             "model/GFLOPs": round(get_flops(trainer.model), 3),
+    #         }
+    #     )
 
-        self.run.define_metric(
-            "metrics/*", step_metric="epoch", step_sync=True, summary="max"
-        )
-        self.run.define_metric(
-            "lr/*", step_metric="epoch", step_sync=True, summary="last"
-        )
-
-        with telemetry.context(run=wandb.run) as tel:
-            tel.feature.ultralytics_yolov8 = True
-
-    def on_pretrain_routine_end(self, trainer: BaseTrainer) -> None:
-        self.run.summary.update(
-            {
-                "model/parameters": get_num_params(trainer.model),
-                "model/GFLOPs": round(get_flops(trainer.model), 3),
-            }
-        )
-
-    def on_train_epoch_start(self, trainer: BaseTrainer) -> None:
-        """On train epoch start we only log epoch number to the Weights & Biases run."""
-        # We log the epoch number here to commit the previous step,
-        self.run.log({"epoch": trainer.epoch + 1})
+    # def on_train_epoch_start(self, trainer: BaseTrainer) -> None:
+    #     """On train epoch start we only log epoch number to the Weights & Biases run."""
+    #     # We log the epoch number here to commit the previous step,
+    #     self.run.log({"epoch": trainer.epoch + 1})
 
   
 
-        # Currently only the detection and segmentation trainers save images to the save_dir
-        if not isinstance(trainer, ClassificationTrainer):
-            self.run.log(
-                {
-                    "train_batch_images": [
-                        wandb.Image(str(image_path), caption=image_path.stem)
-                        for image_path in trainer.save_dir.glob("train_batch*.jpg")
-                    ]
-                }
-            )
+        # # Currently only the detection and segmentation trainers save images to the save_dir
+        # if not isinstance(trainer, ClassificationTrainer):
+        #     self.run.log(
+        #         {
+        #             "train_batch_images": [
+        #                 wandb.Image(str(image_path), caption=image_path.stem)
+        #                 for image_path in trainer.save_dir.glob("train_batch*.jpg")
+        #             ]
+        #         }
+        #     )
 
-    def on_fit_epoch_end(self, trainer: BaseTrainer) -> None:
-        """On fit epoch end we log all the best metrics and model detail to Weights & Biases run summary."""
-        if trainer.epoch == 0:
-            speeds = [
-                trainer.validator.speed.get(
-                    key,
-                )
-                for key in (1, "inference")
-            ]
-            speed = speeds[0] if speeds[0] else speeds[1]
-            if speed:
-                self.run.summary.update(
-                    {
-                        "model/speed(ms/img)": round(speed, 3),
-                    }
-                )
-        if trainer.best_fitness == trainer.fitness:
-            self.run.summary.update(
-                {
-                    "best/epoch": trainer.epoch + 1,
-                    **{f"best/{key}": val for key, val in trainer.metrics.items()},
-                }
-            )
+    # def on_fit_epoch_end(self, trainer: BaseTrainer) -> None:
+    #     """On fit epoch end we log all the best metrics and model detail to Weights & Biases run summary."""
+    #     if trainer.epoch == 0:
+    #         speeds = [
+    #             trainer.validator.speed.get(
+    #                 key,
+    #             )
+    #             for key in (1, "inference")
+    #         ]
+    #         speed = speeds[0] if speeds[0] else speeds[1]
+    #         if speed:
+    #             self.run.summary.update(
+    #                 {
+    #                     "model/speed(ms/img)": round(speed, 3),
+    #                 }
+    #             )
+    #     if trainer.best_fitness == trainer.fitness:
+    #         self.run.summary.update(
+    #             {
+    #                 "best/epoch": trainer.epoch + 1,
+    #                 **{f"best/{key}": val for key, val in trainer.metrics.items()},
+    #             }
+    #         )
 
-    def on_train_end(self, trainer: BaseTrainer) -> None:
-        """On train end we log all the media, including plots, images and best model artifact to Weights & Biases."""
-        # Currently only the detection and segmentation trainers save images to the save_dir
-        if not isinstance(trainer, ClassificationTrainer):
-            self.run.log(
-                {
-                    "plots": [
-                        wandb.Image(str(image_path), caption=image_path.stem)
-                        for image_path in trainer.save_dir.glob("*.png")
-                    ],
-                    "val_images": [
-                        wandb.Image(str(image_path), caption=image_path.stem)
-                        for image_path in trainer.validator.save_dir.glob("val*.jpg")
-                    ],
-                },
-            )
+    # def on_train_end(self, trainer: BaseTrainer) -> None:
+    #     """On train end we log all the media, including plots, images and best model artifact to Weights & Biases."""
+    #     # Currently only the detection and segmentation trainers save images to the save_dir
+    #     if not isinstance(trainer, ClassificationTrainer):
+    #         self.run.log(
+    #             {
+    #                 "plots": [
+    #                     wandb.Image(str(image_path), caption=image_path.stem)
+    #                     for image_path in trainer.save_dir.glob("*.png")
+    #                 ],
+    #                 "val_images": [
+    #                     wandb.Image(str(image_path), caption=image_path.stem)
+    #                     for image_path in trainer.validator.save_dir.glob("val*.jpg")
+    #                 ],
+    #             },
+    #         )
 
         if trainer.best.exists():
             self.run.log_artifact(
@@ -328,7 +306,7 @@ class WandbCallback:
                 aliases=["best", f"epoch_{trainer.epoch + 1}"],
             )
 
-    def on_model_save(self, trainer: BaseTrainer) -> None:
+    def on_model_save(self, trainer) -> None:
 
       if trainer.best_fitness == trainer.fitness:
            
