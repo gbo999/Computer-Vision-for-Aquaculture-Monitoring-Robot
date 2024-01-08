@@ -66,8 +66,10 @@ class ImageViewer:
     def navigate_images(self, key):
         if key == 'd' and self.current_index < len(self.images) - 1:
             self.current_index += 1
+            self.current_segmentation_index = 0  # Reset segmentation index
         elif key == 'a' and self.current_index > 0:
             self.current_index -= 1
+            self.current_segmentation_index = 0  # Reset segmentation index
 
     def navigate_segmentations(self, key):
         if key == 'z' and self.current_segmentation_index > 0:
@@ -78,5 +80,20 @@ class ImageViewer:
             self.show_image()  
 
     def run_viewer(self):
-        # Main loop to capture key presses and show images
-        pass
+       while True:
+            self.show_image()
+            key = cv2.waitKey(0) & 0xFF
+            if key == ord('d'):
+                self.navigate_images('d')
+            elif key == ord('a'):
+                self.navigate_images('a')
+            elif key == ord('c'):
+                self.navigate_segmentations('c')
+            elif key == ord('z'):
+                self.navigate_segmentations('z')
+            elif key == ord('q'):  # Add a 'quit' option
+                break
+
+            # Refresh the display after navigation
+            cv2.destroyAllWindows()
+        
