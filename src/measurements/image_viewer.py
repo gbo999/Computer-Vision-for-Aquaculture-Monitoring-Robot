@@ -43,9 +43,9 @@ class ImageViewer:
         if len(points) > 2:
             pixel_points = self._convert_to_pixels(points, image.shape[1], image.shape[0])
             cv2.polylines(image, [np.array(pixel_points, dtype=np.int32)], isClosed=True, color=(0, 255, 0), thickness=2)
-            # center, radius = minimum_enclosing_circle(pixel_points)
-            # if center and radius:
-            #     cv2.circle(image, (int(center[0]), int(center[1])), int(radius), (0, 0, 255), 2)
+            center, radius = minimum_enclosing_circle(pixel_points)
+            if center and radius:
+                cv2.circle(image, (int(center[0]), int(center[1])), int(radius), (0, 0, 255), 2)
 
     def _convert_to_pixels(self, normalized_points, image_width, image_height):
         pixel_points = []

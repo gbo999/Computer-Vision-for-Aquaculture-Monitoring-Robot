@@ -16,7 +16,7 @@ def get_circle_center(bx, by, cx, cy):
     B = bx * bx + by * by
     C = cx * cx + cy * cy
     D = bx * cy - by * cx
-    return [(cy * B - by * C) / (2 * D), (bx * C - cx * B) / (2 * D)]
+    return [(cy * B - by * C) / ((2 * D)+0.000001), (bx * C - cx * B) /((2 * D)+0.000001)]
 
 # Function to return a unique circle that intersects three points
 def circle_from(A, B, C):
