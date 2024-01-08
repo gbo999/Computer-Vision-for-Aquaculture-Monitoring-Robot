@@ -23,6 +23,7 @@ class ImageViewer:
 
     def show_image(self):
         if self.current_image_index < len(self.images):
+            print(f'current_image_index {self.current_image_index}')
             # Reload the image to clear previous annotations
             image_path = os.path.join(self.image_dir, self.images[self.current_image_index])
             image = cv2.imread(image_path)
@@ -58,6 +59,7 @@ class ImageViewer:
 
     def navigate_images(self, key):
         if key == 'd' and self.current_image_index < len(self.images) - 1:
+            print(f'key was pressed {key}')
             self.current_image_index += 1
             self.current_segmentation_index = 0  # Reset segmentation index
         elif key == 'a' and self.current_image_index > 0:
@@ -72,21 +74,42 @@ class ImageViewer:
             self.current_segmentation_index += 1
             self.show_image()  
 
+
     def run_viewer(self):
-       while True:
+        import keyboard  # Make sure to import the keyboard library
+
+        while True:
             self.show_image()
-            key = cv2.waitKey(0) & 0xFF
-            if key == ord('d'):
+
+            # Wait for a key press
+            key = None
+            while True:
+                if keyboard.is_pressed('d'):
+                    key = 'd'
+                    break
+                elif keyboard.is_pressed('a'):
+                    key = 'a'
+                    break
+                elif keyboard.is_pressed('c'):
+                    key = 'c'
+                    break
+                elif keyboard.is_pressed('z'):
+                    key = 'z'
+                    break
+                elif keyboard.is_pressed('q'):  # Using 'q' to quit
+                    key = 'q'
+                    break
+
+            if key == 'd':
                 self.navigate_images('d')
-            elif key == ord('a'):
+            elif key == 'a':
                 self.navigate_images('a')
-            elif key == ord('c'):
+            elif key == 'c':
                 self.navigate_segmentations('c')
-            elif key == ord('z'):
+            elif key == 'z':
                 self.navigate_segmentations('z')
-            elif key == ord('q'):  # Add a 'quit' option
+            elif key == 'q':
                 break
 
-            # Refresh the display after navigation
             cv2.destroyAllWindows()
-        
+
