@@ -1,8 +1,12 @@
 import math
+from enclosing_circle import minimum_enclosing_circle
 
-def calculate_enclosing_diameter(bounding_box):
+def calculate_enclosing_diameter(points):
     # Function to calculate the diameter of the bounding circle based on the bounding box
-    pass
+    mec=minimum_enclosing_circle(points)
+
+    return  round(mec[1], 6)*2
+
 
 def convert_pixel_to_real_length(pixel_length):
     # Function to convert pixel length to real-world length
@@ -14,6 +18,11 @@ def convert_pixel_to_real_length(pixel_length):
     # If not, you need to calculate the width and height separately
     scale_factor = (scale_width + scale_height) / 2
     
+    height_of_camera=640
+    height_of_prawn=30
+
+    distance_to_object =  height_of_camera-height_of_prawn# Distance to object in millimeters
+
     # Scale the pixel measurement back to original dimensions
 
     # Calculate the real-life width of the object
