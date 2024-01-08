@@ -35,10 +35,13 @@ class ImageViewer:
     def _draw_annotations(self, image):
         label_path = os.path.join(self.label_dir, self.labels[self.current_image_index])
         with open(label_path, 'r') as file:
-           for line in file:
-            parts = line.split()
-            points = [(float(parts[i]), float(parts[i + 1])) for i in range(1, len(parts) - 1, 2)]
-            self._draw_single_annotation(image, points)
+            lines = file.readlines()
+
+            if self.current_segmentation_index < len(lines):
+                line = lines[self.current_segmentation_index]
+                parts = line.split()
+                points = [(float(parts[i]), float(parts[i + 1])) for i in range(1, len(parts) - 1, 2)]
+                self._draw_single_annotation(image, points)
 
     def _draw_single_annotation(self, image, points):
         if len(points) > 2:
@@ -69,10 +72,9 @@ class ImageViewer:
     def navigate_segmentations(self, key):
         if key == 'z' and self.current_segmentation_index > 0:
             self.current_segmentation_index -= 1
-            self.show_image()  # Refresh the image with the new segmentation
+             # Refresh the image with the new segmentation
         elif key == 'c' and self.current_segmentation_index < len(self.labels) - 1:
-            self.current_segmentation_index += 1
-            self.show_image()  
+            self.current_segmentation_index += 1 
 
 
     def run_viewer(self):
@@ -82,34 +84,21 @@ class ImageViewer:
             self.show_image()
 
             # Wait for a key press
-            key = None
             while True:
                 if keyboard.is_pressed('d'):
-                    key = 'd'
+                    self.navigate_images('d')
                     break
                 elif keyboard.is_pressed('a'):
-                    key = 'a'
+                    self.navigate_images('a')
                     break
                 elif keyboard.is_pressed('c'):
-                    key = 'c'
+                    self.navigate_segmentations('c')
                     break
                 elif keyboard.is_pressed('z'):
-                    key = 'z'
+                    self.navigate_segmentations('z')
                     break
                 elif keyboard.is_pressed('q'):  # Using 'q' to quit
-                    key = 'q'
                     break
 
-            if key == 'd':
-                self.navigate_images('d')
-            elif key == 'a':
-                self.navigate_images('a')
-            elif key == 'c':
-                self.navigate_segmentations('c')
-            elif key == 'z':
-                self.navigate_segmentations('z')
-            elif key == 'q':
-                break
-
+            # 
             cv2.destroyAllWindows()
-
