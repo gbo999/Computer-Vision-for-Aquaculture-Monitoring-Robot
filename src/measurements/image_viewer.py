@@ -9,42 +9,62 @@ class ImageViewer:
     def __init__(self, image_dir, label_dir):
         self.image_dir = image_dir
         self.label_dir = label_dir
-        self.current_image_index = 0
-        self.current_segmentation_index = 0
         self.images = self._load_images()
-        self.labels = self._load_labels()
+        self.current_image_name = self.images[0] if self.images else None
         self.length_by_calc = 0
-
+        self.current_segmentation_index = 0
+        self.labels=[]
     def _load_images(self):
-        images = [img for img in sorted(os.listdir(self.image_dir)) if img.endswith(('.png', '.jpg', '.jpeg'))]
-        print( f'len {len(images)}')
-        return images
+        return [img for img in sorted(os.listdir(self.image_dir)) if img.endswith(('.png', '.jpg', '.jpeg'))]
 
-    def _load_labels(self):
-        labels = [label for label in sorted(os.listdir(self.label_dir)) if label.endswith('.txt')]
-        return labels
+    def _load_labels(self,image_name):
+        label_name = os.path.splitext(image_name)[0] + '.txt'
+        return os.path.join(self.label_dir, label_name)
+   
+    def resize_image_to_screen(self,image, screen_width, screen_height, keep_aspect_ratio=True):
+        img_height, img_width = image.shape[:2]
+
+        if keep_aspect_ratio:
+            # Calculate the ratio of the screen dimensions to the image dimensions
+            width_ratio = screen_width / img_width
+            height_ratio = screen_height / img_height
+
+            # Use the smaller ratio to ensure the entire image fits within the screen
+            resize_ratio = min(width_ratio, height_ratio)
+            new_width = int(img_width * resize_ratio)
+            new_height = int(img_height * resize_ratio)
+
+            resized_image = cv2.resize(image, (new_width, new_height))
+        else:
+            resized_image = cv2.resize(image, (screen_width, screen_height))
+
+        return resized_image
 
     def show_image(self):
-        if self.current_image_index < len(self.images):
-            print(f'current_image_index {self.current_image_index}')
-            # Reload the image to clear previous annotations
-            image_path = os.path.join(self.image_dir, self.images[self.current_image_index])
+        if self.current_image_name:
+            image_path = os.path.join(self.image_dir, self.current_image_name)
             image = cv2.imread(image_path)
-            self._draw_annotations(image)
-            cv2.imshow('Image', image)
+            if image is None:
+                print(f"Failed to load image: {image_path}")
+                return
+            screen_width, screen_height = 1366, 768
+            resized_image = self.resize_image_to_screen(image, screen_width, screen_height, keep_aspect_ratio=False)
+            self._draw_annotations(resized_image)
+            cv2.imshow('Image', resized_image)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
     def _draw_annotations(self, image):
-        label_path = os.path.join(self.label_dir, self.labels[self.current_image_index])
-        with open(label_path, 'r') as file:
-            lines = file.readlines()
-
-            if self.current_segmentation_index < len(lines):
-                line = lines[self.current_segmentation_index]
-                parts = line.split()
-                points = [(float(parts[i]), float(parts[i + 1])) for i in range(1, len(parts) - 1, 2)]
-                self._draw_single_annotation(image, points)
+        label_path = self._load_labels(self.current_image_name)
+        if os.path.exists(label_path):
+            with open(label_path, 'r') as file:
+                lines = file.readlines()
+                self.labels=lines
+                if self.current_segmentation_index < len(lines):
+                    line = lines[self.current_segmentation_index]
+                    parts = line.split()
+                    points = [(float(parts[i]), float(parts[i + 1])) for i in range(1, len(parts) - 1, 2)]
+                    self._draw_single_annotation(image, points)
 
     def _draw_single_annotation(self, image, points):
         if len(points) > 2:
@@ -90,13 +110,16 @@ class ImageViewer:
         return pixel_points
 
     def navigate_images(self, key):
-        if key == 'd' and self.current_image_index < len(self.images) - 1:
-            print(f'key was pressed {key}')
-            self.current_image_index += 1
+        current_index = self.images.index(self.current_image_name)
+        if key == 'd' and current_index < len(self.images) - 1:
+            self.current_image_name = self.images[current_index + 1]
             self.current_segmentation_index = 0  # Reset segmentation index
-        elif key == 'a' and self.current_image_index > 0:
-            self.current_image_index -= 1
+        elif key == 'a' and current_index > 0:
+            self.current_image_name = self.images[current_index - 1]
             self.current_segmentation_index = 0  # Reset segmentation index
+
+ 
+            
 
     def navigate_segmentations(self, key):
         if key == 'z' and self.current_segmentation_index > 0:
@@ -117,6 +140,7 @@ class ImageViewer:
         with open(filename, 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(data)
+
     
     def run_viewer(self):
         import keyboard  # Make sure to import the keyboard library
@@ -140,7 +164,7 @@ class ImageViewer:
                     break
                 elif keyboard.is_pressed('r'):
                     num_squares = self.capture_user_input()
-                    image_file_name = self.images[self.current_image_index]
+                    image_file_name = self.current_image_name
                     # Example diameter value, replace with actual calculation
               # Replace with actual diameter calculation
                     data = self.record_data(image_file_name, self.length_by_calc, num_squares)

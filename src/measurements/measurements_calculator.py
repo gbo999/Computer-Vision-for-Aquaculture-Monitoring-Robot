@@ -10,15 +10,17 @@ def calculate_enclosing_diameter(points):
 
 def convert_pixel_to_real_length(pixel_length):
     # Function to convert pixel length to real-world length
-    scale_width = 5312 / 640
-    scale_height = 2988 / 640
+
+
+    scale_width = 5312 / 1366
+    scale_height = 2988 / 768
     pixel_size = 0.00716844
 
     # Assuming the scaling factor is the same for width and height
     # If not, you need to calculate the width and height separately
     scale_factor = (scale_width + scale_height) / 2
     
-    height_of_camera=640
+    height_of_camera=640 # Height of camera in millimeters
     height_of_prawn=30
 
     distance_to_object =  height_of_camera-height_of_prawn# Distance to object in millimeters
