@@ -20,8 +20,8 @@ def convert_pixel_to_real_length(pixel_length):
     # If not, you need to calculate the width and height separately
     scale_factor = (scale_width + scale_height) / 2
     
-    height_of_camera=640 # Height of camera in millimeters
-    height_of_prawn=30
+    height_of_camera=650 # Height of camera in millimeters
+    height_of_prawn=25
 
     distance_to_object =  height_of_camera-height_of_prawn# Distance to object in millimeters
 
@@ -34,7 +34,7 @@ def convert_pixel_to_real_length(pixel_length):
 
 
 def calculate_real_width(focal_length, distance_to_object, width_in_pixels, pixel_size):
-  
+   
     # Calculate the width of the object in the image sensor plane in millimeters
     width_in_sensor = width_in_pixels * pixel_size
 

@@ -6,6 +6,7 @@ from measurements_calculator import convert_pixel_to_real_length
 import csv
 
 class ImageViewer:
+    
     def __init__(self, image_dir, label_dir):
         self.image_dir = image_dir
         self.label_dir = label_dir
@@ -14,6 +15,8 @@ class ImageViewer:
         self.length_by_calc = 0
         self.current_segmentation_index = 0
         self.labels=[]
+
+        
     def _load_images(self):
         return [img for img in sorted(os.listdir(self.image_dir)) if img.endswith(('.png', '.jpg', '.jpeg'))]
 
@@ -41,6 +44,7 @@ class ImageViewer:
         return resized_image
 
     def show_image(self):
+   
         if self.current_image_name:
             image_path = os.path.join(self.image_dir, self.current_image_name)
             image = cv2.imread(image_path)
