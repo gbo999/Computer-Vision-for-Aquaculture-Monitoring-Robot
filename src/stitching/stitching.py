@@ -5,30 +5,58 @@ import sys
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+
 def warpImages(img1, img2, H):
+  """
+  Warps and stitches two images together using a given homography matrix.
+
+  Args:
+    img1 (numpy.ndarray): The first input image.
+    img2 (numpy.ndarray): The second input image.
+    H (numpy.ndarray): The homography matrix.
+
+  Returns:
+    numpy.ndarray: The stitched output image.
+  """
+  # Get the number of rows and columns of the first image
   rows1, cols1 = img1.shape[:2]
+
+  # Get the number of rows and columns of the second image
   rows2, cols2 = img2.shape[:2]
 
-  list_of_points_1 = np.float32([[0,0], [0, rows1],[cols1, rows1], [cols1, 0]]).reshape(-1, 1, 2) #coordinates of a reference image
-  temp_points = np.float32([[0,0], [0,rows2], [cols2,rows2], [cols2,0]]).reshape(-1,1,2) #coordinates of second image
+  # Define the coordinates of the reference image
+  list_of_points_1 = np.float32([[0,0], [0, rows1],[cols1, rows1], [cols1, 0]]).reshape(-1, 1, 2)
 
-  # When we have established a homography we need to warp perspective
-  # Change field of view
-  list_of_points_2 = cv2.perspectiveTransform(temp_points, H)#calculate the transformation matrix
+  # Define the coordinates of the second image
+  temp_points = np.float32([[0,0], [0,rows2], [cols2,rows2], [cols2,0]]).reshape(-1,1,2)
 
+  # Calculate the transformation matrix using the homography matrix
+  list_of_points_2 = cv2.perspectiveTransform(temp_points, H)
+
+  # Concatenate the coordinates of the reference image and the second image
   list_of_points = np.concatenate((list_of_points_1,list_of_points_2), axis=0)
 
+  # Find the minimum and maximum coordinates of the stitched image
   [x_min, y_min] = np.int32(list_of_points.min(axis=0).ravel() - 0.5)
   [x_max, y_max] = np.int32(list_of_points.max(axis=0).ravel() + 0.5)
-  
+
+  # Calculate the translation distance
   translation_dist = [-x_min,-y_min]
-  
+
+  # Create a translation matrix
   H_translation = np.array([[1, 0, translation_dist[0]], [0, 1, translation_dist[1]], [0, 0, 1]])
 
+  # Warp the second image using the translation matrix and the homography matrix
   output_img = cv2.warpPerspective(img2, H_translation.dot(H), (x_max-x_min, y_max-y_min))
+
+  # Copy the first image onto the stitched image
   output_img[translation_dist[1]:rows1+translation_dist[1], translation_dist[0]:cols1+translation_dist[0]] = img1
 
   return output_img
+
+
 #folfer containing images from drones, sorted by name 
 import glob
 path = sorted(glob.glob("*.jpg"))
