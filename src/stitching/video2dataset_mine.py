@@ -9,6 +9,7 @@ import collections
 from PIL import Image
 import numpy as np
 import logging
+import piexif
 
 from video.checkers import ThresholdBlurChecker, SimilarityChecker, BlackFrameChecker
 from video.parameters import Parameters
@@ -22,8 +23,8 @@ class Video2Dataset:
 
         self.blur_checker = ThresholdBlurChecker(parameters.blur_threshold) if parameters.blur_threshold is not None else None
         self.similarity_checker = SimilarityChecker(parameters.distance_threshold) if parameters.distance_threshold is not None else None
-        self.black_checker = BlackFrameChecker(parameters.black_ratio_threshold, parameters.pixel_black_threshold) if parameters.black_ratio_threshold is not None or parameters.pixel_black_threshold is not None else None
-
+        # self.black_checker = BlackFrameChecker(parameters.black_ratio_threshold, parameters.pixel_black_threshold) if parameters.black_ratio_threshold is not None or parameters.pixel_black_threshold is not None else None
+        self.black_checker = None
         self.frame_index = parameters.start
         self.f = None
 
@@ -63,25 +64,25 @@ class Video2Dataset:
 
 
             # TODO: possible remove of this part
-            if self.parameters.use_srt:
+            # if self.parameters.use_srt:
 
-                name = os.path.splitext(input_file)[0]
+            #     name = os.path.splitext(input_file)[0]
 
-                srt_files = [name + ".srt", name + ".SRT"]
-                srt_parser = None
+            #     srt_files = [name + ".srt", name + ".SRT"]
+            #     srt_parser = None
 
-                for srt_file in srt_files:
-                    if os.path.exists(srt_file):
-                        logger.info("Loading SRT file: {}".format(srt_file))
-                        try:
-                            srt_parser = SrtFileParser(srt_file)
-                            srt_parser.parse()
-                            break
-                        except Exception as e:
-                            logger.info("Error parsing SRT file: {}".format(e))
-                            srt_parser = None
-            else:
-                srt_parser = None
+            #     for srt_file in srt_files:
+            #         if os.path.exists(srt_file):
+            #             logger.info("Loading SRT file: {}".format(srt_file))
+            #             try:
+            #                 srt_parser = SrtFileParser(srt_file)
+            #                 srt_parser.parse()
+            #                 break
+            #             except Exception as e:
+            #                 logger.info("Error parsing SRT file: {}".format(e))
+            #                 srt_parser = None
+            # else:
+            srt_parser = None
 
             if (self.black_checker is not None and self.black_checker.NeedPreProcess()):
                 start2 = time.time()
@@ -217,10 +218,10 @@ class Video2Dataset:
 
         img = Image.open(io.BytesIO(buf))
         
-        entry = gps_coords = None
-        if srt_parser is not None:
-            entry = srt_parser.get_entry(elapsed_time)
-            gps_coords = srt_parser.get_gps(elapsed_time)
+        # entry = gps_coords = None
+        # if srt_parser is not None:
+        #     entry = srt_parser.get_entry(elapsed_time)
+        #     gps_coords = srt_parser.get_gps(elapsed_time)
 
         exif_time = (elapsed_time + (self.date_now - datetime.datetime(1900, 1, 1)))
         elapsed_time_str = exif_time.strftime("%Y:%m:%d %H:%M:%S")
@@ -230,12 +231,12 @@ class Video2Dataset:
         # Set the EXIF metadata
         exif_dict = {
             "0th": {
-                piexif.ImageIFD.Software: "ODM",
+                # piexif.ImageIFD.Software: "ODM",
                 piexif.ImageIFD.DateTime: elapsed_time_str,
                 piexif.ImageIFD.XResolution: (frame.shape[1], 1),
                 piexif.ImageIFD.YResolution: (frame.shape[0], 1),
-                piexif.ImageIFD.Make: "DJI" if video_info.basename.lower().startswith("dji") else "Unknown",
-                piexif.ImageIFD.Model: "Unknown"
+                # piexif.ImageIFD.Make: "DJI" if video_info.basename.lower().startswith("dji") else "Unknown",
+                # piexif.ImageIFD.Model: "Unknown"
             },
             "Exif": {
                 piexif.ExifIFD.DateTimeOriginal: elapsed_time_str,
@@ -245,18 +246,18 @@ class Video2Dataset:
                 piexif.ExifIFD.PixelYDimension: frame.shape[0],
             }}
 
-        if entry is not None:
-            if entry["shutter"] is not None:
-                exif_dict["Exif"][piexif.ExifIFD.ExposureTime] = (1, int(entry["shutter"]))
-            if entry["focal_len"] is not None:
-                exif_dict["Exif"][piexif.ExifIFD.FocalLength] = (entry["focal_len"], 100)
-            if entry["fnum"] is not None:
-                exif_dict["Exif"][piexif.ExifIFD.FNumber] = float_to_rational(entry["fnum"])
-            if entry["iso"] is not None:
-                exif_dict["Exif"][piexif.ExifIFD.ISOSpeedRatings] = entry["iso"]
+        # if entry is not None:
+        #     if entry["shutter"] is not None:
+        #         exif_dict["Exif"][piexif.ExifIFD.ExposureTime] = (1, int(entry["shutter"]))
+        #     if entry["focal_len"] is not None:
+        #         exif_dict["Exif"][piexif.ExifIFD.FocalLength] = (entry["focal_len"], 100)
+        #     if entry["fnum"] is not None:
+        #         exif_dict["Exif"][piexif.ExifIFD.FNumber] = float_to_rational(entry["fnum"])
+        #     if entry["iso"] is not None:
+        #         exif_dict["Exif"][piexif.ExifIFD.ISOSpeedRatings] = entry["iso"]
         
-        if gps_coords is not None:
-            exif_dict["GPS"] = get_gps_location(elapsed_time, gps_coords[1], gps_coords[0], gps_coords[2])
+        # if gps_coords is not None:
+        #     exif_dict["GPS"] = get_gps_location(elapsed_time, gps_coords[1], gps_coords[0], gps_coords[2])
 
         exif_bytes = piexif.dump(exif_dict)
         img.save(path, exif=exif_bytes, quality=95)
@@ -311,44 +312,44 @@ def limit_files(paths, limit):
 
     return to_keep
 
-def to_deg(value, loc):
-    """convert decimal coordinates into degrees, munutes and seconds tuple
-    Keyword arguments: value is float gps-value, loc is direction list ["S", "N"] or ["W", "E"]
-    return: tuple like (25, 13, 48.343 ,'N')
-    """
-    if value < 0:
-        loc_value = loc[0]
-    elif value > 0:
-        loc_value = loc[1]
-    else:
-        loc_value = ""
-    abs_value = abs(value)
-    deg =  int(abs_value)
-    t1 = (abs_value-deg)*60
-    min = int(t1)
-    sec = round((t1 - min)* 60, 5)
-    return (deg, min, sec, loc_value)
+# def to_deg(value, loc):
+#     """convert decimal coordinates into degrees, munutes and seconds tuple
+#     Keyword arguments: value is float gps-value, loc is direction list ["S", "N"] or ["W", "E"]
+#     return: tuple like (25, 13, 48.343 ,'N')
+#     """
+#     if value < 0:
+#         loc_value = loc[0]
+#     elif value > 0:
+#         loc_value = loc[1]
+#     else:
+#         loc_value = ""
+#     abs_value = abs(value)
+#     deg =  int(abs_value)
+#     t1 = (abs_value-deg)*60
+#     min = int(t1)
+#     sec = round((t1 - min)* 60, 5)
+#     return (deg, min, sec, loc_value)
 
-def get_gps_location(elapsed_time, lat, lng, altitude):
+# def get_gps_location(elapsed_time, lat, lng, altitude):
 
-    lat_deg = to_deg(lat, ["S", "N"])
-    lng_deg = to_deg(lng, ["W", "E"])
+#     lat_deg = to_deg(lat, ["S", "N"])
+#     lng_deg = to_deg(lng, ["W", "E"])
 
-    exiv_lat = (float_to_rational(lat_deg[0]), float_to_rational(lat_deg[1]), float_to_rational(lat_deg[2]))
-    exiv_lng = (float_to_rational(lng_deg[0]), float_to_rational(lng_deg[1]), float_to_rational(lng_deg[2]))
+#     exiv_lat = (float_to_rational(lat_deg[0]), float_to_rational(lat_deg[1]), float_to_rational(lat_deg[2]))
+#     exiv_lng = (float_to_rational(lng_deg[0]), float_to_rational(lng_deg[1]), float_to_rational(lng_deg[2]))
 
-    gps_ifd = {
-        piexif.GPSIFD.GPSVersionID: (2, 0, 0, 0),
-        piexif.GPSIFD.GPSDateStamp: elapsed_time.strftime('%Y:%m:%d')
-    }
+#     gps_ifd = {
+#         piexif.GPSIFD.GPSVersionID: (2, 0, 0, 0),
+#         piexif.GPSIFD.GPSDateStamp: elapsed_time.strftime('%Y:%m:%d')
+#     }
 
-    if lat is not None and lng is not None:
-        gps_ifd[piexif.GPSIFD.GPSLatitudeRef] = lat_deg[3]
-        gps_ifd[piexif.GPSIFD.GPSLatitude] = exiv_lat
-        gps_ifd[piexif.GPSIFD.GPSLongitudeRef] = lng_deg[3]
-        gps_ifd[piexif.GPSIFD.GPSLongitude] = exiv_lng
-        if altitude is not None:
-            gps_ifd[piexif.GPSIFD.GPSAltitudeRef] = 0
-            gps_ifd[piexif.GPSIFD.GPSAltitude] = float_to_rational(round(altitude))
+#     if lat is not None and lng is not None:
+#         gps_ifd[piexif.GPSIFD.GPSLatitudeRef] = lat_deg[3]
+#         gps_ifd[piexif.GPSIFD.GPSLatitude] = exiv_lat
+#         gps_ifd[piexif.GPSIFD.GPSLongitudeRef] = lng_deg[3]
+#         gps_ifd[piexif.GPSIFD.GPSLongitude] = exiv_lng
+#         if altitude is not None:
+#             gps_ifd[piexif.GPSIFD.GPSAltitudeRef] = 0
+#             gps_ifd[piexif.GPSIFD.GPSAltitude] = float_to_rational(round(altitude))
 
-    return gps_ifd
+#     return gps_ifd
