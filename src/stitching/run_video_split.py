@@ -12,7 +12,7 @@ args= {
     "end": None,
     "output_resolution": 1024,
     "blur_threshold":150,
-    "distance_threshold": 10,
+    "distance_threshold":15,
     "black_ratio_threshold": None,
     "pixel_black_threshold": None,
     "use-srt": None,

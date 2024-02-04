@@ -59,10 +59,16 @@ def warpImages(img1, img2, H):
 
 #folfer containing images from drones, sorted by name 
 import glob
-path = sorted(glob.glob("*.jpg"))
+path = sorted(glob.glob("src/stitching/output/*.jpg"))
 img_list = []
 for img in path:
     n = cv2.imread(img)
+    scale_percent = 30 # percent of original size
+    width = int(n.shape[1] * scale_percent / 100)
+    height = int(n.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    # resize image
+    n = cv2.resize(n, dim, interpolation = cv2.INTER_AREA)
     img_list.append(n)
 """Functions for stitching"""
 
