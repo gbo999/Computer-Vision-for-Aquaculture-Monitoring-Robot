@@ -10,16 +10,19 @@ args= {
     "output": f'{work_dir}/src/stitching/output',
     "start": 0,
     "end": None,
-    "output-resolution": 1024,
-    "blur-threshold": 300,
-    "distance-threshold": None,
-    "black-ratio-threshold": 0.98,
-    "pixel-black-threshold": 0.30,
+    "output_resolution": 1024,
+    "blur_threshold":150,
+    "distance_threshold": 10,
+    "black_ratio_threshold": None,
+    "pixel_black_threshold": None,
     "use-srt": None,
     "limit": None,
-    "frame-format": "jpg",
-    "stats-file": f'{work_dir}/src/stitching/output/stats.csv',
-}
+    "frame_format": "jpg",
+    "stats_file":f"{work_dir}/src/stitching/output/stats.csv"}
 
 
-video2dataset_mine = Video2Dataset(Parameters(args))
+
+
+Video2Dataset2process=Video2Dataset(Parameters(args))
+Video2Dataset2process.ProcessVideo()
+

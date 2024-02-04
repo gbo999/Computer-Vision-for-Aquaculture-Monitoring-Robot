@@ -11,10 +11,13 @@ import numpy as np
 import logging
 import piexif
 
-from video.checkers import ThresholdBlurChecker, SimilarityChecker, BlackFrameChecker
-from video.parameters import Parameters
+from src.video.checkers import ThresholdBlurChecker, SimilarityChecker, BlackFrameChecker
+from src.video.parameters import Parameters
 
+work_dir=os.getcwd
+logging.basicConfig(level=logging.INFO,filename='src/stitching/video2dataset.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
 
 class Video2Dataset:
 
@@ -26,16 +29,23 @@ class Video2Dataset:
         # self.black_checker = BlackFrameChecker(parameters.black_ratio_threshold, parameters.pixel_black_threshold) if parameters.black_ratio_threshold is not None or parameters.pixel_black_threshold is not None else None
         self.black_checker = None
         self.frame_index = parameters.start
-        self.f = None
+        # self.f = None
+        
+        print(self.parameters.stats_file)
 
 
     def ProcessVideo(self):
+
         self.date_now = None
         start = time.time()
-
+        logging.info("Processing video")
+        logging.info('stats file is {}'.format(self.parameters.stats_file))
         if (self.parameters.stats_file is not None):
-            self.f = open(self.parameters.stats_file, "w")
+            logger.info("Writing stats to file: {}".format(self.parameters.stats_file))
+            self.f = open(self.parameters.stats_file, "w") 
             self.f.write("global_idx;file_name;frame_index;blur_score;is_blurry;is_black;last_frame_index;similarity_score;is_similar;written\n")
+        else:
+            return
 
         self.global_idx = 0
 

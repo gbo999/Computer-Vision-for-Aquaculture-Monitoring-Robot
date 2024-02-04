@@ -39,8 +39,9 @@ class Parameters:
         self.use_srt = "use_srt" in args
         self.frame_format = args.get("frame_format", "jpg")
         self.max_dimension = args.get("max_dimension", None)
-
+        print('before stats file')   
         self.stats_file = args.get("stats_file", None)
-
+        print('after stats file')
+        print(self.stats_file) 
         # We will resize the image to this size before processing
         self.internal_resolution = 800
