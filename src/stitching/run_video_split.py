@@ -11,7 +11,7 @@ args= {
     "start": 0,
     "end": None,
     "output_resolution": 1024,
-    "blur_threshold":150,
+    "blur_threshold":200,
     "distance_threshold":15,
     "black_ratio_threshold": None,
     "pixel_black_threshold": None,

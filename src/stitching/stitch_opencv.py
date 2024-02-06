@@ -1,5 +1,6 @@
 import cv2
 import glob
+import os
 
 # List of image paths to be stitched
 image_paths = glob.glob("src/stitching/output/*.jpg")
@@ -8,20 +9,28 @@ image_paths = glob.glob("src/stitching/output/*.jpg")
 images = []
 for path in image_paths:
     image = cv2.imread(path)
+    scale_percent = 30 # percent of original size
+    width = int(image.shape[1] * scale_percent / 100)
+    height = int(image.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    # resize image
+    n = cv2.resize(image, dim, interpolation = cv2.INTER_AREA)
     images.append(image)
 
+
+
 def stitch_images(images):
-    stitcher = cv2.Stitcher_create ()
+    stitcher = cv2.Stitcher_create()
     status, stitched_image = stitcher.stitch(images)
     
     if status == cv2.Stitcher_OK:
-        cv2.imshow("Stitched Image", stitched_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        output_path = "src/stitching/output/stitched_image2.jpg"
+        cv2.imwrite(output_path, stitched_image)
+        print(f"Stitched image saved to {output_path}")
     else:
         print("Stitching failed!")
 
 
 # Stitch images
-pano=stitch_images(images)
+pano = stitch_images(images)
 
