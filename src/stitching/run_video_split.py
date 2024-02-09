@@ -6,13 +6,13 @@ work_dir = os.getcwd()
 
 args= { 
 
-    "input": f'{work_dir}/src/stitching/video.mp4',
-    "output": f'{work_dir}/src/stitching/output',
+    "input": f"C:/Users/gbo10/Dropbox/research videos/31.12/65-31.12/GX010065.MP4",
+    "output": f"C:/Users/gbo10/OneDrive/pictures/to_contrast/GX010065",
     "start": 0,
     "end": None,
-    "output_resolution": 1024,
+    "output_resolution": None,
     "blur_threshold":200,
-    "distance_threshold":15,
+    "distance_threshold":20,
     "black_ratio_threshold": None,
     "pixel_black_threshold": None,
     "use-srt": None,
