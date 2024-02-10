@@ -172,7 +172,7 @@ class Video2Dataset:
             frame_bw = cv2.resize(frame_bw, (int(ceil(w * factor)), int(ceil(h * factor))), interpolation=cv2.INTER_NEAREST)
 
         if (self.blur_checker is not None):
-            blur_score, is_blurry = self.blur_checker.IsBlur(frame_bw, self.frame_index)
+            blur_score, is_blurry = self.blur_checker.IsBlur(frame_bw, self.frame_index,frame)
             res["blur_score"] = blur_score
             res["is_blurry"] = is_blurry
 

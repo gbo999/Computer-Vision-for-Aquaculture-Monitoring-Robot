@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import os
 class ThresholdBlurChecker:
     def __init__(self, threshold):
         self.threshold = threshold
@@ -11,9 +11,15 @@ class ThresholdBlurChecker:
     def PreProcess(self, video_path, start_frame, end_frame):
         return
 
-    def IsBlur(self, image_bw, id):
-        var = cv2.Laplacian(image_bw, cv2.CV_64F).var()
-        return var, var < self.threshold
+    def IsBlur(self, image_bw, id,frame):
+            if not os.path.exists('blurry_images'):
+                os.mkdir('blurry_images')
+            var = cv2.Laplacian(image_bw, cv2.CV_64F).var()
+            is_blur = var < self.threshold
+            # if is_blur:
+            #     print(f"Image {id} is blurry with variance {var}")
+            #     cv2.imwrite(os.path.join('blurry_images', f'blurry_image_{id}.jpg'), frame)
+            return var, is_blur
 
 class SimilarityChecker:
     def __init__(self, threshold, max_features=500):

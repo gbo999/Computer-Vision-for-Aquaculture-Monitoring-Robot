@@ -11,15 +11,14 @@ args= {
     "start": 0,
     "end": None,
     "output_resolution": None,
-    "blur_threshold":200,
-    "distance_threshold":20,
+    "blur_threshold":100,
+    "distance_threshold":80,
     "black_ratio_threshold": None,
     "pixel_black_threshold": None,
     "use-srt": None,
     "limit": None,
     "frame_format": "jpg",
     "stats_file":f"{work_dir}/src/stitching/output/stats.csv"}
-
 
 
 
