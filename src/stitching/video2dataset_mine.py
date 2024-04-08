@@ -15,7 +15,7 @@ from src.video.checkers import ThresholdBlurChecker, SimilarityChecker, BlackFra
 from src.video.parameters import Parameters
 
 work_dir=os.getcwd
-logging.basicConfig(level=logging.INFO,filename='src/stitching/video2dataset.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO,filename='video2dataset.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

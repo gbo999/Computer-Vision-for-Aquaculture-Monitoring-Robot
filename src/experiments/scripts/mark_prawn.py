@@ -4,9 +4,10 @@ import cv2
 
 # Load the image using OpenCV
 # Please ensure the path is correct for your system or pass it as a parameter
-image_path = 'C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/experiments/verify.jpg'
+image_path ='C:/Users/gbo10/Videos/research/counting_research_algorithms/src/experiments/scripts/GX010090_5_448.jpg'
 image = cv2.imread(image_path)
 image_to_show = image.copy()
+
 
 # Function to display the image, collect manual input, and calculate the distance between two points
 def manual_marking_and_distance(image):
