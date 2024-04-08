@@ -16,8 +16,8 @@ class ThresholdBlurChecker:
                 os.mkdir('blurry_images')
             var = cv2.Laplacian(image_bw, cv2.CV_64F).var()
             is_blur = var < self.threshold
-            if is_blur:
-                print(f"Image {id} is blurry with variance {var}")
+            # if is_blur:
+            #     print(f"Image {id} is blurry with variance {var}")
             return var, is_blur
 
 class SimilarityChecker:
@@ -53,10 +53,10 @@ class SimilarityChecker:
             self.last_image_id = id
             self.last_image_features = cv2.goodFeaturesToTrack(image_bw, self.max_features, 0.01, 10)
         
-        if res:
-            print(f"Image {id} is similar to image {self.last_image_id} with distance {distance}")
-        else:
-            print(f"Image {id} is not similar to image {self.last_image_id} with distance {distance}")
+        # if res:
+        #     print(f"Image {id} is similar to image {self.last_image_id} with distance {distance}")
+        # else:
+        #     print(f"Image {id} is not similar to image {self.last_image_id} with distance {distance}")
         return distance, res, self.last_image_id
 
 
