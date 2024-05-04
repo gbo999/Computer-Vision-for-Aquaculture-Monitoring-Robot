@@ -37,11 +37,11 @@ class ImageViewer:
             new_width = int(img_width * resize_ratio)
             new_height = int(img_height * resize_ratio)
 
-            resized_image = cv2.resize(image, (new_width, new_height))
+            image = cv2.resize(image, (new_width, new_height))
         else:
-            resized_image = cv2.resize(image, (screen_width, screen_height))
+            image = cv2.resize(image, (screen_width, screen_height))
 
-        return resized_image
+        return image
 
     def show_image(self):
    
@@ -51,7 +51,7 @@ class ImageViewer:
             if image is None:
                 print(f"Failed to load image: {image_path}")
                 return
-            screen_width, screen_height = 1366, 768
+            screen_width, screen_height = 5312, 2988
             resized_image = self.resize_image_to_screen(image, screen_width, screen_height, keep_aspect_ratio=False)
             self._draw_annotations(resized_image)
             cv2.imshow('Image', resized_image)
@@ -94,6 +94,7 @@ class ImageViewer:
                         font_scale, 
                         font_color, 
                         line_type)
+            print(f"Length by calc: {self.length_by_calc}")
             text_pos2 = (int(center[0] ), int(center[1]+30))
             # Put the diameter text on the image
             cv2.putText(image, 
@@ -103,6 +104,7 @@ class ImageViewer:
                         font_scale, 
                         font_color, 
                         line_type)
+            print(f'diameter real: {convert_pixel_to_real_length(self.length_by_calc)}')
 
     def _convert_to_pixels(self, normalized_points, image_width, image_height):
         pixel_points = []

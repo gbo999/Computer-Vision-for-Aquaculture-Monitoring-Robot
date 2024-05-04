@@ -7,6 +7,7 @@ data['by pixel']=data['Pixel Length']*(10/13)
 # Calculations
 num_images = len(data['Image File Name'].unique())
 num_prawns = len(data)
+
 avg_length = data['Length_mm'].mean()
 avg_length2 = data['by pixel'].mean()
 std_dev2 = data['by pixel'].std()

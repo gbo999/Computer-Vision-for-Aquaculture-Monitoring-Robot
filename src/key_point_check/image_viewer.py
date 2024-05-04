@@ -126,11 +126,11 @@ class ImageViewer:
     
 
     def show_image(self, key=None):
-        if key is not None:
-            self.navigate_images(key)
-            #REDRAW THE FIGURE
-            self.fig.canvas.draw()
-            plt.show()
+        # if key is not None:
+        #     self.navigate_images(key)
+        #     #REDRAW THE FIGURE
+        #     self.fig.canvas.draw()
+        #     plt.show()
     
         if self.current_image_name:
             image_path = os.path.join(self.image_dir, self.current_image_name)
@@ -150,6 +150,22 @@ class ImageViewer:
             self.draw_keypoints_and_lines(self.ax, obj['keypoints'], image.shape[1], image.shape[0])
     
         # Manual marking and distance calculation
+        
+
+        
+            
+
+    
+        # Redraw the figure
+        self.fig.canvas.draw()
+        plt.show()
+
+
+    def run_viewer(self):
+        self.fig.canvas.mpl_connect('key_press_event', self.on_key_event)
+        self.show_image()
+
+    def m_pressed(self):
         points = []
     
         def onclick(event):
@@ -160,32 +176,22 @@ class ImageViewer:
                 dist = np.linalg.norm(np.array(points[0]) - np.array(points[1]))
                 self.ax.annotate(f"{dist:.2f}px", xy=(np.mean([p[0] for p in points]), np.mean([p[1] for p in points])), textcoords='offset points', arrowprops=dict(facecolor='yellow', shrink=0.05))
                 print("Distance between points:", dist, "pixels")
-                plt.draw()
+                self.fig.canvas.draw()
     
         cid = self.fig.canvas.mpl_connect('button_press_event', onclick)
-    
-        # Redraw the figure
-        self.fig.canvas.draw()
         plt.show()
-        self.fig.canvas.mpl_disconnect(cid)
-
-
-    def run_viewer(self):
-        self.fig.canvas.mpl_connect('key_press_event', self.on_key_event)
-        self.show_image()
-
-
     def on_key_event(self, event):
         print(f"{event.key} is pressed")
         if event.key == 'd':
             self.navigate_images('d')
         elif event.key == 'a':
             self.navigate_images('a')
-        
+        elif event.key == 'm':
+            self.m_pressed()
         elif event.key == 'q':
             plt.close() 
     # Add a small delay to avoid excessive CPU usage
 
 # Example of using the class
-viewer = ImageViewer('C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test - round/images', 'C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test - round/labels')
+viewer = ImageViewer('C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test-curtain open/images', 'C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test-curtain open/labels')
 viewer.run_viewer()

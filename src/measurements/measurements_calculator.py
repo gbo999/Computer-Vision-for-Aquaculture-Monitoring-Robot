@@ -12,8 +12,8 @@ def convert_pixel_to_real_length(pixel_length):
     # Function to convert pixel length to real-world length
 
 
-    scale_width = 5312 / 1366
-    scale_height = 2988 / 768
+    scale_width = 5312 
+    scale_height = 2988 
     pixel_size = 0.00716844
 
     # Assuming the scaling factor is the same for width and height
@@ -28,7 +28,7 @@ def convert_pixel_to_real_length(pixel_length):
     # Scale the pixel measurement back to original dimensions
 
     # Calculate the real-life width of the object
-    real_width_cm = calculate_real_width(24.4 , distance_to_object, pixel_length*scale_factor, pixel_size)
+    real_width_cm = calculate_real_width(28.48 , distance_to_object, pixel_length, pixel_size)
     
     return real_width_cm
 
