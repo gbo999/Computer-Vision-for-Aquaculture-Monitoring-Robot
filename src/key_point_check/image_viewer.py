@@ -38,8 +38,8 @@ class ImageViewer:
                     'keypoints': [
                         {'x': float(parts[5]), 'y': float(parts[6]), 'visibility': float(parts[7])},
                         {'x': float(parts[8]), 'y': float(parts[9]), 'visibility': float(parts[10])}
-                    ],
-                    'confidence': float(parts[11])
+                    ]
+                    # 'confidence': float(parts[11])
                 }
                 objects.append(obj_info)
         return objects
@@ -58,6 +58,8 @@ class ImageViewer:
                 x2, y2, _ = visible_points[i+1]
                 # Drawing line between pixel keypoints
                 ax.plot([x1, x2], [y1, y2], 'g-', linewidth=2)  # Green lines
+
+
 
                 # Calculate the Euclidean distance in pixels between points
                 distance_px = np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
@@ -148,7 +150,20 @@ class ImageViewer:
         objects = self.parse_label_file(label_path)
         for obj in objects:
             self.draw_keypoints_and_lines(self.ax, obj['keypoints'], image.shape[1], image.shape[0])
-    
+        # draw box
+            box=obj['bbox']    
+            x = box['center_x'] * image.shape[1]
+            y = box['center_y'] * image.shape[0]
+            width = box['width'] * image.shape[1]
+            height = box['height'] * image.shape[0]
+            rect = patches.Rectangle((x - width / 2, y - height / 2), width, height, linewidth=2, edgecolor='r', facecolor='none')
+            self.ax.add_patch(rect)
+        # Draw the annotations
+
+        # for obj in objects:         
+
+
+        # self._draw_annotations(image) 
         # Manual marking and distance calculation
         
 
@@ -192,6 +207,6 @@ class ImageViewer:
             plt.close() 
     # Add a small delay to avoid excessive CPU usage
 
-# Example of using the class
-viewer = ImageViewer('C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test-curtain open/images', 'C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test-curtain open/labels')
-viewer.run_viewer()
+# # Example of using the class
+# viewer = ImageViewer('C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test-curtain open/images', 'C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/good for test-curtain open/labels')
+# viewer.run_viewer()
