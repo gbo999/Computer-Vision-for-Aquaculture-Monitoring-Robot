@@ -1,5 +1,0 @@
-./images/train/GX010065_2_267.jpg_gamma.jpg
-./images/train/GX010065_14_805.jpg_gamma.jpg
-./images/train/GX010065_11_454.jpg_gamma.jpg
-./images/train/GX010065_3_298.jpg_gamma.jpg
-./images/train/GX010065_1_180.jpg_gamma.jpg
