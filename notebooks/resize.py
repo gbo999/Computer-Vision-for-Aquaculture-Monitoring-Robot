@@ -1,5 +1,6 @@
 import os
 from PIL import Image
+from tqdm import tqdm
 
 def resize_images(input_folder, output_folder, size):
     # Create the output folder if it doesn't exist
@@ -7,7 +8,7 @@ def resize_images(input_folder, output_folder, size):
         os.makedirs(output_folder)
 
     # Loop through all files in the input folder
-    for filename in os.listdir(input_folder):
+    for filename in tqdm(os.listdir(input_folder)):
         # Check if the file is an image
         if filename.endswith(".jpg") or filename.endswith(".png"):
             # Open the image
@@ -23,8 +24,8 @@ def resize_images(input_folder, output_folder, size):
             image.close()
 
 # Usage example
-input_folder = "C:/Users/gbo10/OneDrive/pictures/to_contrast/2.1/gamma"
-output_folder = "C:/Users/gbo10/OneDrive/pictures/to_contrast/2.1/gamma/resized"
+input_folder = "C:/Users/gbo10/OneDrive/measurement_paper_images/splitted videos/kalkar - january 2024/31.12/76/boflow/val_images"
+output_folder = "C:/Users/gbo10/OneDrive/measurement_paper_images/splitted videos/kalkar - january 2024/31.12/76/boflow/val_images_resized"
 size = (640, 640)
 
 resize_images(input_folder, output_folder, size)
