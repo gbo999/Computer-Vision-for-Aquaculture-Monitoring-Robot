@@ -11,8 +11,8 @@ import numpy as np
 import logging
 import piexif
 
-from src.data.data_processing import ThresholdBlurChecker, SimilarityChecker, BlackFrameChecker
-from src.data.data_processing import Parameters
+from src.data.data_processing.checkers import ThresholdBlurChecker, SimilarityChecker, BlackFrameChecker
+from src.data.data_processing.parameters import Parameters
 
 work_dir=os.getcwd
 logging.basicConfig(level=logging.INFO,filename='video2dataset.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
