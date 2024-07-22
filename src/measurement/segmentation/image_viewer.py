@@ -1,7 +1,7 @@
 import cv2
 import os
 import numpy as np
-from src.measurement.enclosing_circle_calculation import minimum_enclosing_circle
+from src.measurement.segmentation import minimum_enclosing_circle
 from measurements_calculator import convert_pixel_to_real_length
 import csv
 
