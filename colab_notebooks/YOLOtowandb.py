@@ -383,7 +383,7 @@ class WandbCallback:
             # "on_fit_epoch_end": self.on_fit_epoch_end,
             # "on_train_end": self.on_train_end,
             "on_model_save": self.on_model_save,
-            "on_val_end": self.on_val_end,
+            # "on_val_end": self.on_val_end,
             # "on_predict_end": self.on_pred_end,
             # "on_train_start": self.on_train_start,
             # "teardown": self.teardown,

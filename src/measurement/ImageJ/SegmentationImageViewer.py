@@ -1,3 +1,7 @@
+
+
+
+
 class SegmentationImageViewer(AbstractImageViewer):
     def _load_labels(self, image_name):
         label_name = os.path.splitext(image_name)[0] + '.txt'
