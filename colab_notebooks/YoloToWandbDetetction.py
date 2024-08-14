@@ -1,10 +1,10 @@
 from typing import Any, Callable, Dict, List, Optional
 
 from ultralytics import YOLO
-from ultralytics.yolo.engine.trainer import BaseTrainer
-from ultralytics.yolo.utils import RANK
-from ultralytics.yolo.utils.torch_utils import get_flops, get_num_params
-from ultralytics.yolo.v8.classify.train import ClassificationTrainer
+from ultralytics.engine.trainer import BaseTrainer
+from ultralytics.utils import RANK
+from ultralytics.utils.torch_utils import get_flops, get_num_params
+
 
 import wandb
 from wandb.sdk.lib import telemetry
