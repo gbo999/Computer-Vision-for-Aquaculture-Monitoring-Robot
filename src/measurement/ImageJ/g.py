@@ -6,9 +6,9 @@ import os
 os.chdir(r"C:\Users\gbo10\Videos\research\counting_research_algorithms\src\measurement\ImageJ")
 
 # Load the processed data from the Excel files
-final_data_1 = pd.read_excel("final_data_1_with_prawn_ids.xlsx")
-final_data_2 = pd.read_excel("final_data_2_with_prawn_ids.xlsx")
-final_data_3 = pd.read_excel("final_data_3_with_prawn_ids.xlsx")
+final_data_1 = pd.read_excel("final_full_data_1_with_prawn_ids.xlsx")
+final_data_2 = pd.read_excel("final_full_data_2_with_prawn_ids.xlsx")
+final_data_3 = pd.read_excel("final_full_data_3_with_prawn_ids.xlsx")
 
 # Create a set of (Label, PrawnID) tuples for each dataset
 pairs_1 = set(zip(final_data_1['Label'], final_data_1['PrawnID']))
@@ -95,6 +95,6 @@ else:
 final_statistics['Global_Uncertainty'] = global_uncertainty
 
 # Save the final statistics to an Excel file
-final_statistics.to_excel("final_statistics_with_prawn_ids_and_uncertainty.xlsx", index=False)
+final_statistics.to_excel("final_full_statistics_with_prawn_ids_and_uncertainty.xlsx", index=False)
 
 print("\nData saved to final_statistics_with_prawn_ids_and_uncertainty.xlsx")
