@@ -50,9 +50,11 @@ def calculate_distance(focal_length, real_width, width_in_pixels, pixel_size):
 
 
 # Example usage
-focal_length =24.22 
-distance_to_object =705
-width_in_pixels =960 
+focal_length =17
+
+
+distance_to_object =485
+width_in_pixels =691 
 pixel_size =0.00716844 
 # Calculate the real-life width
 real_width = calculate_real_width(focal_length, distance_to_object, width_in_pixels, pixel_size)
@@ -60,4 +62,4 @@ print(f"The real-life width of the object is {real_width} mm.")
 
 #https://pixelcalculator.com/en
 
-#7168.44 μm² in μm
+
