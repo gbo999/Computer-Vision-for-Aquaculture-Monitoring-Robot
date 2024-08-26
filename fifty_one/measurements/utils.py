@@ -3,6 +3,7 @@ import numpy as np
 
 def parse_pose_estimation(txt_file):
     pose_estimations = []
+
     with open(txt_file, 'r') as f:
         for line in f:
             pose_estimations.append([float(x) for x in line.strip().split()])

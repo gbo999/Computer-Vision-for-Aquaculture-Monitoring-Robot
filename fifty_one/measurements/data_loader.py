@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import ast
 from tqdm import tqdm
-from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt
+from measurements.utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt
 
 def load_data(filtered_data_path, metadata_path):
     filtered_df = pd.read_csv(filtered_data_path)
@@ -56,9 +56,9 @@ def add_metadata(sample, filename, filtered_df, metadata_df):
     else:
         print(f"No metadata found for {relevant_part}")
     
-    add_prawn_detections(sample, matching_rows, filtered_df)
+    add_prawn_detections(sample, matching_rows, filtered_df,filename)
 
-def add_prawn_detections(sample, matching_rows, filtered_df):
+def add_prawn_detections(sample, matching_rows, filtered_df,filename):
     true_detections = []
 
     for _, row in matching_rows.iterrows():
@@ -73,7 +73,7 @@ def add_prawn_detections(sample, matching_rows, filtered_df):
         closest_detection = find_closest_detection(sample, prawn_bbox)
 
         if closest_detection is not None:
-            process_detection(closest_detection, prawn_bbox, sample, filename, prawn_id, filtered_df)
+            process_detection(closest_detection, sample, filename, prawn_id, filtered_df)
 
     sample["true_detections"] = fo.Detections(detections=true_detections)
 
@@ -91,10 +91,12 @@ def find_closest_detection(sample, prawn_bbox):
     
     return closest_detection
 
-def process_detection(closest_detection, prawn_bbox, sample, filename, prawn_id, filtered_df):
+def process_detection(closest_detection, sample, filename, prawn_id, filtered_df):
     height_mm = sample['heigtht(mm)']
     focal_length = 24.22
     pixel_size = 0.00716844
+
+
 
     keypoints_dict2 = closest_detection.attributes["keypoints"]
     keypoints1 = [keypoints_dict2['point1'], keypoints_dict2['point2']]
@@ -115,3 +117,53 @@ def process_detection(closest_detection, prawn_bbox, sample, filename, prawn_id,
     if abs(real_length_cm - true_length) / true_length * 100 > 25:
         if "MPE>25" not in sample.tags:
             sample.tags.append("MPE>25")
+
+def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset):
+   for image_path in tqdm(image_paths):
+
+    filename = os.path.splitext(os.path.basename(image_path))[0] 
+     
+    print(filename) 
+     
+     
+     # e.g., undistorted_GX010152_36_378.jpg_gamma
+    identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
+
+
+    # Construct the paths to the prediction and ground truth files
+    prediction_txt_path = os.path.join(prediction_folder_path, f"{filename}.txt")
+
+    # Match ground truth based on the extracted identifier
+    ground_truth_txt_path = None
+    for gt_file in ground_truth_paths_text:
+        b= extract_identifier_from_gt(os.path.basename(gt_file))
+        if b == identifier:
+            ground_truth_txt_path = gt_file
+
+            break
+    if ground_truth_txt_path is None:
+        print(f"No ground truth found for {filename}")
+        continue
+    
+    # Parse the pose estimation data from the TXT file
+    pose_estimations = parse_pose_estimation(prediction_txt_path)
+
+    
+    ground_truths = parse_pose_estimation(ground_truth_txt_path)
+
+    # Process the pose estimations
+    keypoints_list, detections = process_poses(pose_estimations)
+
+    keypoints_list_truth, detections_truth = process_poses(ground_truths, is_ground_truth=True)
+
+    sample = fo.Sample(filepath=image_path)
+    sample["ground_truth"] = fo.Detections(detections=detections_truth)
+    sample["detections_predictions"] = fo.Detections(detections=detections)
+    sample["keypoints"] = fo.Keypoints(keypoints=keypoints_list)
+    sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
+    add_metadata(sample, filename, filtered_df, metadata_df)
+
+
+
+    dataset.add_sample(sample)
+
