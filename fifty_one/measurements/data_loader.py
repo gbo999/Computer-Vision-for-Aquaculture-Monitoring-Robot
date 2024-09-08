@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import ast
 from tqdm import tqdm
-from measurements.utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt
+from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt
 
 def load_data(filtered_data_path, metadata_path):
     filtered_df = pd.read_csv(filtered_data_path)
@@ -96,8 +96,6 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     focal_length = 24.22
     pixel_size = 0.00716844
 
-
-
     keypoints_dict2 = closest_detection.attributes["keypoints"]
     keypoints1 = [keypoints_dict2['point1'], keypoints_dict2['point2']]
 
@@ -113,7 +111,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
     closest_detection_label = f'MPError: {abs(real_length_cm - true_length) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm'
     closest_detection.label = closest_detection_label
-
+    closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
     if abs(real_length_cm - true_length) / true_length * 100 > 25:
         if "MPE>25" not in sample.tags:
             sample.tags.append("MPE>25")
@@ -122,7 +120,9 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
             sample.tags.append("MPE<25")
 
 def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset):
+   
    for image_path in tqdm(image_paths):
+
 
     filename = os.path.splitext(os.path.basename(image_path))[0] 
      
@@ -169,4 +169,5 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
 
     dataset.add_sample(sample)
-
+   output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx'  # Change this path accordingly
+   filtered_df.to_excel(output_file_path, index=False)
