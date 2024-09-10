@@ -41,8 +41,10 @@ def process_poses(poses, is_ground_truth=False):
     
     return keypoints_list, detections
 
-def add_metadata(sample, filename, filtered_df, metadata_df):
+def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     matching_rows = filtered_df[filtered_df['Label'] == f'carapace:{filename}']
+
+
     parts = filename.split('_')
     relevant_part = f"{parts[1][-3:]}_{parts[3].split('.')[0]}"
     
@@ -118,6 +120,8 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     else:
         if "MPE<25" not in sample.tags:
             sample.tags.append("MPE<25")
+
+# No close match found
 
 def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset):
    
