@@ -40,7 +40,7 @@ def process_segmentations(segmentation_path):
             # Calculate the minimum enclosing circle (center and radius)
             center, radius = calculate_minimum_enclosing_circle(points)
             diameter = radius * 2
-            
+             
             segmentation = fo.Polyline(
                 points=[normalzied_points],
                 closed=True,
@@ -49,7 +49,6 @@ def process_segmentations(segmentation_path):
                 center=center
             )
             segmentations.append(segmentation)
-            
             
             # Store the segmentation information (center, radius, and diameter)
 
@@ -76,6 +75,7 @@ def find_closest_circle_center(prawn_bbox, segmentations):
     seg=None    
     # Iterate over each segmentation and calculate the distance to the bounding box corner
     for segmentation in segmentations:
+
         center = segmentation['center']  # Get the circle center (cx, cy)
         distance = calculate_euclidean_distance(prawn_point, center)
 
@@ -148,6 +148,7 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
             print(f"No bounding boxes found for {filename}")
             continue
 
+        print(image_path)    
         # Create a new sample for FiftyOne
         sample = fo.Sample(filepath=image_path)
 
@@ -207,8 +208,10 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
         # Add true prawn detection based on the bounding box
         true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
 
+    
+
         # Find the closest segmentation circle to the bounding box
-        segmentation = find_closest_circle_center(prawn_bbox, sample["segmentations"])  # segmentations should be part of the sample
+        segmentation = find_closest_circle_center(prawn_bbox, sample["segmentations"]['polylines'])  # segmentations should be part of the sample
 
         # Process the prawn detection using the circle's diameter
         if segmentation is not None:
