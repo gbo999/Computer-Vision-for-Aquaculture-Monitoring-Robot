@@ -24,9 +24,21 @@ def is_inside(c, p):
     return dist(c.C, p) <= c.R
 
 def get_circle_center(bx, by, cx, cy):
+    """
+    Calculate the center of the circle based on three points.
+    Handle collinear points by returning a fallback.
+    """
     B = bx * bx + by * by
     C = cx * cx + cy * cy
     D = bx * cy - by * cx
+
+    # Check for collinear points (D == 0 means the points are collinear)
+    if D == 0:
+        print("Points are collinear, cannot calculate circle center. Returning fallback.")
+        # Fallback: return a midpoint between two points or use another approach.
+        return Point(0, 0)  # You can modify this to return a different value based on your use case.
+    
+    # Otherwise, calculate the circle center
     return Point((cy * B - by * C) / (2 * D), (bx * C - cx * B) / (2 * D))
 
 def circle_from1(A, B):

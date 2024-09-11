@@ -7,11 +7,11 @@ from tqdm import tqdm
 import fiftyone as fo
 import pandas as pd
 from MEC import Point
-
+import fiftyone.core.labels as fol
 #pixels and segmentation not jsut center
 
 def load_data(filtered_data_path, metadata_path):
-    filtered_df = pd.read_csv(filtered_data_path)
+    filtered_df = pd.read_excel(filtered_data_path)
     metadata_df = pd.read_excel(metadata_path)
     return filtered_df, metadata_df
 
@@ -60,8 +60,11 @@ def calculate_minimum_enclosing_circle(points):
     Calculate the minimum enclosing circle for a set of points using Welzl's algorithm.
     Returns the center and radius of the circle.
     """
-    center, radius = welzl(points)  # Assumes `welzl()` is already implemented
-    return center, radius
+    mec = welzl(points)  
+    center=[]
+    center.append(mec.C.X)
+    center.append(mec.C.Y)
+    return center, mec.R
 def find_closest_circle_center(prawn_bbox, segmentations):
     """
     Find the closest segmentation circle center to the bounding box (bx, by) using Euclidean distance.
@@ -91,8 +94,10 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     focal_length = 24.22  # Camera focal length
     pixel_size = 0.00716844  # Pixel size in mm
 
+    poly=segmentation[0]
+
     # Get the diameter of the circle in pixels
-    predicted_diameter_pixels = segmentation['diameter']
+    predicted_diameter_pixels = poly['diameter']
 
     # Calculate the real-world prawn size using the enclosing circle's diameter
     real_length_cm = calculate_real_width(focal_length, height_mm, predicted_diameter_pixels, pixel_size)
@@ -106,10 +111,10 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     # Compute error and create label for the closest detection
     error_percentage = abs(real_length_cm - true_length) / true_length * 100
     closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm'
-    
+    poly.label = closest_detection_label
+    poly.attributes["prawn_id"] = fo.Attribute(value=prawn_id)
     # Attach information to the sample
-    sample['closest_detection_label'] = closest_detection_label
-    sample['prawn_id'] = prawn_id
+    
 
     # Tagging the sample based on error percentage
     if error_percentage > 25:
@@ -147,13 +152,13 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
         sample = fo.Sample(filepath=image_path)
 
         # Iterate over each bounding box in the filtered data
-        sample["segmentations"] = segmentations
+        sample["segmentations"] = fol.Polylines(polylines=segmentations)
         # Add the processed sample to the FiftyOne dataset
         add_metadata(sample, filename, filtered_df, metadata_df)
         dataset.add_sample(sample)
 
     # Save the updated dataframe with the calculated real lengths
-    output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx'
+    output_file_path = r'Updated_full_Filtered_Data_with_real_length.xlsx'
     filtered_df.to_excel(output_file_path, index=False)
     print("Processed and saved the updated filtered data.")
 
@@ -169,6 +174,8 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     parts = filename.split('_')
     relevant_part = f"{parts[1][-3:]}_{parts[3].split('.')[0]}"
     
+    metadata_df['file name'] = metadata_df['file name'].str.strip()
+
     # Look for metadata based on the relevant part of the filename
     metadata_row = metadata_df[metadata_df['file name'] == relevant_part]
 

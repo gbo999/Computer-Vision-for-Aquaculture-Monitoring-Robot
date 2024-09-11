@@ -11,3 +11,4 @@ from data_loader import load_data, create_dataset, process_images
 from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt
 from metrics import compute_pose_metrics, compute_dataset_map
 from MEC import welzl
+from data_loader_body import load_data, create_dataset, process_segmentations, calculate_minimum_enclosing_circle
