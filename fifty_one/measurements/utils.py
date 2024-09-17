@@ -19,3 +19,10 @@ def calculate_real_width(focal_length, distance_to_object, width_in_pixels, pixe
 
 def extract_identifier_from_gt(filename):
     return filename.split('-')[0]
+def calculate_bbox_area(bbox):
+    """
+    Calculate the area of a bounding box.
+    Bounding box is expected to be a tuple in the format (x_min, y_min, x_max, y_max).
+    """
+    x_min, y_min, x_max, y_max = bbox
+    return (x_max - x_min) * (y_max - y_min)

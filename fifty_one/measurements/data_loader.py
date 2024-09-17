@@ -117,9 +117,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     if abs(real_length_cm - true_length) / true_length * 100 > 25:
         if "MPE>25" not in sample.tags:
             sample.tags.append("MPE>25")
-    else:
-        if "MPE<25" not in sample.tags:
-            sample.tags.append("MPE<25")
+    
 
 # No close match found
 
