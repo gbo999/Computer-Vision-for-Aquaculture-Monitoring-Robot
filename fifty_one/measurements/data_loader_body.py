@@ -84,7 +84,6 @@ def process_segmentations(segmentation_path):
             # The result is max_distance (in pixels) in the 5312x2988 image
 
 
-
             normalzied_points_hull = [(point1[0]/5312, point1[1]/2988), (point2[0]/5312, point2[1]/2988)]  # Extract points (x, y)
 
             hull=fo.Polyline(
@@ -94,6 +93,7 @@ def process_segmentations(segmentation_path):
                 max_length=max_distance
             )
 
+             
 
 
             hulls.append(hull)
@@ -117,7 +117,6 @@ def process_segmentations(segmentation_path):
             # Calculate the minimum enclosing circle (center and radius)
             center, radius = calculate_minimum_enclosing_circle(points)
             diameter = radius * 2
-            
 
             segmentation = fo.Polyline(
                 points=[normalzied_points],
@@ -128,6 +127,10 @@ def process_segmentations(segmentation_path):
                 max_length_skeleton=max_length,
                 max_length_hull=max_distance
             )
+
+
+
+
             segmentations.append(segmentation)
                      # Store the segmentation information (center, radius, and diameter)
 
@@ -168,6 +171,9 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     Process the prawn detection based on the enclosing circle's diameter.
     Update the filtered dataframe with the real-world size of the prawn.
     """
+
+    
+
     # Fetch height in mm and other metadata
     height_mm = sample['heigtht(mm)'] 
     focal_length = 24.22  # Camera focal length
@@ -182,6 +188,9 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     predicted_skeleton_length=poly['max_length_skeleton']  
 
     predicted_hull_length=poly['max_length_hull']
+
+     
+
 
     hull_length_cm = calculate_real_width(focal_length, height_mm, predicted_hull_length, pixel_size)    
 
@@ -396,7 +405,7 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
         
 
         # Add true prawn detection based on the bounding box
-        true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
+        # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
 
     
 
@@ -408,7 +417,7 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
             process_detection_by_circle(segmentation, sample, filename, prawn_id, filtered_df)
 
     # Store true detections in the sample
-    sample["true_detections"] = fo.Detections(detections=true_detections)
+    # sample["true_detections"] = fo.Detections(detections=true_detections)
     sample["diagonal_line_1"] = fo.Polylines(polylines=diagonal_line_1)
     sample["diagonal_line_2"] = fo.Polylines(polylines=diagonal_line_2)
 
