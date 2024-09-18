@@ -200,6 +200,13 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     ske_length_cm = calculate_real_width(focal_length, height_mm, predicted_skeleton_length, pixel_size)    
 
 
+    #add to filtered dataframe the number of pixels in the hull and skeleton and diameter
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Hull_Length_pixels'] = predicted_hull_length
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Skeleton_Length_pixels'] = predicted_skeleton_length
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Diameter_pixels'] = predicted_diameter_pixels
+
+
+
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength_Hull(cm)'] = hull_length_cm
 
     # Update the filtered dataframe with the calculated real length
