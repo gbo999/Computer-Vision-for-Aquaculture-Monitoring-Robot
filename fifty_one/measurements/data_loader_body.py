@@ -176,6 +176,14 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     # Fetch height in mm and other metadata
     height_mm = sample['heigtht(mm)'] 
+
+    #focal length based on pond type
+    if sample.tags[0] == 'pond_1\carapace\left' or sample.tags[0] == 'pond_1\carapace\right':
+        focal_length = 23.64
+    else:
+        focal_length = 24.22
+
+
     focal_length = 24.22  # Camera focal length
     pixel_size = 0.00716844  # Pixel size in mm
 
