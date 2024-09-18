@@ -49,18 +49,43 @@ def process_segmentations(segmentation_path):
 
 
             hull_points = cv2.convexHull(prawn_conture, returnPoints=True)
-            max_distance=0
+
+
+            
+# Scaling factors to convert from 640x640 to 5312x2988
+            scale_x = 5312 / 640
+            scale_y = 2988 / 640
+
+        # Scale the points to the new resolution
+            scaled_hull_points = []
+            for point in hull_points:
+                x, y = point[0]
+                scaled_x = x * scale_x
+                scaled_y = y * scale_y
+                scaled_hull_points.append([scaled_x, scaled_y])
+
+            # Convert to numpy array for easier handling
+            scaled_hull_points = np.array(scaled_hull_points, dtype=np.float32)
+
+            # Now, find the maximum Euclidean distance (convex hull diameter) using the scaled points
+            max_distance = 0
             point1 = None
             point2 = None
-            for i in range(len(hull_points)):
-                for j in range(i+1,len(hull_points)):
-                    distance = calculate_euclidean_distance(hull_points[i][0], hull_points[j][0])
+
+            # Loop through all pairs of scaled points to find the maximum distance
+            for i in range(len(scaled_hull_points)):
+                for j in range(i + 1, len(scaled_hull_points)):
+                    distance = calculate_euclidean_distance(scaled_hull_points[i], scaled_hull_points[j])
                     if distance > max_distance:
                         max_distance = distance
-                        point1 = hull_points[i][0]
-                        point2 = hull_points[j][0]
+                        point1 = scaled_hull_points[i]
+                        point2 = scaled_hull_points[j]
 
-            normalzied_points_hull = [(point1[0]/640, point1[1]/640), (point2[0]/640, point2[1]/640)]  # Extract points (x, y)
+            # The result is max_distance (in pixels) in the 5312x2988 image
+
+
+
+            normalzied_points_hull = [(point1[0]/5312, point1[1]/2988), (point2[0]/5312, point2[1]/2988)]  # Extract points (x, y)
 
             hull=fo.Polyline(
                 points=[normalzied_points_hull],
@@ -68,6 +93,9 @@ def process_segmentations(segmentation_path):
                 filled=False,
                 max_length=max_distance
             )
+
+
+
             hulls.append(hull)
 
             skeleton=fo.Polyline(
@@ -89,14 +117,16 @@ def process_segmentations(segmentation_path):
             # Calculate the minimum enclosing circle (center and radius)
             center, radius = calculate_minimum_enclosing_circle(points)
             diameter = radius * 2
-             
+            
+
             segmentation = fo.Polyline(
                 points=[normalzied_points],
                 closed=True,
                 filled=False,
                 diameter=diameter,
                 center=center,
-                max_length_skeleton=max_length
+                max_length_skeleton=max_length,
+                max_length_hull=max_distance
             )
             segmentations.append(segmentation)
                      # Store the segmentation information (center, radius, and diameter)
@@ -149,13 +179,19 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     predicted_diameter_pixels = poly['diameter']
 
 
-    predicted_skeleton_length=poly['max_length_skeleton']   
+    predicted_skeleton_length=poly['max_length_skeleton']  
+
+    predicted_hull_length=poly['max_length_hull']
+
+    hull_length_cm = calculate_real_width(focal_length, height_mm, predicted_hull_length, pixel_size)    
 
     # Calculate the real-world prawn size using the enclosing circle's diameter
     real_length_cm = calculate_real_width(focal_length, height_mm, predicted_diameter_pixels, pixel_size)
 
     ske_length_cm = calculate_real_width(focal_length, height_mm, predicted_skeleton_length, pixel_size)    
 
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength_Hull(cm)'] = hull_length_cm
 
     # Update the filtered dataframe with the calculated real length
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength_MEC(cm)'] = real_length_cm
@@ -180,7 +216,9 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     error_percentage_skeleton = abs(ske_length_cm - true_length) / true_length * 100    
 
-    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: {error_percentage_skeleton:.2f}%, true length: {true_length:.2f}cm, pred length: {ske_length_cm:.2f}cm' 
+    error_percentage_hull = abs(hull_length_cm - true_length) / true_length * 100
+
+    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: {error_percentage_skeleton:.2f}%, true length: {true_length:.2f}cm, pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%, true length: {true_length:.2f}cm, pred length: {hull_length_cm:.2f}cm' 
     poly.label = closest_detection_label
     poly.attributes["prawn_id"] = fo.Attribute(value=prawn_id)
     # Attach information to the sample
