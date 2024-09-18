@@ -5,6 +5,8 @@ import os
 import ast
 from tqdm import tqdm
 from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt
+import math
+
 
 def load_data(filtered_data_path, metadata_path):
     filtered_df = pd.read_csv(filtered_data_path)
@@ -95,8 +97,17 @@ def find_closest_detection(sample, prawn_bbox):
 
 def process_detection(closest_detection, sample, filename, prawn_id, filtered_df):
     height_mm = sample['heigtht(mm)']
-    focal_length = 24.22
-    pixel_size = 0.00716844
+    if sample.tags[0] == 'pond_1\carapace\left' or sample.tags[0] == 'pond_1\carapace\right':
+        focal_length = 23.64
+    else:
+        focal_length = 24.72
+
+
+    # focal_length = 24.22  # Camera focal length
+    pixel_size = 0.00716844  # Pixel size in mm
+
+    fov=75
+    FOV_width=2*height_mm*math.tan(math.radians(fov/2))
 
     keypoints_dict2 = closest_detection.attributes["keypoints"]
     keypoints1 = [keypoints_dict2['point1'], keypoints_dict2['point2']]
@@ -106,6 +117,13 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
     euclidean_distance_pixels = calculate_euclidean_distance(keypoint1_scaled, keypoint2_scaled)
     real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
+
+    length_fov=FOV_width*euclidean_distance_pixels/5312
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_fov(mm)'] = length_fov
+
+
+
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength(cm)'] = real_length_cm
 
@@ -118,12 +136,15 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
 
 
-    closest_detection_label = f'MPError: {abs(real_length_cm - true_length) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm'
+    closest_detection_label = f'MPError: {abs(real_length_cm - true_length) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm, mpe_fov: {abs(length_fov - true_length) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {length_fov:.2f}cm'
     closest_detection.label = closest_detection_label
     closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
     if abs(real_length_cm - true_length) / true_length * 100 > 25:
-        if "MPE>25" not in sample.tags:
-            sample.tags.append("MPE>25")
+        if "MPE_focal>25" not in sample.tags:
+            sample.tags.append("MPE_focal>25")
+    if abs(length_fov - true_length) / true_length * 100 > 25:
+        if "MPE_fov>25" not in sample.tags:
+            sample.tags.append("MPE_fov>25")
     
 
 # No close match found

@@ -11,6 +11,8 @@ import fiftyone.core.labels as fol
 import cv2
 from skeletonization import skeletonize_mask, draw_skeleton, draw_longest_path, find_longest_path,create_filled_binary_mask
 import numpy as np
+import math
+from skimage.morphology import thin
 
 
 def load_data(filtered_data_path, metadata_path):
@@ -36,11 +38,20 @@ def process_segmentations(segmentation_path):
         for line in file:
             coords = list(map(float, line.strip().split()))
             binary_mask = create_filled_binary_mask(coords, 640, 640)
-            skeleton = skeletonize_mask(binary_mask)
+
+            #thin the mask
+            thinned=thin(binary_mask)
+
+            # skeleton = skeletonize_mask(binary_mask)
+            skeleton = thinned
             skeleton_coords = np.column_stack(np.nonzero(skeleton))
             normalized_coords,max_length = find_longest_path(skeleton_coords,(640,640),(2988,5312))
 
             normalized_coords = [(x, y) for y, x in normalized_coords]  # Convert to (y, x) format
+
+
+
+
 
             #convex hull diameter
             contures, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -181,13 +192,17 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     if sample.tags[0] == 'pond_1\carapace\left' or sample.tags[0] == 'pond_1\carapace\right':
         focal_length = 23.64
     else:
-        focal_length = 24.22
+        focal_length = 24.72
 
 
-    focal_length = 24.22  # Camera focal length
+    # focal_length = 24.22  # Camera focal length
     pixel_size = 0.00716844  # Pixel size in mm
 
     poly=segmentation[0]
+
+    fov=75
+    FOV_width=2*height_mm*math.tan(math.radians(fov/2))
+
 
     # Get the diameter of the circle in pixels
     predicted_diameter_pixels = poly['diameter']
@@ -207,6 +222,14 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     ske_length_cm = calculate_real_width(focal_length, height_mm, predicted_skeleton_length, pixel_size)    
 
+
+    hull_length_fov=FOV_width*predicted_hull_length/5312
+    diameter_length_fov=FOV_width*predicted_diameter_pixels/5312
+    skeleton_length_fov=FOV_width*predicted_skeleton_length/5312
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Hull_Length_FOV'] = hull_length_fov
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Skeleton_Length_FOV'] = skeleton_length_fov
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Diameter_FOV'] = diameter_length_fov
 
     #add to filtered dataframe the number of pixels in the hull and skeleton and diameter
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Hull_Length_pixels'] = predicted_hull_length
@@ -235,6 +258,11 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     # true_length = max(lengths)
     # Compute error and create label for the closest detection
 
+    error_percentage_MEC_fov = abs(diameter_length_fov - true_length) / true_length * 100
+
+    error_percentage_hull_fov = abs(hull_length_fov - true_length) / true_length * 100
+
+    error_percentage_skeleton_fov = abs(skeleton_length_fov - true_length) / true_length * 100  
 
     error_percentage = abs(real_length_cm - true_length) / true_length * 100
 
@@ -242,19 +270,25 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     error_percentage_hull = abs(hull_length_cm - true_length) / true_length * 100
 
-    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: {error_percentage_skeleton:.2f}%, true length: {true_length:.2f}cm, pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%, true length: {true_length:.2f}cm, pred length: {hull_length_cm:.2f}cm' 
+    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: {error_percentage_skeleton:.2f}%, true length: {true_length:.2f}cm, pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%, true length: {true_length:.2f}cm, pred length: {hull_length_cm:.2f}cm, error percentage hull_fov: {error_percentage_hull_fov:.2f}%, true length: {true_length:.2f}cm, pred length: {hull_length_fov:.2f}cm' 
     poly.label = closest_detection_label
     poly.attributes["prawn_id"] = fo.Attribute(value=prawn_id)
     # Attach information to the sample
 
     # Tagging the sample based on error percentage
-    if error_percentage > 25:
-        if "MPE_mec>25" not in sample.tags:
-            sample.tags.append("MPE_mec>25")
+    if error_percentage_hull_fov > 25:
+        if "MPE_hull>25" not in sample.tags:
+            sample.tags.append("MPE_hull>25")
 
-    if error_percentage_skeleton > 25:
+    if error_percentage_skeleton_fov > 25:
         if "MPE_ske>25" not in sample.tags:
             sample.tags.append("MPE_ske>25")
+
+    if error_percentage_MEC_fov > 25:
+        if "MPE_MEC>25" not in sample.tags:
+            sample.tags.append("MPE_MEC>25")
+
+    
    
 def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df, dataset, pond_tag):
     """
