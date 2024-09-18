@@ -109,7 +109,14 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength(cm)'] = real_length_cm
 
+    
+
     true_length = filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Pond_Type'] = sample.tags[0]        
+
+
+
 
     closest_detection_label = f'MPError: {abs(real_length_cm - true_length) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm'
     closest_detection.label = closest_detection_label
@@ -121,7 +128,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
 # No close match found
 
-def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset):
+def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset,pond_type):
    
    for image_path in tqdm(image_paths):
 
@@ -166,6 +173,8 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
     sample["detections_predictions"] = fo.Detections(detections=detections)
     sample["keypoints"] = fo.Keypoints(keypoints=keypoints_list)
     sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
+
+    sample.tags.append(pond_type)
     add_metadata(sample, filename, filtered_df, metadata_df)
 
 

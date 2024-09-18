@@ -30,6 +30,7 @@ def process_segmentations(segmentation_path):
     """
     segmentations = []
     skeletons=[]
+    hulls=[]
     # Open the segmentation file and process each line
     with open(segmentation_path, 'r') as file:
         for line in file:
@@ -41,7 +42,33 @@ def process_segmentations(segmentation_path):
 
             normalized_coords = [(x, y) for y, x in normalized_coords]  # Convert to (y, x) format
 
-            print('max_length',max_length)
+            #convex hull diameter
+            contures, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            prawn_conture = max(contures, key=cv2.contourArea)  
+
+
+            hull_points = cv2.convexHull(prawn_conture, returnPoints=True)
+            max_distance=0
+            point1 = None
+            point2 = None
+            for i in range(len(hull_points)):
+                for j in range(i+1,len(hull_points)):
+                    distance = calculate_euclidean_distance(hull_points[i][0], hull_points[j][0])
+                    if distance > max_distance:
+                        max_distance = distance
+                        point1 = hull_points[i][0]
+                        point2 = hull_points[j][0]
+
+            normalzied_points_hull = [(point1[0]/640, point1[1]/640), (point2[0]/640, point2[1]/640)]  # Extract points (x, y)
+
+            hull=fo.Polyline(
+                points=[normalzied_points_hull],
+                closed=False,
+                filled=False,
+                max_length=max_distance
+            )
+            hulls.append(hull)
 
             skeleton=fo.Polyline(
                 points=[normalized_coords],
@@ -66,7 +93,7 @@ def process_segmentations(segmentation_path):
             segmentation = fo.Polyline(
                 points=[normalzied_points],
                 closed=True,
-                filled=True,
+                filled=False,
                 diameter=diameter,
                 center=center,
                 max_length_skeleton=max_length
@@ -74,7 +101,7 @@ def process_segmentations(segmentation_path):
             segmentations.append(segmentation)
                      # Store the segmentation information (center, radius, and diameter)
 
-    return segmentations,skeletons
+    return segmentations,skeletons,hulls
 
 def calculate_minimum_enclosing_circle(points):
     """
@@ -112,7 +139,7 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     Update the filtered dataframe with the real-world size of the prawn.
     """
     # Fetch height in mm and other metadata
-    height_mm = sample['heigtht(mm)']  # Height of the prawn
+    height_mm = sample['heigtht(mm)'] 
     focal_length = 24.22  # Camera focal length
     pixel_size = 0.00716844  # Pixel size in mm
 
@@ -129,15 +156,26 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     ske_length_cm = calculate_real_width(focal_length, height_mm, predicted_skeleton_length, pixel_size)    
 
+
     # Update the filtered dataframe with the calculated real length
-    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength(cm)'] = real_length_cm
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength_MEC(cm)'] = real_length_cm
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength_Skeleton(cm)'] = ske_length_cm
+
+    #add pond type to the filtered dataframe
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'PondType'] = sample.tags[0]        
+
+    #put height in mm in the filtered dataframe
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Height_mm'] = height_mm
 
     # Fetch the true length from the dataframe
-    true_length = filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id),  'Avg_Length'].values[0]
+    # true_length = filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
+    true_length = max(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0],filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0],filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0])
+    # Calculate the larges  length from Length_1, Length_2, Length_3
 
-    # Calculate the largest length from Length_1, Length_2, Length_3
     # true_length = max(lengths)
     # Compute error and create label for the closest detection
+
+
     error_percentage = abs(real_length_cm - true_length) / true_length * 100
 
     error_percentage_skeleton = abs(ske_length_cm - true_length) / true_length * 100    
@@ -146,12 +184,15 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     poly.label = closest_detection_label
     poly.attributes["prawn_id"] = fo.Attribute(value=prawn_id)
     # Attach information to the sample
-    
 
     # Tagging the sample based on error percentage
     if error_percentage > 25:
-        if "MPE>25" not in sample.tags:
-            sample.tags.append("MPE>25")
+        if "MPE_mec>25" not in sample.tags:
+            sample.tags.append("MPE_mec>25")
+
+    if error_percentage_skeleton > 25:
+        if "MPE_ske>25" not in sample.tags:
+            sample.tags.append("MPE_ske>25")
    
 def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df, dataset, pond_tag):
     """
@@ -171,7 +212,7 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
                  
         # Parse the segmentations to get the minimum enclosing circles
-        segmentations,skeletons = process_segmentations(prediction_txt_path)
+        segmentations,skeletons,hulls = process_segmentations(prediction_txt_path)
 
         # Save the modified image (with circles drawn)
        
@@ -180,7 +221,6 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
         matching_rows = filtered_df[filtered_df['Label'] == f'full body:{filename}']
         
         if matching_rows.empty:
-            print(f"No bounding boxes found for {filename}")
             continue
 
 
@@ -191,6 +231,8 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
         sample["segmentations"] = fol.Polylines(polylines=segmentations)
 
         sample["skeletons"] = fol.Polylines(polylines=skeletons)
+
+        sample["hulls"] = fol.Polylines(polylines=hulls)    
 
         sample.tags.append(f"pond_{pond_tag}")
 
@@ -238,6 +280,8 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
     Add prawn detections based on bounding box information and segmentations (minimum enclosing circles).
     """
     true_detections = []
+    diagonal_line_1=[]
+    diagonal_line_2=[]
 
     for _, row in matching_rows.iterrows():
         prawn_id = row['PrawnID']
@@ -252,7 +296,7 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
         if not bounding_boxes:
             print(f"No bounding boxes found for prawn ID {prawn_id} in {filename}.")
             continue
-        
+
         # Select the largest bounding box based on area
         largest_bbox = max(bounding_boxes, key=calculate_bbox_area)
         
@@ -261,6 +305,53 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
             largest_bbox[0] / 5312, largest_bbox[1] / 2988,
             largest_bbox[2] / 5312, largest_bbox[3] / 2988
         ]
+
+        x_min = prawn_normalized_bbox[0]
+        y_min = prawn_normalized_bbox[1]
+        width = prawn_normalized_bbox[2]
+        height = prawn_normalized_bbox[3]
+
+        # Corners in normalized coordinates
+        top_left = [x_min, y_min]
+        top_right = [x_min + width, y_min]
+        bottom_left = [x_min, y_min + height]
+        bottom_right = [x_min + width, y_min + height]
+
+        # Diagonals
+        diagonal1 = [top_left, bottom_right]
+        diagonal2 = [top_right, bottom_left]
+
+        # Create polylines for diagonals
+        diagonal1_polyline = fo.Polyline(
+            label="Diagonal 1",
+            points=[diagonal1],
+            closed=False,
+            filled=False,
+            line_color="blue",
+            thickness=2,
+        )
+
+        diagonal2_polyline = fo.Polyline(
+            label="Diagonal 2",
+            points=[diagonal2],
+            closed=False,
+            filled=False,
+            line_color="green",
+            thickness=2,
+        )
+
+
+        diagonal_line_1.append(diagonal1_polyline)
+        diagonal_line_2.append(diagonal2_polyline)
+
+
+        #diagonal line 1  of prawn_noramalized_bbox as fo polyline
+
+
+
+        #draw    
+        # Add the largest bounding box as a polyline    
+
 
 
         # Convert bounding box to normalized coordinates
@@ -280,9 +371,26 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
 
     # Store true detections in the sample
     sample["true_detections"] = fo.Detections(detections=true_detections)
+    sample["diagonal_line_1"] = fo.Polylines(polylines=diagonal_line_1)
+    sample["diagonal_line_2"] = fo.Polylines(polylines=diagonal_line_2)
 
-
-
+def calculate_mean_bbox(bounding_boxes):
+    """
+    Calculate the mean bounding box from a list of bounding boxes.
+    Each bounding box is in the format (x_min, y_min, x_max, y_max).
+    """
+    # Unzip the list of bounding boxes into separate lists for x_min, y_min, x_max, and y_max
+    x_mins, y_mins, x_maxs, y_maxs = zip(*bounding_boxes)
+    
+    # Calculate the mean for each coordinate
+    mean_bbox = (
+        sum(x_mins) / len(x_mins),
+        sum(y_mins) / len(y_mins),
+        sum(x_maxs) / len(x_maxs),
+        sum(y_maxs) / len(y_maxs)
+    )
+    
+    return mean_bbox
 
 # Convert pixel length to real-world length
 # Use camera parameters and scaling as described earlier
