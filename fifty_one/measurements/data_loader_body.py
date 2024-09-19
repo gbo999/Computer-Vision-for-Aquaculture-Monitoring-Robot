@@ -270,7 +270,8 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     error_percentage_hull = abs(hull_length_cm - true_length) / true_length * 100
 
-    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: {error_percentage_skeleton:.2f}%, true length: {true_length:.2f}cm, pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%, true length: {true_length:.2f}cm, pred length: {hull_length_cm:.2f}cm, error percentage hull_fov: {error_percentage_hull_fov:.2f}%, true length: {true_length:.2f}cm, pred length: {hull_length_fov:.2f}cm' 
+    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: 
+    {error_percentage_skeleton:.2f}%, , pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%,, pred length: {hull_length_cm:.2f}cm, error percentage hull_fov: {error_percentage_hull_fov:.2f}%, pred length: {hull_length_fov:.2f}cm' 
     poly.label = closest_detection_label
     poly.attributes["prawn_id"] = fo.Attribute(value=prawn_id)
     # Attach information to the sample
@@ -287,6 +288,18 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     if error_percentage_MEC_fov > 25:
         if "MPE_MEC>25" not in sample.tags:
             sample.tags.append("MPE_MEC>25")
+
+    if error_percentage > 25:
+        if "MPE_MEC_focal>25" not in sample.tags:
+            sample.tags.append("MPE_MEC_focal>25")
+
+    if error_percentage_hull > 25:
+        if "MPE_hull_focal>25" not in sample.tags:
+            sample.tags.append("MPE_hull_focal>25")
+
+    if error_percentage_skeleton > 25:
+        if "MPE_skeleton_focal>25" not in sample.tags:
+            sample.tags.append("MPE_skeleton_focal>25")
 
     
    

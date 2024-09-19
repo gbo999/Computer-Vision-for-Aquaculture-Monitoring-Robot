@@ -63,7 +63,9 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     add_prawn_detections(sample, matching_rows, filtered_df,filename)
 
 def add_prawn_detections(sample, matching_rows, filtered_df,filename):
-    true_detections = []
+    # true_detections = []
+    diagonal_line_1=[]
+    diagonal_line_2=[]
 
     for _, row in matching_rows.iterrows():
         prawn_id = row['PrawnID']
@@ -72,14 +74,65 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
         prawn_bbox = tuple(float(coord) for coord in prawn_bbox)
         prawn_normalized_bbox = [prawn_bbox[0] / 5312, prawn_bbox[1] / 2988, prawn_bbox[2] / 5312, prawn_bbox[3] / 2988]
 
-        true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
+        # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
 
         closest_detection = find_closest_detection(sample, prawn_bbox)
 
         if closest_detection is not None:
             process_detection(closest_detection, sample, filename, prawn_id, filtered_df)
 
-    sample["true_detections"] = fo.Detections(detections=true_detections)
+       
+        
+        # Normalize the largest bounding box coordinates
+
+        x_min = prawn_normalized_bbox[0]
+        y_min = prawn_normalized_bbox[1]
+        width = prawn_normalized_bbox[2]
+        height = prawn_normalized_bbox[3]
+
+        # Corners in normalized coordinates
+        top_left = [x_min, y_min]
+        top_right = [x_min + width, y_min]
+        bottom_left = [x_min, y_min + height]
+        bottom_right = [x_min + width, y_min + height]
+
+        # Diagonals
+        diagonal1 = [top_left, bottom_right]
+        diagonal2 = [top_right, bottom_left]
+
+        # Create polylines for diagonals
+        diagonal1_polyline = fo.Polyline(
+            label="Diagonal 1",
+            points=[diagonal1],
+            closed=False,
+            filled=False,
+            line_color="blue",
+            thickness=2,
+        )
+
+        diagonal2_polyline = fo.Polyline(
+            label="Diagonal 2",
+            points=[diagonal2],
+            closed=False,
+            filled=False,
+            line_color="green",
+            thickness=2,
+        )
+
+
+        diagonal_line_1.append(diagonal1_polyline)
+        diagonal_line_2.append(diagonal2_polyline)
+
+
+    sample["diagonal_line_1"] = fo.Polylines(polylines=diagonal_line_1)
+    sample["diagonal_line_2"] = fo.Polylines(polylines=diagonal_line_2)
+
+
+
+
+
+
+    # sample["true_detections"] = fo.Detections(detections=true_detections)
 
 def find_closest_detection(sample, prawn_bbox):
     prawn_point = (prawn_bbox[0] / 5312, prawn_bbox[1] / 2988)
@@ -128,15 +181,15 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength(cm)'] = real_length_cm
 
     
-
-    true_length = filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
+    min_true_from_length_1_length_2_length_3= min(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]-real_length_cm)
+    # true_length = filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Pond_Type'] = sample.tags[0]        
 
 
 
 
-    closest_detection_label = f'MPError: {abs(real_length_cm - true_length) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm, mpe_fov: {abs(length_fov - true_length) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {length_fov:.2f}cm'
+    closest_detection_label = f'MPError: {abs(real_length_cm - min_true_from_length_1_length_2_length_3) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm, mpe_fov: {abs(length_fov - min_true_from_length_1_length_2_length_3) / true_length * 100:.2f}%, pred length: {length_fov:.2f}cm'
     closest_detection.label = closest_detection_label
     closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
     if abs(real_length_cm - true_length) / true_length * 100 > 25:
