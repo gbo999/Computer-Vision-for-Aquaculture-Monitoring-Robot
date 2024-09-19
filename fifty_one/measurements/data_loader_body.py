@@ -41,6 +41,7 @@ def process_segmentations(segmentation_path):
     skeletons_2=[]
     box_diagonal=[] 
     boxes=[]
+    masks=[]
     # Open the segmentation file and process each line
     with open(segmentation_path, 'r') as file:
         for line in file:
@@ -49,6 +50,29 @@ def process_segmentations(segmentation_path):
             
             
             binary_mask_no= create_filled_binary_mask(coords, 640, 640,gaussian_blur=False) 
+
+            binary_dilated = cv2.dilate(binary_mask_no, np.ones((15, 15), np.uint8), iterations=1)     
+
+
+            #contour dilated
+            contures_dil, _ = cv2.findContours(binary_dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)    
+
+            prawn_conture_dil = max(contures_dil, key=cv2.contourArea)
+
+            coords_contour_dil = np.column_stack(prawn_conture_dil).flatten()
+
+            normalized_coords_bin=[(coords_contour_dil[i]/640, coords_contour_dil[i+1]/640) for i in range(0, len(coords_contour_dil), 2)]  # Extract points (x, y)
+            # coords_bin = np.column_stack(np.nonzero(binary_dilated)).flatten()
+
+            # normalized_coords_bin=[(coords_bin[i+1]/640, coords_bin[i]/640) for i in range(0, len(coords_bin), 2)]  # Extract points (x, y)
+
+
+
+            masks.append(fo.Polyline(
+                points=[normalized_coords_bin],
+                closed=True,
+                filled=False,
+            ))
 
 
 
@@ -261,7 +285,7 @@ def process_segmentations(segmentation_path):
 
                      # Store the segmentation information (center, radius, and diameter)
 
-    return segmentations,skeletons,hulls, skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2,boxes
+    return segmentations,skeletons,hulls, skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2,boxes,masks
 
 def calculate_minimum_enclosing_circle(points):
     """
@@ -416,18 +440,6 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
         if "MPE_MEC>25" not in sample.tags:
             sample.tags.append("MPE_MEC>25")
 
-    if error_percentage > 25:
-        if "MPE_MEC_focal>25" not in sample.tags:
-            sample.tags.append("MPE_MEC_focal>25")
-
-    if error_percentage_hull > 25:
-        if "MPE_hull_focal>25" not in sample.tags:
-            sample.tags.append("MPE_hull_focal>25")
-
-    if error_percentage_skeleton > 25:
-        if "MPE_skeleton_focal>25" not in sample.tags:
-            sample.tags.append("MPE_skeleton_focal>25")
-
     if error_percentage_box_fov > 25:
         if "MPE_box_fov>25" not in sample.tags:
             sample.tags.append("MPE_box_fov>25")
@@ -453,7 +465,7 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
                  
         # Parse the segmentations to get the minimum enclosing circles
-        segmentations,skeletons,hulls,skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2,boxes = process_segmentations(prediction_txt_path)
+        segmentations,skeletons,hulls,skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2,boxes,masks = process_segmentations(prediction_txt_path)
 
         # Save the modified image (with circles drawn)
        
@@ -486,6 +498,7 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
         sample['boxes']=fol.Polylines(polylines=boxes)
 
+        sample['masks']=fol.Polylines(polylines=masks)
         # Add the processed sample to the FiftyOne dataset
         add_metadata(sample, filename, filtered_df, metadata_df)
         dataset.add_sample(sample)

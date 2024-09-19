@@ -2,6 +2,11 @@ import cv2
 import numpy as np
 from skimage.morphology import skeletonize
 import networkx as nx
+from skimage.morphology import dilation, disk
+from skimage.draw import line
+
+from skimage.measure import label, regionprops
+
 
 def load_multiple_coords_from_txt(txt_file):
     """
@@ -30,12 +35,7 @@ def create_filled_binary_mask(coords, img_height, img_width,gaussian_blur=True):
     polygon = polygon.reshape((-1, 1, 2))  # Reshape for OpenCV fillPoly
     cv2.fillPoly(binary_mask, [polygon], color=1) 
 
-    #smooth the mask
-    if gaussian_blur:
-        kernel = np.ones((5,5),np.uint8)
-        binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
-        binary_mask = cv2.GaussianBlur(binary_mask, (5, 5), 0)
-        _, binary_mask = cv2.threshold(binary_mask, 128, 255, cv2.THRESH_BINARY)
+    
 
         # binary_mask = cv2.GaussianBlur(binary_mask, (8, 8), 0)
     
@@ -46,6 +46,11 @@ def skeletonize_mask(binary_mask):
     """
     Skeletonizes the binary mask using skimage's skeletonize function.
     """
+
+    # Dilate the binary mask to ensure connectivity
+    
+
+# Apply skeletonization to the dilated mask
     skeleton = skeletonize(binary_mask)
     # cv2.imwrite(f'skeleton.png', skeleton.astype(np.uint8) * 255)
 
@@ -131,6 +136,24 @@ def calculate_path_length(coords):
         length = np.sqrt(dy ** 2 + dx ** 2)    
     return length
 
+
+def find_segmentation_edges(binary_mask):
+        labeled_mask = label(binary_mask)
+        edges = []
+        for region in regionprops(labeled_mask):
+            for coords in region.coords:
+                y, x = coords
+                if (binary_mask[y-1:y+2, x-1:x+2] == 0).any():
+                    edges.append((y, x))
+        return edges
+
+def find_max_edge(point, edges):
+        y, x = point
+        closest_point = max(edges, key=lambda edge: np.sqrt((y - edge[0]) ** 2 + (x - edge[1]) ** 2))
+        return closest_point
+
+
+
 def find_longest_path(skeleton_coords, original_size, new_size):
     """
     Finds the longest path in the skeleton using graph analysis, and returns:
@@ -193,6 +216,7 @@ def find_longest_path(skeleton_coords, original_size, new_size):
         return [], 0
 
 
+    
     #number of pixels in the laegest path scaled to new size
 
 
