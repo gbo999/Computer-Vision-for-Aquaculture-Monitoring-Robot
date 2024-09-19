@@ -39,7 +39,7 @@ def process_segmentations(segmentation_path):
     skeletons_straight_2=[]
     seg_closeds=[]
     skeletons_2=[]
-
+    box_diagonal=[] 
     boxes=[]
     # Open the segmentation file and process each line
     with open(segmentation_path, 'r') as file:
@@ -82,7 +82,7 @@ def process_segmentations(segmentation_path):
             # skeleton = skeletonize_mask(binary_mask)
             skeleton_2 = thinned_2
             skeleton_coords_2 = np.column_stack(np.nonzero(skeleton_2))
-            normalized_coords_2,max_length_2,num_pixels = find_longest_path(skeleton_coords_2,(640,640),(2988,5312))
+            normalized_coords_2,max_length_2 = find_longest_path(skeleton_coords_2,(640,640),(2988,5312))
 
             normalized_coords_2 = [(x, y) for y, x in normalized_coords_2]  # Convert to (y, x) format
 
@@ -112,22 +112,28 @@ def process_segmentations(segmentation_path):
             scale_x = new_size[0] / original_size[0]  # 5312 / 640
             scale_y = new_size[1] / original_size[1]  # 2988 / 640
 
-            # Scale the box points from 640x640 to 5312x298
+            box_points_scaled = np.array([(point[0] * scale_x, point[1] * scale_y) for point in box_points])
+
+            width= calculate_euclidean_distance(box_points_scaled[0], box_points_scaled[1])
+            height= calculate_euclidean_distance(box_points_scaled[1], box_points_scaled[2])
+
+            max_length_box=max(width,height)
+
+
+           
+
+            normalized_bounding_box = [(box_points[i][0]/640, box_points[i][1]/640) for i in range(0, len(box_points))] 
             
-            width = rect[1][0]*scale_x
-            height = rect[1][1]*scale_y
-            
-            # Find the maximum of the width and height to use as the diameter
-            max_length_box = max(width, height)
+            # Extract points (x, y) 
+            box=fo.Polyline(
+                points=[normalized_bounding_box],
+                closed=True,
+                filled=False,
+                max_length=max_length_box
+            )
 
-            
 
-
-            normalized_bounding_box = [(box_points[i][0]/640, box_points[i][1]/640) for i in range(0, len(box_points))]  # Extract points (x, y)
-
-            detection=fo.Detection(label="box_method", bounding_box=normalized_bounding_box, max_length_box=max_length_box) 
-
-            boxes.append(detection)
+            boxes.append(box)
 
 
             hull_points = cv2.convexHull(prawn_conture, returnPoints=True)
@@ -188,7 +194,7 @@ def process_segmentations(segmentation_path):
                 closed=False,
                 filled=False,
                 max_length=max_length_2,
-                num_pixel=num_pixels
+                
             )
             skeletons_straight_2.append(skeleton_straight_2)
 
@@ -255,7 +261,7 @@ def process_segmentations(segmentation_path):
 
                      # Store the segmentation information (center, radius, and diameter)
 
-    return segmentations,skeletons,hulls, skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2
+    return segmentations,skeletons,hulls, skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2,boxes
 
 def calculate_minimum_enclosing_circle(points):
     """
@@ -423,9 +429,9 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
             sample.tags.append("MPE_skeleton_focal>25")
 
     if error_percentage_box_fov > 25:
-        if "MPE_box_focal>25" not in sample.tags:
-            sample.tags.append("MPE_box_focal>25")
-            
+        if "MPE_box_fov>25" not in sample.tags:
+            sample.tags.append("MPE_box_fov>25")
+
 
     
    
@@ -447,7 +453,7 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
                  
         # Parse the segmentations to get the minimum enclosing circles
-        segmentations,skeletons,hulls,skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2 = process_segmentations(prediction_txt_path)
+        segmentations,skeletons,hulls,skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2,boxes = process_segmentations(prediction_txt_path)
 
         # Save the modified image (with circles drawn)
        
@@ -472,12 +478,13 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
         # sample["skeletons_straight"] = fol.Polylines(polylines=skeletons_straight)
 
         # sample['seg_closeds']=fol.Polylines(polylines=seg_closeds)
-        # sample.tags.append(f"pond_{pond_tag}")
+        sample.tags.append(f"{pond_tag}")
 
         sample['skeletons_no_smooth']=fol.Polylines(polylines=skeletons_2)
 
         sample["skeletons_straight_no_smooth"] = fol.Polylines(polylines=skeletons_straight_2)
 
+        sample['boxes']=fol.Polylines(polylines=boxes)
 
         # Add the processed sample to the FiftyOne dataset
         add_metadata(sample, filename, filtered_df, metadata_df)

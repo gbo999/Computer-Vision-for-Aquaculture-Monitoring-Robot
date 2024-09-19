@@ -194,11 +194,6 @@ def find_longest_path(skeleton_coords, original_size, new_size):
 
 
     #number of pixels in the laegest path scaled to new size
-    new_height, new_width = new_size
-    original_height, original_width = original_size
-    scale_y = new_height / original_height
-    scale_x = new_width / original_width
-    max_length = max_length * np.sqrt(scale_y ** 2 + scale_x ** 2)
 
 
     # Scale the longest path to the new image size
@@ -218,5 +213,4 @@ def find_longest_path(skeleton_coords, original_size, new_size):
 
 
 
-    return normalized_longest_path, path_length_in_pixels, max_length
-
+    return normalized_longest_path, path_length_in_pixels
