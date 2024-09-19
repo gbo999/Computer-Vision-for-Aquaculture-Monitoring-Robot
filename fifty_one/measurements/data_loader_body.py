@@ -104,9 +104,18 @@ def process_segmentations(segmentation_path):
             rect = cv2.minAreaRect(prawn_conture)
             box_points = cv2.boxPoints(rect)
             box_points = np.int0(box_points)
+
+            original_size = (640, 640)
+            new_size = (5312, 2988)
+
+            # Scaling factors
+            scale_x = new_size[0] / original_size[0]  # 5312 / 640
+            scale_y = new_size[1] / original_size[1]  # 2988 / 640
+
+            # Scale the box points from 640x640 to 5312x298
             
-            width = rect[1][0]
-            height = rect[1][1]
+            width = rect[1][0]*scale_x
+            height = rect[1][1]*scale_y
             
             # Find the maximum of the width and height to use as the diameter
             max_length_box = max(width, height)
@@ -314,6 +323,10 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     predicted_hull_length=poly['max_length_hull']
 
      
+    predicted_box_length=poly['max_length_box']
+
+    # Calculate the real-world prawn size using the box
+    real_length_mm_box = calculate_real_width(focal_length, height_mm, predicted_box_length, pixel_size) 
 
 
     hull_length_cm = calculate_real_width(focal_length, height_mm, predicted_hull_length, pixel_size)    
@@ -327,6 +340,12 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     hull_length_fov=FOV_width*predicted_hull_length/5312
     diameter_length_fov=FOV_width*predicted_diameter_pixels/5312
     skeleton_length_fov=FOV_width*predicted_skeleton_length/5312
+
+    box_length_fov=FOV_width*predicted_box_length/5312
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_box_focal'] = real_length_mm_box
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_FOV_box'] = box_length_fov
 
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Hull_Length_FOV'] = hull_length_fov
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Skeleton_Length_FOV'] = skeleton_length_fov
@@ -371,7 +390,9 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     error_percentage_hull = abs(hull_length_cm - true_length) / true_length * 100
 
-    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: {error_percentage_skeleton:.2f}%, , pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%,, pred length: {hull_length_cm:.2f}cm, error percentage hull_fov: {error_percentage_hull_fov:.2f}%, pred length: {hull_length_fov:.2f}cm' 
+    error_percentage_box_fov = abs(box_length_fov - true_length) / true_length * 100
+
+    closest_detection_label = f'true length: {true_length:.2f}mm, MPError: {error_percentage_hull_fov:.2f}%, , pred length: {hull_length_fov:.2f}cm ,error percentage skeleton: {error_percentage_skeleton_fov:.2f}%, , pred length: {skeleton_length_fov:.2f}cm, error percentage box: {error_percentage_box_fov:.2f}%, pred length: {box_length_fov:.2f}cm, '
     poly.label = closest_detection_label
     poly.attributes["prawn_id"] = fo.Attribute(value=prawn_id)
     # Attach information to the sample
@@ -400,6 +421,11 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
     if error_percentage_skeleton > 25:
         if "MPE_skeleton_focal>25" not in sample.tags:
             sample.tags.append("MPE_skeleton_focal>25")
+
+    if error_percentage_box_fov > 25:
+        if "MPE_box_focal>25" not in sample.tags:
+            sample.tags.append("MPE_box_focal>25")
+            
 
     
    
