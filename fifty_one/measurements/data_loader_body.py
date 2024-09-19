@@ -22,7 +22,9 @@ def load_data(filtered_data_path, metadata_path):
 
 def create_dataset():
     dataset = fo.Dataset("prawn_full_body", overwrite=True)
-   
+    #clear the dataset
+    
+
     return dataset
 
 
@@ -34,40 +36,89 @@ def process_segmentations(segmentation_path):
     skeletons=[]
     hulls=[]
     skeletons_straight=[]
+    skeletons_straight_2=[]
     seg_closeds=[]
+    skeletons_2=[]
+
+    boxes=[]
     # Open the segmentation file and process each line
     with open(segmentation_path, 'r') as file:
         for line in file:
             coords = list(map(float, line.strip().split()))
             binary_mask = create_filled_binary_mask(coords, 640, 640)
-
-            #convert binary mask to normalized coordinates
-            binary_mask_smooth = binary_mask.astype(np.uint8)
-            #x,y coordinates of the mask
-            coords_bin = np.column_stack(np.nonzero(binary_mask_smooth)).flatten()
-
-            normalized_coords_bin=[(coords_bin[i+1]/640, coords_bin[i]/640) for i in range(0, len(coords_bin), 2)]  # Extract points (x, y)
+            
+            
+            binary_mask_no= create_filled_binary_mask(coords, 640, 640,gaussian_blur=False) 
 
 
-            #thin the mask
-            thinned=thin(binary_mask)
+
+            # #convert binary mask to normalized coordinates
+            # binary_mask_smooth = binary_mask.astype(np.uint8)
+            # #x,y coordinates of the mask
+            # coords_bin = np.column_stack(np.nonzero(binary_mask_smooth)).flatten()
+
+            # normalized_coords_bin=[(coords_bin[i+1]/640, coords_bin[i]/640) for i in range(0, len(coords_bin), 2)]  # Extract points (x, y)
+
+
+
+
+        
+            # #thin the mask
+            # thinned=skeletonize_mask(binary_mask)
+
+            # # skeleton = skeletonize_mask(binary_mask)
+            # skeleton = thinned
+            # skeleton_coords = np.column_stack(np.nonzero(skeleton))
+            # normalized_coords,max_length = find_longest_path(skeleton_coords,(640,640),(2988,5312))
+
+            # normalized_coords = [(x, y) for y, x in normalized_coords]  # Convert to (y, x) format
+
+            # #only the first and last points of the skeleton
+            # normalized_coords_straight = [normalized_coords[0], normalized_coords[-1]]  
+
+            
+            thinned_2=skeletonize_mask(binary_mask_no)
 
             # skeleton = skeletonize_mask(binary_mask)
-            skeleton = thinned
-            skeleton_coords = np.column_stack(np.nonzero(skeleton))
-            normalized_coords,max_length = find_longest_path(skeleton_coords,(640,640),(2988,5312))
+            skeleton_2 = thinned_2
+            skeleton_coords_2 = np.column_stack(np.nonzero(skeleton_2))
+            normalized_coords_2,max_length_2,num_pixels = find_longest_path(skeleton_coords_2,(640,640),(2988,5312))
 
-            normalized_coords = [(x, y) for y, x in normalized_coords]  # Convert to (y, x) format
+            normalized_coords_2 = [(x, y) for y, x in normalized_coords_2]  # Convert to (y, x) format
 
             #only the first and last points of the skeleton
-            normalized_coords_straight = [normalized_coords[0], normalized_coords[-1]]  
+            normalized_coords_straight_2 = [normalized_coords_2[0], normalized_coords_2[-1]]  
 
-            print(normalized_coords_straight)
+
+
+
+
 
             #convex hull diameter
-            contures, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contures, _ = cv2.findContours(binary_mask_no, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
             
             prawn_conture = max(contures, key=cv2.contourArea)  
+
+            # Compute the minimum area rectangle enclosing the shrimp
+            rect = cv2.minAreaRect(prawn_conture)
+            box_points = cv2.boxPoints(rect)
+            box_points = np.int0(box_points)
+            
+            width = rect[1][0]
+            height = rect[1][1]
+            
+            # Find the maximum of the width and height to use as the diameter
+            max_length_box = max(width, height)
+
+            
+
+
+            normalized_bounding_box = [(box_points[i][0]/640, box_points[i][1]/640) for i in range(0, len(box_points))]  # Extract points (x, y)
+
+            detection=fo.Detection(label="box_method", bounding_box=normalized_bounding_box, max_length_box=max_length_box) 
+
+            boxes.append(detection)
 
 
             hull_points = cv2.convexHull(prawn_conture, returnPoints=True)
@@ -115,26 +166,43 @@ def process_segmentations(segmentation_path):
                 max_length=max_distance
             )
 
-            skeleton_straight=fo.Polyline(
-                points=[normalized_coords_straight],
+            # skeleton_straight=fo.Polyline(
+            #     points=[normalized_coords_straight],
+            #     closed=False,
+            #     filled=False,
+            #     max_length=max_length
+            # )
+            # skeletons_straight.append(skeleton_straight)
+
+            skeleton_straight_2=fo.Polyline(
+                points=[normalized_coords_straight_2],
                 closed=False,
                 filled=False,
-                max_length=max_length
+                max_length=max_length_2,
+                num_pixel=num_pixels
             )
-            skeletons_straight.append(skeleton_straight)
+            skeletons_straight_2.append(skeleton_straight_2)
+
+
 
 
             hulls.append(hull)
 
-            skeleton=fo.Polyline(
-                points=[normalized_coords],
+            # skeleton=fo.Polyline(
+            #     points=[normalized_coords],
+            #     closed=False,
+            #     filled=False,
+            #     max_length=max_length
+            # )
+
+            # skeletons.append(skeleton)
+            
+            skeleton_2=fo.Polyline( 
+                points=[normalized_coords_2],
                 closed=False,
                 filled=False,
-                max_length=max_length
-            )
-
-            skeletons.append(skeleton)
-
+                max_length=max_length_2)
+            skeletons_2.append(skeleton_2)
               # Convert the line to a list of floats
             normalzied_points = [(coords[i]/640, coords[i + 1]/640) for i in range(0, len(coords), 2)]  # Extract points (x, y)
             points = [Point(x*5312, y*2988) for x, y in normalzied_points] 
@@ -152,25 +220,33 @@ def process_segmentations(segmentation_path):
                 filled=False,
                 diameter=diameter,
                 center=center,
-                max_length_skeleton=max_length,
-                max_length_hull=max_distance
+                max_length_skeleton=max_length_2,
+                max_length_hull=max_distance,
+                max_length_box=max_length_box
             )
 
             #smooth segmentation  wirh closing
-            seg_closed=fo.Polyline(
-                points=[normalized_coords_bin],
-                closed=True,
-                filled=False,
-                max_length=max_length
-            )
+            # seg_closed=fo.Polyline(
+            #     points=[normalized_coords_bin],
+            #     closed=True,
+            #     filled=False,
+            #     max_length=max_length
+            # )
 
-            seg_closeds.append(seg_closed)                
+            # seg_closeds.append(seg_closed)                
 
 
             segmentations.append(segmentation)
+
+
+
+
+
+
+
                      # Store the segmentation information (center, radius, and diameter)
 
-    return segmentations,skeletons,hulls, skeleton_straight,seg_closeds
+    return segmentations,skeletons,hulls, skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2
 
 def calculate_minimum_enclosing_circle(points):
     """
@@ -345,7 +421,7 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
                  
         # Parse the segmentations to get the minimum enclosing circles
-        segmentations,skeletons,hulls,skeletons_straight,seg_closeds = process_segmentations(prediction_txt_path)
+        segmentations,skeletons,hulls,skeletons_straight,seg_closeds,skeletons_2,skeletons_straight_2 = process_segmentations(prediction_txt_path)
 
         # Save the modified image (with circles drawn)
        
@@ -363,15 +439,18 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
         # Iterate over each bounding box in the filtered data
         sample["segmentations"] = fol.Polylines(polylines=segmentations)
 
-        sample["skeletons"] = fol.Polylines(polylines=skeletons)
+        # sample["skeletons"] = fol.Polylines(polylines=skeletons)
 
         sample["hulls"] = fol.Polylines(polylines=hulls)    
 
-        sample["skeletons_straight"] = fol.Polylines(polylines=[skeletons_straight])
+        # sample["skeletons_straight"] = fol.Polylines(polylines=skeletons_straight)
 
-        sample['seg_closeds']=fol.Polylines(polylines=seg_closeds)
-        sample.tags.append(f"pond_{pond_tag}")
+        # sample['seg_closeds']=fol.Polylines(polylines=seg_closeds)
+        # sample.tags.append(f"pond_{pond_tag}")
 
+        sample['skeletons_no_smooth']=fol.Polylines(polylines=skeletons_2)
+
+        sample["skeletons_straight_no_smooth"] = fol.Polylines(polylines=skeletons_straight_2)
 
 
         # Add the processed sample to the FiftyOne dataset

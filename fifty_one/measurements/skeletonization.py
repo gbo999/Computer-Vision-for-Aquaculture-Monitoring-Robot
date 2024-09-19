@@ -21,7 +21,7 @@ def load_multiple_coords_from_txt(txt_file):
             segmentations.append(polygon)
     return segmentations
 
-def create_filled_binary_mask(coords, img_height, img_width):
+def create_filled_binary_mask(coords, img_height, img_width,gaussian_blur=True):
     """
     Creates a binary mask with a filled polygon from a single segmentation's (y, x) coordinates.
     """
@@ -31,9 +31,13 @@ def create_filled_binary_mask(coords, img_height, img_width):
     cv2.fillPoly(binary_mask, [polygon], color=1) 
 
     #smooth the mask
-    kernel = np.ones((5,5),np.uint8)
-    binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
-    
+    if gaussian_blur:
+        kernel = np.ones((5,5),np.uint8)
+        binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
+        binary_mask = cv2.GaussianBlur(binary_mask, (5, 5), 0)
+        _, binary_mask = cv2.threshold(binary_mask, 128, 255, cv2.THRESH_BINARY)
+
+        # binary_mask = cv2.GaussianBlur(binary_mask, (8, 8), 0)
     
     # Fill the polygon on the binary mask
     return binary_mask
@@ -188,6 +192,15 @@ def find_longest_path(skeleton_coords, original_size, new_size):
         print("No path found in the largest component.")
         return [], 0
 
+
+    #number of pixels in the laegest path scaled to new size
+    new_height, new_width = new_size
+    original_height, original_width = original_size
+    scale_y = new_height / original_height
+    scale_x = new_width / original_width
+    max_length = max_length * np.sqrt(scale_y ** 2 + scale_x ** 2)
+
+
     # Scale the longest path to the new image size
     scaled_longest_path = scale_path(longest_path, original_size, new_size)
 
@@ -205,5 +218,5 @@ def find_longest_path(skeleton_coords, original_size, new_size):
 
 
 
-    return normalized_longest_path, path_length_in_pixels
+    return normalized_longest_path, path_length_in_pixels, max_length
 
