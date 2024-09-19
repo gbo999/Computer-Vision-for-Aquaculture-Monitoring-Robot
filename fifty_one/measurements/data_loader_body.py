@@ -42,6 +42,13 @@ def process_segmentations(segmentation_path):
     box_diagonal=[] 
     boxes=[]
     masks=[]
+
+
+
+
+
+
+    
     # Open the segmentation file and process each line
     with open(segmentation_path, 'r') as file:
         for line in file:
@@ -471,12 +478,12 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
         # Save the modified image (with circles drawn)
        
-
+        if pond_tag == 'pond_1\carapace\left' or pond_tag == 'pond_1\carapace\right' or pond_tag == 'pond_1\carapace\car':
         # Load bounding boxes from the filtered data
-        matching_rows = filtered_df[filtered_df['Label'] == f'full body:{filename}']
-        
-        if matching_rows.empty:
-            continue
+            matching_rows = filtered_df[filtered_df['Label'] == f'full body:{filename}']
+            
+            if matching_rows.empty:
+                continue
 
 
         # Create a new sample for FiftyOne
