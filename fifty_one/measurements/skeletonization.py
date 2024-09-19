@@ -29,6 +29,11 @@ def create_filled_binary_mask(coords, img_height, img_width):
     polygon = np.array(coords, np.int32)  # Convert to NumPy array of int32
     polygon = polygon.reshape((-1, 1, 2))  # Reshape for OpenCV fillPoly
     cv2.fillPoly(binary_mask, [polygon], color=1) 
+
+    #smooth the mask
+    kernel = np.ones((5,5),np.uint8)
+    binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
+    
     
     # Fill the polygon on the binary mask
     return binary_mask
@@ -110,11 +115,16 @@ def calculate_path_length(coords):
     Calculates the Euclidean distance between consecutive points in a path.
     coords: List of (y, x) coordinates representing the path.
     """
+    # length = 0
+    # for i in range(len(coords) - 1):
+    #     dy = coords[i+1][0] - coords[i][0]
+    #     dx = coords[i+1][1] - coords[i][1]
+    #     length += np.sqrt(dy ** 2 + dx ** 2)
     length = 0
-    for i in range(len(coords) - 1):
-        dy = coords[i+1][0] - coords[i][0]
-        dx = coords[i+1][1] - coords[i][1]
-        length += np.sqrt(dy ** 2 + dx ** 2)
+    if len(coords) > 1:
+        dy = coords[-1][0] - coords[0][0]
+        dx = coords[-1][1] - coords[0][1]
+        length = np.sqrt(dy ** 2 + dx ** 2)    
     return length
 
 def find_longest_path(skeleton_coords, original_size, new_size):
@@ -181,10 +191,19 @@ def find_longest_path(skeleton_coords, original_size, new_size):
     # Scale the longest path to the new image size
     scaled_longest_path = scale_path(longest_path, original_size, new_size)
 
+
+        
     # Calculate the length of the longest path in pixel units for the new image size
     path_length_in_pixels = calculate_path_length(scaled_longest_path)
 
     # Normalize the longest path coordinates to [0, 1] based on the new image size
     normalized_longest_path = normalize_coords(scaled_longest_path, new_size)
 
+
+
+
+
+
+
     return normalized_longest_path, path_length_in_pixels
+

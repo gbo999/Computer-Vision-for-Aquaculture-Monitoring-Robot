@@ -33,11 +33,21 @@ def process_segmentations(segmentation_path):
     segmentations = []
     skeletons=[]
     hulls=[]
+    skeletons_straight=[]
+    seg_closeds=[]
     # Open the segmentation file and process each line
     with open(segmentation_path, 'r') as file:
         for line in file:
             coords = list(map(float, line.strip().split()))
             binary_mask = create_filled_binary_mask(coords, 640, 640)
+
+            #convert binary mask to normalized coordinates
+            binary_mask_smooth = binary_mask.astype(np.uint8)
+            #x,y coordinates of the mask
+            coords_bin = np.column_stack(np.nonzero(binary_mask_smooth)).flatten()
+
+            normalized_coords_bin=[(coords_bin[i+1]/640, coords_bin[i]/640) for i in range(0, len(coords_bin), 2)]  # Extract points (x, y)
+
 
             #thin the mask
             thinned=thin(binary_mask)
@@ -49,9 +59,10 @@ def process_segmentations(segmentation_path):
 
             normalized_coords = [(x, y) for y, x in normalized_coords]  # Convert to (y, x) format
 
+            #only the first and last points of the skeleton
+            normalized_coords_straight = [normalized_coords[0], normalized_coords[-1]]  
 
-
-
+            print(normalized_coords_straight)
 
             #convex hull diameter
             contures, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -104,7 +115,13 @@ def process_segmentations(segmentation_path):
                 max_length=max_distance
             )
 
-             
+            skeleton_straight=fo.Polyline(
+                points=[normalized_coords_straight],
+                closed=False,
+                filled=False,
+                max_length=max_length
+            )
+            skeletons_straight.append(skeleton_straight)
 
 
             hulls.append(hull)
@@ -139,13 +156,21 @@ def process_segmentations(segmentation_path):
                 max_length_hull=max_distance
             )
 
+            #smooth segmentation  wirh closing
+            seg_closed=fo.Polyline(
+                points=[normalized_coords_bin],
+                closed=True,
+                filled=False,
+                max_length=max_length
+            )
 
+            seg_closeds.append(seg_closed)                
 
 
             segmentations.append(segmentation)
                      # Store the segmentation information (center, radius, and diameter)
 
-    return segmentations,skeletons,hulls
+    return segmentations,skeletons,hulls, skeleton_straight,seg_closeds
 
 def calculate_minimum_enclosing_circle(points):
     """
@@ -270,8 +295,7 @@ def process_detection_by_circle(segmentation, sample, filename, prawn_id, filter
 
     error_percentage_hull = abs(hull_length_cm - true_length) / true_length * 100
 
-    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: 
-    {error_percentage_skeleton:.2f}%, , pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%,, pred length: {hull_length_cm:.2f}cm, error percentage hull_fov: {error_percentage_hull_fov:.2f}%, pred length: {hull_length_fov:.2f}cm' 
+    closest_detection_label = f'MPError: {error_percentage:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm ,error percentage skeleton: {error_percentage_skeleton:.2f}%, , pred length: {ske_length_cm:.2f}cm, error percentage hull: {error_percentage_hull:.2f}%,, pred length: {hull_length_cm:.2f}cm, error percentage hull_fov: {error_percentage_hull_fov:.2f}%, pred length: {hull_length_fov:.2f}cm' 
     poly.label = closest_detection_label
     poly.attributes["prawn_id"] = fo.Attribute(value=prawn_id)
     # Attach information to the sample
@@ -321,7 +345,7 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
                  
         # Parse the segmentations to get the minimum enclosing circles
-        segmentations,skeletons,hulls = process_segmentations(prediction_txt_path)
+        segmentations,skeletons,hulls,skeletons_straight,seg_closeds = process_segmentations(prediction_txt_path)
 
         # Save the modified image (with circles drawn)
        
@@ -343,6 +367,9 @@ def process_images(image_paths, prediction_folder_path, filtered_df, metadata_df
 
         sample["hulls"] = fol.Polylines(polylines=hulls)    
 
+        sample["skeletons_straight"] = fol.Polylines(polylines=[skeletons_straight])
+
+        sample['seg_closeds']=fol.Polylines(polylines=seg_closeds)
         sample.tags.append(f"pond_{pond_tag}")
 
 

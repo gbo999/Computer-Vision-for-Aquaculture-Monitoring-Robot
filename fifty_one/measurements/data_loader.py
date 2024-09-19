@@ -186,26 +186,36 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_fov(mm)'] = length_fov
 
+    #add height to the dataframe
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Height(mm)'] = height_mm
 
 
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength(cm)'] = real_length_cm
 
     
-    min_true_from_length_1_length_2_length_3= min(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]-real_length_cm))
+    min_true_from_length_1_length_2_length_3= min(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]))
     # true_length = filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Pond_Type'] = sample.tags[0]        
 
+    #add euclidean distance in pixels
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Euclidean_Distance'] = euclidean_distance_pixels
 
 
 
-    closest_detection_label = f'MPError: {abs(real_length_cm - min_true_from_length_1_length_2_length_3) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm, mpe_fov: {abs(length_fov - min_true_from_length_1_length_2_length_3) / true_length * 100:.2f}%, pred length: {length_fov:.2f}cm'
+    closest_detection_label = f'MPError: {abs(real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100:.2f}%, true length: {min_true_from_length_1_length_2_length_3:.2f}cm, pred length: {real_length_cm:.2f}cm, mpe_fov: {abs(length_fov - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100:.2f}%, pred length: {length_fov:.2f}cm'
     closest_detection.label = closest_detection_label
     closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
     if abs(real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
         if "MPE_focal>25" not in sample.tags:
             sample.tags.append("MPE_focal>25")
+
+    if abs(length_fov - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 50:
+        if "MPE_fov>50" not in sample.tags:
+            sample.tags.append("MPE_fov>50")
+
+
     if abs(length_fov - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
         if "MPE_fov>25" not in sample.tags:
             sample.tags.append("MPE_fov>25")
@@ -220,7 +230,7 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
     filename = os.path.splitext(os.path.basename(image_path))[0] 
      
-    print(filename) 
+    
      
      
      # e.g., undistorted_GX010152_36_378.jpg_gamma
