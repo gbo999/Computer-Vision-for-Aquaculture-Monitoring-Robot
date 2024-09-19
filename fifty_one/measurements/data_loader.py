@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import ast
 from tqdm import tqdm
-from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt
+from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt, calculate_bbox_area
 import math
 
 
@@ -69,14 +69,25 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
 
     for _, row in matching_rows.iterrows():
         prawn_id = row['PrawnID']
-        prawn_bbox = ast.literal_eval(row['BoundingBox_1'])
+        bounding_boxes = []
+        for bbox_key in ['BoundingBox_1', 'BoundingBox_2', 'BoundingBox_3']:
+            if pd.notna(row[bbox_key]):
+                bbox = ast.literal_eval(row[bbox_key])
+                bbox = tuple(float(coord) for coord in bbox)  # Convert bounding box to tuple of floats
+                bounding_boxes.append(bbox)
+        
+        if not bounding_boxes:
+            print(f"No bounding boxes found for prawn ID {prawn_id} in {filename}.")
+            continue
 
-        prawn_bbox = tuple(float(coord) for coord in prawn_bbox)
-        prawn_normalized_bbox = [prawn_bbox[0] / 5312, prawn_bbox[1] / 2988, prawn_bbox[2] / 5312, prawn_bbox[3] / 2988]
+        # Select the largest bounding box based on area
+        min_bbox = min(bounding_boxes, key=calculate_bbox_area)
+        
+        prawn_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
 
         # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
 
-        closest_detection = find_closest_detection(sample, prawn_bbox)
+        closest_detection = find_closest_detection(sample, min_bbox)
 
         if closest_detection is not None:
             process_detection(closest_detection, sample, filename, prawn_id, filtered_df)
@@ -181,7 +192,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength(cm)'] = real_length_cm
 
     
-    min_true_from_length_1_length_2_length_3= min(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]-real_length_cm)
+    min_true_from_length_1_length_2_length_3= min(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]-real_length_cm),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]-real_length_cm))
     # true_length = filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Pond_Type'] = sample.tags[0]        
@@ -192,10 +203,10 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     closest_detection_label = f'MPError: {abs(real_length_cm - min_true_from_length_1_length_2_length_3) / true_length * 100:.2f}%, true length: {true_length:.2f}cm, pred length: {real_length_cm:.2f}cm, mpe_fov: {abs(length_fov - min_true_from_length_1_length_2_length_3) / true_length * 100:.2f}%, pred length: {length_fov:.2f}cm'
     closest_detection.label = closest_detection_label
     closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
-    if abs(real_length_cm - true_length) / true_length * 100 > 25:
+    if abs(real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
         if "MPE_focal>25" not in sample.tags:
             sample.tags.append("MPE_focal>25")
-    if abs(length_fov - true_length) / true_length * 100 > 25:
+    if abs(length_fov - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
         if "MPE_fov>25" not in sample.tags:
             sample.tags.append("MPE_fov>25")
     
