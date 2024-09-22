@@ -23,6 +23,8 @@ def load_multiple_coords_from_txt(txt_file):
             coords = list(map(float, line.strip().split()))  # Read all floats from the line
             # Convert into (y, x) pairs
             polygon = [(coords[i+1], coords[i]) for i in range(0, len(coords), 2)]
+            print(polygon)
+
             segmentations.append(polygon)
     return segmentations
 
