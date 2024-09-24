@@ -226,6 +226,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset,pond_type):
    
    for image_path in tqdm(image_paths):
+    
 
 
     filename = os.path.splitext(os.path.basename(image_path))[0] 
