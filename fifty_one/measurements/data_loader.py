@@ -226,7 +226,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset,pond_type):
    
    for image_path in tqdm(image_paths):
-    
+
 
 
     filename = os.path.splitext(os.path.basename(image_path))[0] 
@@ -278,3 +278,76 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
     dataset.add_sample(sample)
    output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx'  # Change this path accordingly
    filtered_df.to_excel(output_file_path, index=False)
+
+
+import math
+import cv2
+
+class ObjectLengthMeasurer:
+    def __init__(self, image_width, image_height, horizontal_fov, vertical_fov, distance_mm):
+        self.image_width = image_width
+        self.image_height = image_height
+        self.horizontal_fov = horizontal_fov
+        self.vertical_fov = vertical_fov
+        self.distance_mm = distance_mm
+        self.scale_x, self.scale_y = self.calculate_scaling_factors()
+        self.to_scale_x = image_width / 640  # Assuming low-res width is 640
+        self.to_scale_y = image_height / 360  # Assuming low-res height is 360
+
+    def calculate_scaling_factors(self):
+        """
+        Calculate the scaling factors (mm per pixel) based on the camera's FOV and distance.
+        """
+        fov_x_rad = math.radians(self.horizontal_fov)
+        fov_y_rad = math.radians(self.vertical_fov)
+        scale_x = (2 * self.distance_mm * math.tan(fov_x_rad / 2)) / self.image_width
+        scale_y = (2 * self.distance_mm * math.tan(fov_y_rad / 2)) / self.image_height
+        return scale_x, scale_y
+
+    def normalize_angle(self, angle):
+        """
+        Normalize the angle to [0°, 90°].
+        """
+        if angle < -45:
+            angle += 90
+        return abs(angle)
+
+    def compute_length(self, predicted_length, angle_deg):
+        """
+        Compute the real-world length in millimeters using combined scaling factors.
+        """
+        angle_rad = math.radians(angle_deg)
+        combined_scale = math.sqrt((self.scale_x * math.cos(angle_rad)) ** 2 + 
+                                   (self.scale_y * math.sin(angle_rad)) ** 2)
+        length_mm = predicted_length * combined_scale
+        return length_mm
+
+    def compute_length_two_points(self, point1_low_res, point2_low_res):
+        """
+        Compute the real-world distance between two points in the low-resolution image.
+        
+        Parameters:
+        - point1_low_res: Tuple (x1, y1) coordinates of the first point in low-res pixels.
+        - point2_low_res: Tuple (x2, y2) coordinates of the second point in low-res pixels.
+        
+        Returns:
+        - distance_mm: Real-world distance between the two points in millimeters.
+        - angle_deg: Angle of the line connecting the two points relative to the horizontal axis in degrees.
+        """
+        # Calculate pixel distance in low-res image
+        delta_x_low = point2_low_res[0] - point1_low_res[0]
+        delta_y_low = point2_low_res[1] - point1_low_res[1]
+        distance_px_low = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
+        
+        # Calculate angle in degrees
+        angle_rad = math.atan2(delta_y_low, delta_x_low)
+        angle_deg = math.degrees(angle_rad)
+        normalized_angle = self.normalize_angle(angle_deg)
+        
+        # Scale the pixel distance from low-res to high-res
+        distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
+        
+        # Compute real-world distance
+        distance_mm = self.compute_length(distance_px_high, normalized_angle)
+        
+        return distance_mm, normalized_angle
