@@ -6,7 +6,74 @@ import ast
 from tqdm import tqdm
 from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt, calculate_bbox_area
 import math
+class ObjectLengthMeasurer:
+    def __init__(self, image_width, image_height, horizontal_fov, vertical_fov, distance_mm):
+        self.image_width = image_width
+        self.image_height = image_height
+        self.horizontal_fov = horizontal_fov
+        self.vertical_fov = vertical_fov
+        self.distance_mm = distance_mm
+        self.scale_x, self.scale_y = self.calculate_scaling_factors()
+        # self.to_scale_x = image_width / 640  # Assuming low-res width is 640
+        # self.to_scale_y = image_height / 360  # Assuming low-res height is 360
 
+    def calculate_scaling_factors(self):
+        """
+        Calculate the scaling factors (mm per pixel) based on the camera's FOV and distance.
+        """
+        fov_x_rad = math.radians(self.horizontal_fov)
+        fov_y_rad = math.radians(self.vertical_fov)
+        scale_x = (2 * self.distance_mm * math.tan(fov_x_rad / 2)) / self.image_width
+        scale_y = (2 * self.distance_mm * math.tan(fov_y_rad / 2)) / self.image_height
+        return scale_x, scale_y
+
+    def normalize_angle(self, angle):
+        """
+        Normalize the angle to [0°, 90°].
+        """
+        if angle < -45:
+            angle += 90
+        return abs(angle)
+
+    def compute_length(self, predicted_length, angle_deg):
+        """
+        Compute the real-world length in millimeters using combined scaling factors.
+        """
+        angle_rad = math.radians(angle_deg)
+        combined_scale = math.sqrt((self.scale_x * math.cos(angle_rad)) ** 2 + 
+                                   (self.scale_y * math.sin(angle_rad)) ** 2)
+        length_mm = predicted_length * combined_scale
+        return length_mm
+
+    def compute_length_two_points(self, point1_low_res, point2_low_res):
+        """
+        Compute the real-world distance between two points in the low-resolution image.
+        
+        Parameters:
+        - point1_low_res: Tuple (x1, y1) coordinates of the first point in low-res pixels.
+        - point2_low_res: Tuple (x2, y2) coordinates of the second point in low-res pixels.
+        
+        Returns:
+        - distance_mm: Real-world distance between the two points in millimeters.
+        - angle_deg: Angle of the line connecting the two points relative to the horizontal axis in degrees.
+        """
+        # Calculate pixel distance in low-res image
+        delta_x_low = point2_low_res[0] - point1_low_res[0]
+        delta_y_low = point2_low_res[1] - point1_low_res[1]
+        distance_px = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
+        
+        # Calculate angle in degrees
+        angle_rad = math.atan2(delta_y_low, delta_x_low)
+        angle_deg = math.degrees(angle_rad)
+        normalized_angle = self.normalize_angle(angle_deg)
+        
+        # Scale the pixel distance from low-res to high-res
+        # distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
+        
+        # Compute real-world distance
+        distance_mm = self.compute_length(distance_px, normalized_angle)
+        
+        return distance_mm, normalized_angle
 
 def load_data(filtered_data_path, metadata_path):
     filtered_df = pd.read_csv(filtered_data_path)
@@ -14,7 +81,7 @@ def load_data(filtered_data_path, metadata_path):
     return filtered_df, metadata_df
 
 def create_dataset():
-    dataset = fo.Dataset("prawn_combined_dataset22", overwrite=True)
+    dataset = fo.Dataset("prawn_combined_dataset444444444444", overwrite=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
         labels=["start_carapace", "eyes"],
         edges=[[0, 1]],
@@ -36,7 +103,7 @@ def process_poses(poses, is_ground_truth=False):
             keypoints_list.append(keypoint)
 
             if not is_ground_truth:
-                keypoints_dict = {'point1': keypoints[0], 'point2': keypoints[1]}
+                keypoints_dict = {'point1': keypoints[0], 'point2': keypoints[1],'keypoint_ID':keypoint.id}
                 detections.append(fo.Detection(label="prawn", bounding_box=[x1_rel, y1_rel, width_rel, height_rel], attributes={'keypoints': keypoints_dict}))
             else:
                 detections.append(fo.Detection(label="prawn_truth", bounding_box=[x1_rel, y1_rel, width_rel, height_rel]))
@@ -64,8 +131,11 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
 
 def add_prawn_detections(sample, matching_rows, filtered_df,filename):
     # true_detections = []
-    diagonal_line_1=[]
-    diagonal_line_2=[]
+    min_diagonal_line_1=[]
+    min_diagonal_line_2=[]
+
+    max_diagonal_line_1=[]
+    max_diagonal_line_2=[]
 
     for _, row in matching_rows.iterrows():
         prawn_id = row['PrawnID']
@@ -82,8 +152,15 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
 
         # Select the largest bounding box based on area
         min_bbox = min(bounding_boxes, key=calculate_bbox_area)
-        
-        prawn_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
+        max_bbox = max(bounding_boxes, key=calculate_bbox_area)    
+
+
+
+
+
+        prawn_max_normalized_bbox = [max_bbox[0] / 5312, max_bbox[1] / 2988, max_bbox[2] / 5312, max_bbox[3] / 2988]
+
+        prawn_min_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
 
         # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
 
@@ -92,14 +169,54 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
         if closest_detection is not None:
             process_detection(closest_detection, sample, filename, prawn_id, filtered_df)
 
-       
+        x_min_max=prawn_max_normalized_bbox[0]
+        y_min_max=prawn_max_normalized_bbox[1]
+        width_max=prawn_max_normalized_bbox[2]
+        heigh_maxt=prawn_max_normalized_bbox[3]
+
+        # Corners in normalized coordinates
+        top_left_max = [x_min_max, y_min_max]
+        top_right_max = [x_min_max + width_max, y_min_max]
+        bottom_left_max = [x_min_max, y_min_max + heigh_maxt]
+        bottom_right_max = [x_min_max + width_max, y_min_max + heigh_maxt]
+
+        # Diagonals
+        diagonal1_max = [top_left_max, bottom_right_max]
+        diagonal2_max = [top_right_max, bottom_left_max]
         
+
+        diagonal1_polyline_max = fo.Polyline(
+            label="Diagonal 1",
+            points=[diagonal1_max],
+            closed=False,
+            filled=False,
+            line_color="red",
+            thickness=2,
+        )
+
+        diagonal2_polyline_max = fo.Polyline(
+            label="longest diagonal",
+            points=[diagonal2_max],
+            closed=False,
+            filled=False,
+            line_color="yellow",
+            thickness=2,
+        )
+
+        max_diagonal_line_1.append(diagonal1_polyline_max)
+        max_diagonal_line_2.append(diagonal2_polyline_max)
+
+        sample["max_diagonal_line_1"] = fo.Polylines(polylines=max_diagonal_line_1)
+        sample["max_diagonal_line_2"] = fo.Polylines(polylines=max_diagonal_line_2)
+
+
+
         # Normalize the largest bounding box coordinates
 
-        x_min = prawn_normalized_bbox[0]
-        y_min = prawn_normalized_bbox[1]
-        width = prawn_normalized_bbox[2]
-        height = prawn_normalized_bbox[3]
+        x_min = prawn_min_normalized_bbox[0]
+        y_min = prawn_min_normalized_bbox[1]
+        width = prawn_min_normalized_bbox[2]
+        height = prawn_min_normalized_bbox[3]
 
         # Corners in normalized coordinates
         top_left = [x_min, y_min]
@@ -108,13 +225,19 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
         bottom_right = [x_min + width, y_min + height]
 
         # Diagonals
-        diagonal1 = [top_left, bottom_right]
-        diagonal2 = [top_right, bottom_left]
+        min_diagonal1 = [top_left, bottom_right]
+        min_diagonal2 = [top_right, bottom_left]
 
-        # Create polylines for diagonals
+        # #take the longest diagonal
+        # if calculate_euclidean_distance(top_left, bottom_right) > calculate_euclidean_distance(top_right, bottom_left):
+        #     longest_diagonal = diagonal1
+        # else:
+        #     longest_diagonal = diagonal2
+
+
         diagonal1_polyline = fo.Polyline(
             label="Diagonal 1",
-            points=[diagonal1],
+            points=[min_diagonal1],
             closed=False,
             filled=False,
             line_color="blue",
@@ -122,8 +245,8 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
         )
 
         diagonal2_polyline = fo.Polyline(
-            label="Diagonal 2",
-            points=[diagonal2],
+            label="longest diagonal",
+            points=[min_diagonal2],
             closed=False,
             filled=False,
             line_color="green",
@@ -131,12 +254,14 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
         )
 
 
-        diagonal_line_1.append(diagonal1_polyline)
-        diagonal_line_2.append(diagonal2_polyline)
+        min_diagonal_line_1.append(diagonal1_polyline)
 
 
-    sample["diagonal_line_1"] = fo.Polylines(polylines=diagonal_line_1)
-    sample["diagonal_line_2"] = fo.Polylines(polylines=diagonal_line_2)
+        min_diagonal_line_2.append(diagonal2_polyline)
+
+
+    sample["min_diagonal_line_1"] = fo.Polylines(polylines=min_diagonal_line_1)
+    sample["min_diagonal_line_2"] = fo.Polylines(polylines=min_diagonal_line_2)
 
 
 
@@ -170,31 +295,69 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     # focal_length = 24.22  # Camera focal length
     pixel_size = 0.00716844  # Pixel size in mm
 
-    fov=75
-    FOV_width=2*height_mm*math.tan(math.radians(fov/2))
+    
 
     keypoints_dict2 = closest_detection.attributes["keypoints"]
     keypoints1 = [keypoints_dict2['point1'], keypoints_dict2['point2']]
+
+
+    keypoint_id=keypoints_dict2['keypoint_ID']   
 
     keypoint1_scaled = [keypoints1[0][0] * 5312, keypoints1[0][1] * 2988]
     keypoint2_scaled = [keypoints1[1][0] * 5312, keypoints1[1][1] * 2988]
 
     euclidean_distance_pixels = calculate_euclidean_distance(keypoint1_scaled, keypoint2_scaled)
-    real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
+    focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
+    
+    
+    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+    
+    distance_mm, angle_deg = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    
+    
+    
+    
+    
+    
+    
+    # fov=75.2
+    # FOV_width=2*height_mm*math.tan(math.radians(fov/2))
+    # length_fov=FOV_width*euclidean_distance_pixels/5312
 
-    length_fov=FOV_width*euclidean_distance_pixels/5312
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'id'] = keypoint_id
 
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_fov(mm)'] = length_fov
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_fov(mm)'] = distance_mm
 
     #add height to the dataframe
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Height(mm)'] = height_mm
 
 
 
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'RealLength(cm)'] = real_length_cm
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'focal_RealLength(cm)'] = focal_real_length_cm
 
     
-    min_true_from_length_1_length_2_length_3= min(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]))
+    min_true_length= min(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]))
+
+    max_true_length= max(abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]))
+
+    #take the median of the three lengths
+    median_true_length= (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0])+abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0])+abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0])-min_true_length-max_true_length)
+
+
+    #save each length_1, length_2, length_3 in pixels to dataframe , Lenght_1_pixels=(Length_1*scale_1)/10
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'scale_1'].values[0]))/10
+                                                                                                                                   
+    #lenght_2 in pixels
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'scale_2'].values[0]))/10
+
+    #lenght_3 in pixels
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'scale_3'].values[0]))/10
+                                                                                                                                                                                                                                                                    
+
+
+
     # true_length = filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Pond_Type'] = sample.tags[0]        
@@ -202,12 +365,18 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     #add euclidean distance in pixels
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Euclidean_Distance'] = euclidean_distance_pixels
 
+    error_percentage_min = abs(distance_mm - min_true_length) / min_true_length * 100
+    error_percentage_max = abs(distance_mm - max_true_length) / max_true_length * 100
+    error_percentage_median = abs(distance_mm - median_true_length) / median_true_length * 100
 
 
-    closest_detection_label = f'MPError: {abs(real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100:.2f}%, true length: {min_true_from_length_1_length_2_length_3:.2f}cm, pred length: {real_length_cm:.2f}cm, mpe_fov: {abs(length_fov - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100:.2f}%, pred length: {length_fov:.2f}cm'
+    closest_detection_label = f'MPError_min: {error_percentage_min:.2f}% , MPError_max: {error_percentage_max:.2f}%, MPError_median: {error_percentage_median:.2f}%' 
+    
+    
+    
     closest_detection.label = closest_detection_label
     closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
-    if abs(real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
+    if abs(focal_real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
         if "MPE_focal>25" not in sample.tags:
             sample.tags.append("MPE_focal>25")
 
@@ -283,71 +452,4 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 import math
 import cv2
 
-class ObjectLengthMeasurer:
-    def __init__(self, image_width, image_height, horizontal_fov, vertical_fov, distance_mm):
-        self.image_width = image_width
-        self.image_height = image_height
-        self.horizontal_fov = horizontal_fov
-        self.vertical_fov = vertical_fov
-        self.distance_mm = distance_mm
-        self.scale_x, self.scale_y = self.calculate_scaling_factors()
-        self.to_scale_x = image_width / 640  # Assuming low-res width is 640
-        self.to_scale_y = image_height / 360  # Assuming low-res height is 360
 
-    def calculate_scaling_factors(self):
-        """
-        Calculate the scaling factors (mm per pixel) based on the camera's FOV and distance.
-        """
-        fov_x_rad = math.radians(self.horizontal_fov)
-        fov_y_rad = math.radians(self.vertical_fov)
-        scale_x = (2 * self.distance_mm * math.tan(fov_x_rad / 2)) / self.image_width
-        scale_y = (2 * self.distance_mm * math.tan(fov_y_rad / 2)) / self.image_height
-        return scale_x, scale_y
-
-    def normalize_angle(self, angle):
-        """
-        Normalize the angle to [0°, 90°].
-        """
-        if angle < -45:
-            angle += 90
-        return abs(angle)
-
-    def compute_length(self, predicted_length, angle_deg):
-        """
-        Compute the real-world length in millimeters using combined scaling factors.
-        """
-        angle_rad = math.radians(angle_deg)
-        combined_scale = math.sqrt((self.scale_x * math.cos(angle_rad)) ** 2 + 
-                                   (self.scale_y * math.sin(angle_rad)) ** 2)
-        length_mm = predicted_length * combined_scale
-        return length_mm
-
-    def compute_length_two_points(self, point1_low_res, point2_low_res):
-        """
-        Compute the real-world distance between two points in the low-resolution image.
-        
-        Parameters:
-        - point1_low_res: Tuple (x1, y1) coordinates of the first point in low-res pixels.
-        - point2_low_res: Tuple (x2, y2) coordinates of the second point in low-res pixels.
-        
-        Returns:
-        - distance_mm: Real-world distance between the two points in millimeters.
-        - angle_deg: Angle of the line connecting the two points relative to the horizontal axis in degrees.
-        """
-        # Calculate pixel distance in low-res image
-        delta_x_low = point2_low_res[0] - point1_low_res[0]
-        delta_y_low = point2_low_res[1] - point1_low_res[1]
-        distance_px_low = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
-        
-        # Calculate angle in degrees
-        angle_rad = math.atan2(delta_y_low, delta_x_low)
-        angle_deg = math.degrees(angle_rad)
-        normalized_angle = self.normalize_angle(angle_deg)
-        
-        # Scale the pixel distance from low-res to high-res
-        distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
-        
-        # Compute real-world distance
-        distance_mm = self.compute_length(distance_px_high, normalized_angle)
-        
-        return distance_mm, normalized_angle
