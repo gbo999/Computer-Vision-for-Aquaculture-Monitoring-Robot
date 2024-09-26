@@ -102,11 +102,14 @@ def process_poses(poses, is_ground_truth=False):
             keypoint = fo.Keypoint(points=keypoints)
             keypoints_list.append(keypoint)
 
+
+            keypoints_dict = {'point1': keypoints[0], 'point2': keypoints[1],'keypoint_ID':keypoint.id}
+
+
             if not is_ground_truth:
-                keypoints_dict = {'point1': keypoints[0], 'point2': keypoints[1],'keypoint_ID':keypoint.id}
                 detections.append(fo.Detection(label="prawn", bounding_box=[x1_rel, y1_rel, width_rel, height_rel], attributes={'keypoints': keypoints_dict}))
             else:
-                detections.append(fo.Detection(label="prawn_truth", bounding_box=[x1_rel, y1_rel, width_rel, height_rel]))
+                detections.append(fo.Detection(label="prawn_truth", bounding_box=[x1_rel, y1_rel, width_rel, height_rel], attributes={'keypoints': keypoints_dict}))
     
     return keypoints_list, detections
 
@@ -185,10 +188,10 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
 
         # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
 
-        closest_detection = find_closest_detection(sample, min_bbox)
+        closest_detection,ground = find_closest_detection(sample, min_bbox)
 
         if closest_detection is not None:
-            process_detection(closest_detection, sample, filename, prawn_id, filtered_df)
+            process_detection(closest_detection, sample, filename, prawn_id, filtered_df,ground)
 
         x_min_max=prawn_max_normalized_bbox[0]
         y_min_max=prawn_max_normalized_bbox[1]
@@ -294,18 +297,30 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
 def find_closest_detection(sample, prawn_bbox):
     prawn_point = (prawn_bbox[0] / 5312, prawn_bbox[1] / 2988)
     min_distance = float('inf')
-    closest_detection = None
-
+    closest_detection_pred = None
+    closest_detection_ground_truth = None  # Initialize to None
+    
+    # Loop through predicted detections
     for detection_bbox in sample["detections_predictions"].detections:
         det_point = (detection_bbox.bounding_box[0], detection_bbox.bounding_box[1])
         distance = calculate_euclidean_distance(prawn_point, det_point)
         if distance < min_distance:
             min_distance = distance
-            closest_detection = detection_bbox
+            closest_detection_pred = detection_bbox
+    min_distance = float('inf')
+    # Loop through ground truth detections
+    for detection_bbox_ground_truth in sample["ground_truth"].detections:
+        det_point = (detection_bbox_ground_truth.bounding_box[0], detection_bbox_ground_truth.bounding_box[1])
+        distance = calculate_euclidean_distance(prawn_point, det_point)
+        if distance < min_distance:
+            min_distance = distance
+            closest_detection_ground_truth = detection_bbox_ground_truth
     
-    return closest_detection
+    # Ensure both closest detections are returned
+    return closest_detection_pred, closest_detection_ground_truth
 
-def process_detection(closest_detection, sample, filename, prawn_id, filtered_df):
+
+def process_detection(closest_detection, sample, filename, prawn_id, filtered_df,ground ):
     height_mm = sample['heigtht(mm)']
     if sample.tags[0] == 'test-left' or sample.tags[0] == 'test-right':
         focal_length = 23.64
@@ -317,6 +332,10 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     pixel_size = 0.00716844  # Pixel size in mm
 
     
+
+
+
+
 
     keypoints_dict2 = closest_detection.attributes["keypoints"]
     keypoints1 = [keypoints_dict2['point1'], keypoints_dict2['point2']]
@@ -335,10 +354,20 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     
     distance_mm, angle_deg = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
+    ####
+    keypoints_dict_ground = ground.attributes["keypoints"]
+    keypoints_ground = [keypoints_dict_ground['point1'], keypoints_dict_ground['point2']]
+    keypoint1_scaled_ground = [keypoints_ground[0][0] * 5312, keypoints_ground[0][1] * 2988]
+    keypoint2_scaled_ground = [keypoints_ground[1][0] * 5312, keypoints_ground[1][1] * 2988]
+
+    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+
+    distance_mm_ground, angle_deg_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     
+    #distance_mm_ground to table
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
     
-    
-    
+
     
     
     # fov=75.2
