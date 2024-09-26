@@ -111,13 +111,34 @@ def process_poses(poses, is_ground_truth=False):
     return keypoints_list, detections
 
 def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
-    matching_rows = filtered_df[filtered_df['Label'] == f'carapace:{filename}']
+
+    if 'undistorted' in filename:
+        filename = filename.replace('undistorted_', '')
 
 
-    parts = filename.split('_')
-    relevant_part = f"{parts[1][-3:]}_{parts[3].split('.')[0]}"
+    compatible_file_name= filename.split('_')[0:3]
+
+    comp=compatible_file_name[2].split('-')[0]
+
+    compatible_file_name[2]=comp
+
+    print(f'compatible {compatible_file_name}')
+
+
+    #rows where compatible file nams string in file name
+    matching_rows = filtered_df[filtered_df['Label'].str.contains('_'.join(compatible_file_name))]
     
-    metadata_row = metadata_df[metadata_df['file name'] == relevant_part]
+    filename=matching_rows['Label'].values[0].split(':')[1] 
+
+    joined_string ='_'.join([compatible_file_name[0],compatible_file_name[2]])
+    
+
+
+    relevant_part =joined_string 
+    
+    # relevant_part = str('_'.join(compatible_file_name)[0],str('_'.join(compatible_file_name)[2]))
+    
+    metadata_row = metadata_df[metadata_df['file_name_new'] == relevant_part]
 
     if not metadata_row.empty:
         metadata = metadata_row.iloc[0].to_dict() 
@@ -286,7 +307,7 @@ def find_closest_detection(sample, prawn_bbox):
 
 def process_detection(closest_detection, sample, filename, prawn_id, filtered_df):
     height_mm = sample['heigtht(mm)']
-    if sample.tags[0] == 'pond_1\carapace\left' or sample.tags[0] == 'pond_1\carapace\right':
+    if sample.tags[0] == 'test-left' or sample.tags[0] == 'test-right':
         focal_length = 23.64
     else:
         focal_length = 24.72
@@ -346,14 +367,14 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
     #save each length_1, length_2, length_3 in pixels to dataframe , Lenght_1_pixels=(Length_1*scale_1)/10
 
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'scale_1'].values[0]))/10
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Scale_1'].values[0]))/10
                                                                                                                                    
     #lenght_2 in pixels
 
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'scale_2'].values[0]))/10
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Scale_2'].values[0]))/10
 
     #lenght_3 in pixels
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'scale_3'].values[0]))/10
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Scale_3'].values[0]))/10
                                                                                                                                                                                                                                                                     
 
 
@@ -370,24 +391,40 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     error_percentage_median = abs(distance_mm - median_true_length) / median_true_length * 100
 
 
-    closest_detection_label = f'MPError_min: {error_percentage_min:.2f}% , MPError_max: {error_percentage_max:.2f}%, MPError_median: {error_percentage_median:.2f}%' 
+    min_error_percentage = min(error_percentage_min, error_percentage_max, error_percentage_median)
+
+    closest_detection_label = f'pred_length: {distance_mm},median_length: {median_true_length}  ,MPError_min: {error_percentage_min:.2f}% , MPError_max: {error_percentage_max:.2f}%, MPError_median: {error_percentage_median:.2f}%' 
     
     
     
     closest_detection.label = closest_detection_label
     closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
-    if abs(focal_real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
-        if "MPE_focal>25" not in sample.tags:
-            sample.tags.append("MPE_focal>25")
+    # if abs(focal_real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
+    #     if "MPE_focal>25" not in sample.tags:
+    #         sample.tags.append("MPE_focal>25")
 
-    if abs(length_fov - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 50:
+
+
+    if min_error_percentage> 50:
         if "MPE_fov>50" not in sample.tags:
             sample.tags.append("MPE_fov>50")
 
 
-    if abs(length_fov - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
+    if min_error_percentage > 25 and min_error_percentage <= 50:
         if "MPE_fov>25" not in sample.tags:
             sample.tags.append("MPE_fov>25")
+
+    if min_error_percentage > 10 and min_error_percentage <= 25:
+        if "MPE_fov>10" not in sample.tags:
+            sample.tags.append("MPE_fov>10")
+
+    if min_error_percentage > 5 and min_error_percentage <= 10:
+        if "MPE_fov>5" not in sample.tags:
+            sample.tags.append("MPE_fov>5")
+
+    if min_error_percentage <= 5:
+        if "MPE_fov<5" not in sample.tags:
+            sample.tags.append("MPE_fov<5")
     
 
 # No close match found
@@ -400,27 +437,31 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
     filename = os.path.splitext(os.path.basename(image_path))[0] 
      
-    
      
      
      # e.g., undistorted_GX010152_36_378.jpg_gamma
-    identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
+    # identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
 
 
     # Construct the paths to the prediction and ground truth files
     prediction_txt_path = os.path.join(prediction_folder_path, f"{filename}.txt")
 
-    # Match ground truth based on the extracted identifier
-    ground_truth_txt_path = None
     for gt_file in ground_truth_paths_text:
-        b= extract_identifier_from_gt(os.path.basename(gt_file))
-        if b == identifier:
+        if filename in gt_file:
             ground_truth_txt_path = gt_file
-
             break
-    if ground_truth_txt_path is None:
-        print(f"No ground truth found for {filename}")
-        continue
+
+    # Match ground truth based on the extracted identifier
+    # ground_truth_txt_path = None
+    # for gt_file in ground_truth_paths_text:
+    #     b= extract_identifier_from_gt(os.path.basename(gt_file))
+    #     if b == identifier:
+    #         ground_truth_txt_path = gt_file
+
+    #         break
+    # if ground_truth_txt_path is None:
+    #     print(f"No ground truth found for {filename}")
+    #     continue
     
     # Parse the pose estimation data from the TXT file
     pose_estimations = parse_pose_estimation(prediction_txt_path)
@@ -445,11 +486,11 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
 
     dataset.add_sample(sample)
-   output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx'  # Change this path accordingly
+
+   output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx' 
+   
+   print(filtered_df.columns) # Change this path accordingly
    filtered_df.to_excel(output_file_path, index=False)
 
-
-import math
-import cv2
 
 
