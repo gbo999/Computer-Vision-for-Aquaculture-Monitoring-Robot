@@ -422,6 +422,64 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
     min_error_percentage = min(error_percentage_min, error_percentage_max, error_percentage_median)
 
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_fov_min'] = error_percentage_min
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_fov_max'] = error_percentage_max
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_fov_median'] = error_percentage_median
+    
+
+    #abs error fov
+    abs_error_min_fov = abs(distance_mm - min_true_length)
+    abs_error_max_fov = abs(distance_mm - max_true_length)
+    abs_error_median_fov = abs(distance_mm - median_true_length)
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_fov_min'] = abs_error_min_fov
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_fov_max'] = abs_error_max_fov
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_fov_median'] = abs_error_median_fov
+
+    #abs error focal
+    abs_error_min_focal = abs(focal_real_length_cm - min_true_length)
+    abs_error_max_focal = abs(focal_real_length_cm - max_true_length)
+    abs_error_median_focal = abs(focal_real_length_cm - median_true_length)
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_focal_min'] = abs_error_min_focal
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_focal_max'] = abs_error_max_focal
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_focal_median'] = abs_error_median_focal
+
+
+
+    error_focal_min_precentage = abs(focal_real_length_cm - min_true_length) / min_true_length * 100
+    error_focal_max_precentage = abs(focal_real_length_cm - max_true_length) / max_true_length * 100
+    error_focal_median_precentage = abs(focal_real_length_cm - median_true_length) / median_true_length * 100
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_focal_min'] = error_focal_min_precentage
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_focal_max'] = error_focal_max_precentage
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_focal_median'] = error_focal_median_precentage
+
+
+    #error distance_mm_ground length_1_length_2_length_3
+    error_distance_mm_ground_min = abs(distance_mm_ground - min_true_length)
+    error_distance_mm_ground_max = abs(distance_mm_ground - max_true_length)
+    error_distance_mm_ground_median = abs(distance_mm_ground - median_true_length)
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_distance_mm_ground_min'] = error_distance_mm_ground_min
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_distance_mm_ground_max'] = error_distance_mm_ground_max
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_distance_mm_ground_median'] = error_distance_mm_ground_median
+
+    #error percentage distance_mm_ground length_1_length_2_length_3
+    error_percentage_distance_mm_ground_min = abs(distance_mm_ground - min_true_length) / min_true_length * 100
+    error_percentage_distance_mm_ground_max = abs(distance_mm_ground - max_true_length) / max_true_length * 100
+    error_percentage_distance_mm_ground_median = abs(distance_mm_ground - median_true_length) / median_true_length * 100
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_percentage_distance_mm_ground_min'] = error_percentage_distance_mm_ground_min
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_percentage_distance_mm_ground_max'] = error_percentage_distance_mm_ground_max
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_percentage_distance_mm_ground_median'] = error_percentage_distance_mm_ground_median
+
+
+
+
+
+
+
     closest_detection_label = f'pred_length: {distance_mm},median_length: {median_true_length}  ,MPError_min: {error_percentage_min:.2f}% , MPError_max: {error_percentage_max:.2f}%, MPError_median: {error_percentage_median:.2f}%' 
     
     
