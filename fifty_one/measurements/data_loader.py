@@ -6,6 +6,22 @@ import ast
 from tqdm import tqdm
 from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt, calculate_bbox_area
 import math
+
+"""
+FiftyOne data loader for prawn measurement validation.
+
+This module handles:
+1. Loading and processing YOLO keypoint detections
+2. Creating FiftyOne visualizations
+3. Calculating real-world measurements
+4. Comparing predictions with ground truth
+
+Image Specifications:
+    - Width: 5312 pixels
+    - Height: 2988 pixels
+    - Camera: GoPro Hero 11
+"""
+
 class ObjectLengthMeasurer:
     def __init__(self, image_width, image_height, horizontal_fov, vertical_fov, distance_mm):
         self.image_width = image_width
@@ -81,68 +97,124 @@ def load_data(filtered_data_path, metadata_path):
     return filtered_df, metadata_df
 
 def create_dataset():
-    dataset = fo.Dataset("prawn_combined_dataset444444444444", overwrite=True)
+    dataset = fo.Dataset("prawn_combined_dataset", overwrite=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
-        labels=["start_carapace", "eyes"],
-        edges=[[0, 1]],
+        labels=["tail", "start_carapace", "eyes", "rostrum"],
+        edges=[
+            [0, 1],  # tail to start_carapace
+            [1, 2],  # start_carapace to eyes
+            [2, 3]   # eyes to rostrum
+        ]
     )
     return dataset
 
 def process_poses(poses, is_ground_truth=False):
+    """
+    Process YOLO keypoint detections into FiftyOne format.
+
+    Args:
+        poses (list): List of YOLO pose detections
+            Format: [class_id, x, y, w, h, kp1_x, kp1_y, kp1_conf, kp2_x, kp2_y, kp2_conf, ...]
+        is_ground_truth (bool): Whether these are ground truth annotations
+
+    Returns:
+        tuple: (keypoints_list, detections)
+            - keypoints_list: List of FiftyOne Keypoint objects
+            - detections: List of FiftyOne Detection objects
+
+    Example YOLO format:
+        [0, 0.5, 0.5, 0.1, 0.2, 0.45, 0.48, 1.0, 0.55, 0.52, 1.0, ...]
+    """
     keypoints_list = []
     detections = []
 
     for pose in poses:
-        if len(pose) == 11:
+        # New length should be 17 (1 class + 4 bbox coords + 4 keypoints × 3 values each)
+        if len(pose) == 17:
+            # Bounding box processing remains the same
             x1_rel, y1_rel, width_rel, height_rel = pose[1:5]
             x1_rel -= width_rel / 2
             y1_rel -= height_rel / 2
 
+            # Process 4 keypoints instead of 2
             keypoints = [[pose[i], pose[i + 1]] for i in range(5, len(pose), 3)]
             keypoint = fo.Keypoint(points=keypoints)
             keypoints_list.append(keypoint)
 
+            # Update keypoints dictionary to include all 4 points
+            keypoints_dict = {
+                'tail': keypoints[0],
+                'start_carapace': keypoints[1],
+                'eyes': keypoints[2],
+                'rostrum': keypoints[3],
+                'keypoint_ID': keypoint.id
+            }
 
-            keypoints_dict = {'point1': keypoints[0], 'point2': keypoints[1],'keypoint_ID':keypoint.id}
-
-
+            # Create detection with updated keypoints
             if not is_ground_truth:
-                detections.append(fo.Detection(label="prawn", bounding_box=[x1_rel, y1_rel, width_rel, height_rel], attributes={'keypoints': keypoints_dict}))
+                detections.append(fo.Detection(
+                    label="prawn",
+                    bounding_box=[x1_rel, y1_rel, width_rel, height_rel],
+                    attributes={'keypoints': keypoints_dict}
+                ))
             else:
-                detections.append(fo.Detection(label="prawn_truth", bounding_box=[x1_rel, y1_rel, width_rel, height_rel], attributes={'keypoints': keypoints_dict}))
+                detections.append(fo.Detection(
+                    label="prawn_truth",
+                    bounding_box=[x1_rel, y1_rel, width_rel, height_rel],
+                    attributes={'keypoints': keypoints_dict}
+                ))
     
     return keypoints_list, detections
 
 def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
+    """
+    Add metadata from Excel file to FiftyOne sample and process detections.
 
+    This function:
+    1. Processes filename to match metadata format
+    2. Finds matching metadata in filtered_df and metadata_df
+    3. Adds camera parameters and setup information to sample
+    4. Triggers detection processing
+
+    Args:
+        sample (fo.Sample): FiftyOne sample to add metadata to
+        filename (str): Image filename (e.g., 'GX010152_36_378.jpg_gamma')
+        filtered_df (pd.DataFrame): DataFrame containing manual measurements and annotations
+        metadata_df (pd.DataFrame): DataFrame containing camera setup parameters
+        swimmingdf (pd.DataFrame, optional): Additional swimming data if available
+
+    Example:
+        Input filename: 'undistorted_GX010152_36_378.jpg_gamma'
+        Compatible format: 'GX010152_36'
+        Metadata matching: Uses 'GX010152_36' to find camera height, FOV, etc.
+
+    Note:
+        - Handles 'undistorted_' prefix in filenames
+        - Splits filename to match metadata format
+        - Adds all metadata except 'file name' to sample
+        - Calls add_prawn_detections() for further processing
+    """
+    # Remove 'undistorted_' prefix if present
     if 'undistorted' in filename:
         filename = filename.replace('undistorted_', '')
 
-
-    compatible_file_name= filename.split('_')[0:3]
-
-    comp=compatible_file_name[2].split('-')[0]
-
-    compatible_file_name[2]=comp
+    # Extract compatible filename parts
+    compatible_file_name = filename.split('_')[0:3]
+    comp = compatible_file_name[2].split('-')[0]
+    compatible_file_name[2] = comp
 
     print(f'compatible {compatible_file_name}')
 
-
-    #rows where compatible file nams string in file name
+    # Find matching rows in filtered_df
     matching_rows = filtered_df[filtered_df['Label'].str.contains('_'.join(compatible_file_name))]
-    
-    filename=matching_rows['Label'].values[0].split(':')[1] 
+    filename = matching_rows['Label'].values[0].split(':')[1] 
 
-    joined_string ='_'.join([compatible_file_name[0],compatible_file_name[2]])
+    # Create metadata lookup key
+    joined_string = '_'.join([compatible_file_name[0], compatible_file_name[2]])
+    relevant_part = joined_string 
     
-
-
-    relevant_part =joined_string 
-    
-    # relevant_part = str('_'.join(compatible_file_name)[0],str('_'.join(compatible_file_name)[2]))
-    
+    # Find and add metadata
     metadata_row = metadata_df[metadata_df['file_name_new'] == relevant_part]
-
     if not metadata_row.empty:
         metadata = metadata_row.iloc[0].to_dict() 
         for key, value in metadata.items():
@@ -151,9 +223,29 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     else:
         print(f"No metadata found for {relevant_part}")
     
-    add_prawn_detections(sample, matching_rows, filtered_df,filename)
+    # Process detections
+    add_prawn_detections(sample, matching_rows, filtered_df, filename)
 
-def add_prawn_detections(sample, matching_rows, filtered_df,filename):
+def add_prawn_detections(sample, matching_rows, filtered_df, filename):
+    """
+    Add prawn detections and visualizations to a FiftyOne sample.
+
+    Args:
+        sample (fo.Sample): FiftyOne sample to add detections to
+        matching_rows (pd.DataFrame): Rows from filtered_df matching current image
+        filtered_df (pd.DataFrame): DataFrame containing manual measurements
+        filename (str): Current image filename
+
+    Visualization Details:
+        - Max bounding box: Red/Yellow diagonals
+        - Min bounding box: Blue/Green diagonals
+        - Each prawn gets 4 diagonal lines for size comparison
+
+    Note:
+        Bounding boxes are normalized to [0,1] range using:
+        - x_normalized = x / 5312
+        - y_normalized = y / 2988
+    """
     # true_detections = []
     min_diagonal_line_1=[]
     min_diagonal_line_2=[]
@@ -295,6 +387,18 @@ def add_prawn_detections(sample, matching_rows, filtered_df,filename):
     # sample["true_detections"] = fo.Detections(detections=true_detections)
 
 def find_closest_detection(sample, prawn_bbox):
+    """
+    Find closest YOLO detection to a ground truth bounding box.
+
+    Args:
+        sample (fo.Sample): FiftyOne sample containing detections
+        prawn_bbox (tuple): Ground truth bounding box coordinates (x, y, w, h)
+
+    Returns:
+        tuple: (closest_detection_pred, closest_detection_ground_truth)
+            - closest_detection_pred: Closest predicted detection
+            - closest_detection_ground_truth: Corresponding ground truth
+    """
     prawn_point = (prawn_bbox[0] / 5312, prawn_bbox[1] / 2988)
     min_distance = float('inf')
     closest_detection_pred = None
@@ -321,6 +425,21 @@ def find_closest_detection(sample, prawn_bbox):
 
 
 def process_detection(closest_detection, sample, filename, prawn_id, filtered_df,ground ):
+    """
+    Process matched detections and calculate measurements.
+
+    Args:
+        closest_detection (fo.Detection): Matched YOLO detection
+        sample (fo.Sample): FiftyOne sample
+        filename (str): Image filename
+        prawn_id (str): Unique prawn identifier
+        filtered_df (pd.DataFrame): DataFrame for storing results
+        ground (fo.Detection): Ground truth detection
+
+    Updates:
+        - filtered_df: Adds calculated measurements and errors
+        - sample: Adds visualization tags based on error thresholds
+    """
     height_mm = sample['heigtht(mm)']
     if sample.tags[0] == 'test-left' or sample.tags[0] == 'test-right':
         focal_length = 23.64
@@ -337,14 +456,14 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
 
 
-    keypoints_dict2 = closest_detection.attributes["keypoints"]
-    keypoints1 = [keypoints_dict2['point1'], keypoints_dict2['point2']]
+    keypoints_dict = closest_detection.attributes["keypoints"]
+    carapace_points = [keypoints_dict['start_carapace'], keypoints_dict['eyes']]
+    total_length_points = [keypoints_dict['tail'], keypoints_dict['rostrum']]
 
+    keypoint_id=keypoints_dict['keypoint_ID']   
 
-    keypoint_id=keypoints_dict2['keypoint_ID']   
-
-    keypoint1_scaled = [keypoints1[0][0] * 5312, keypoints1[0][1] * 2988]
-    keypoint2_scaled = [keypoints1[1][0] * 5312, keypoints1[1][1] * 2988]
+    keypoint1_scaled = [carapace_points[0][0] * 5312, carapace_points[0][1] * 2988]
+    keypoint2_scaled = [carapace_points[1][0] * 5312, carapace_points[1][1] * 2988]
 
     euclidean_distance_pixels = calculate_euclidean_distance(keypoint1_scaled, keypoint2_scaled)
     focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
@@ -517,67 +636,83 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 # No close match found
 
 def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset,pond_type):
+    """
+    Main pipeline for processing images and predictions.
+
+    Args:
+        image_paths (list): List of image file paths
+        prediction_folder_path (str): Path to YOLO prediction files
+        ground_truth_paths_text (list): List of ground truth annotation files
+        filtered_df (pd.DataFrame): DataFrame for storing results
+        metadata_df (pd.DataFrame): Camera and setup metadata
+        dataset (fo.Dataset): FiftyOne dataset
+        pond_type (str): Type of pond (test-left, test-right, test-car)
+
+    Saves:
+        - Updated filtered_df to Excel
+        - Processed samples to FiftyOne dataset
+    """
    
-   for image_path in tqdm(image_paths):
+    for image_path in tqdm(image_paths):
 
 
 
-    filename = os.path.splitext(os.path.basename(image_path))[0] 
-     
-     
-     
-     # e.g., undistorted_GX010152_36_378.jpg_gamma
-    # identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
+        filename = os.path.splitext(os.path.basename(image_path))[0] 
+            
+            
+            
+            # e.g., undistorted_GX010152_36_378.jpg_gamma
+        # identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
 
 
-    # Construct the paths to the prediction and ground truth files
-    prediction_txt_path = os.path.join(prediction_folder_path, f"{filename}.txt")
+        # Construct the paths to the prediction and ground truth files
+        prediction_txt_path = os.path.join(prediction_folder_path, f"{filename}.txt")
 
-    for gt_file in ground_truth_paths_text:
-        if filename in gt_file:
-            ground_truth_txt_path = gt_file
-            break
+        for gt_file in ground_truth_paths_text:
+            if filename in gt_file:
+                ground_truth_txt_path = gt_file
+                break
 
-    # Match ground truth based on the extracted identifier
-    # ground_truth_txt_path = None
-    # for gt_file in ground_truth_paths_text:
-    #     b= extract_identifier_from_gt(os.path.basename(gt_file))
-    #     if b == identifier:
-    #         ground_truth_txt_path = gt_file
+        # Match ground truth based on the extracted identifier
+        # ground_truth_txt_path = None
+        # for gt_file in ground_truth_paths_text:
+        #     b= extract_identifier_from_gt(os.path.basename(gt_file))
+        #     if b == identifier:
+        #         ground_truth_txt_path = gt_file
 
-    #         break
-    # if ground_truth_txt_path is None:
-    #     print(f"No ground truth found for {filename}")
-    #     continue
-    
-    # Parse the pose estimation data from the TXT file
-    pose_estimations = parse_pose_estimation(prediction_txt_path)
+        #         break
+        # if ground_truth_txt_path is None:
+        #     print(f"No ground truth found for {filename}")
+        #     continue
 
-    
-    ground_truths = parse_pose_estimation(ground_truth_txt_path)
-
-    # Process the pose estimations
-    keypoints_list, detections = process_poses(pose_estimations)
-
-    keypoints_list_truth, detections_truth = process_poses(ground_truths, is_ground_truth=True)
-
-    sample = fo.Sample(filepath=image_path)
-    sample["ground_truth"] = fo.Detections(detections=detections_truth)
-    sample["detections_predictions"] = fo.Detections(detections=detections)
-    sample["keypoints"] = fo.Keypoints(keypoints=keypoints_list)
-    sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
-
-    sample.tags.append(pond_type)
-    add_metadata(sample, filename, filtered_df, metadata_df)
+        # Parse the pose estimation data from the TXT file
+        pose_estimations = parse_pose_estimation(prediction_txt_path)
 
 
+        ground_truths = parse_pose_estimation(ground_truth_txt_path)
 
-    dataset.add_sample(sample)
+        # Process the pose estimations
+        keypoints_list, detections = process_poses(pose_estimations)
 
-   output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx' 
-   
-   print(filtered_df.columns) # Change this path accordingly
-   filtered_df.to_excel(output_file_path, index=False)
+        keypoints_list_truth, detections_truth = process_poses(ground_truths, is_ground_truth=True)
+
+        sample = fo.Sample(filepath=image_path)
+        sample["ground_truth"] = fo.Detections(detections=detections_truth)
+        sample["detections_predictions"] = fo.Detections(detections=detections)
+        sample["keypoints"] = fo.Keypoints(keypoints=keypoints_list)
+        sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
+
+        sample.tags.append(pond_type)
+        add_metadata(sample, filename, filtered_df, metadata_df)
+
+
+
+        dataset.add_sample(sample)
+
+        output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx' 
+
+        print(filtered_df.columns) # Change this path accordingly
+        filtered_df.to_excel(output_file_path, index=False)
 
 
 
