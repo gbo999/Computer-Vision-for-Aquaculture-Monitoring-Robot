@@ -7,6 +7,7 @@ from tqdm import tqdm
 from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt, calculate_bbox_area
 import math
 
+
 """
 FiftyOne data loader for prawn measurement validation.
 
@@ -97,13 +98,13 @@ def load_data(filtered_data_path, metadata_path):
     return filtered_df, metadata_df
 
 def create_dataset():
-    dataset = fo.Dataset("prawn_combined_dataset", overwrite=True)
+    dataset = fo.Dataset("prawn_combined_dataset", overwrite=True, persistent=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
-        labels=["tail", "start_carapace", "eyes", "rostrum"],
+        labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
         edges=[
-            [0, 1],  # tail to start_carapace
-            [1, 2],  # start_carapace to eyes
-            [2, 3]   # eyes to rostrum
+            [0, 1],  # start_carapace to eyes
+            [1, 2],  # eyes to rostrum
+            [0, 3]   # start_carapace to tail
         ]
     )
     return dataset
@@ -122,35 +123,37 @@ def process_poses(poses, is_ground_truth=False):
             - keypoints_list: List of FiftyOne Keypoint objects
             - detections: List of FiftyOne Detection objects
 
-    Example YOLO format:
-        [0, 0.5, 0.5, 0.1, 0.2, 0.45, 0.48, 1.0, 0.55, 0.52, 1.0, ...]
+    Keypoint order in YOLO format:
+        0: start_carapace
+        1: eyes
+        2: rostrum
+        3: tail
     """
     keypoints_list = []
     detections = []
 
     for pose in poses:
-        # New length should be 17 (1 class + 4 bbox coords + 4 keypoints × 3 values each)
-        if len(pose) == 17:
-            # Bounding box processing remains the same
+        if len(pose) == 17:  # 1 class + 4 bbox + 4 keypoints × 3 values
+            # Bounding box processing
             x1_rel, y1_rel, width_rel, height_rel = pose[1:5]
             x1_rel -= width_rel / 2
             y1_rel -= height_rel / 2
 
-            # Process 4 keypoints instead of 2
+            # Process keypoints
             keypoints = [[pose[i], pose[i + 1]] for i in range(5, len(pose), 3)]
             keypoint = fo.Keypoint(points=keypoints)
             keypoints_list.append(keypoint)
 
-            # Update keypoints dictionary to include all 4 points
+            # Create keypoints dictionary with correct order
             keypoints_dict = {
-                'tail': keypoints[0],
-                'start_carapace': keypoints[1],
-                'eyes': keypoints[2],
-                'rostrum': keypoints[3],
+                'start_carapace': keypoints[0],  # Index 0 in YOLO format
+                'eyes': keypoints[1],            # Index 1 in YOLO format
+                'rostrum': keypoints[2],         # Index 2 in YOLO format
+                'tail': keypoints[3],            # Index 3 in YOLO format
                 'keypoint_ID': keypoint.id
             }
 
-            # Create detection with updated keypoints
+            # Create detection
             if not is_ground_truth:
                 detections.append(fo.Detection(
                     label="prawn",
@@ -475,7 +478,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     
     ####
     keypoints_dict_ground = ground.attributes["keypoints"]
-    keypoints_ground = [keypoints_dict_ground['point1'], keypoints_dict_ground['point2']]
+    keypoints_ground = [keypoints_dict_ground['start_carapace'], keypoints_dict_ground['eyes']]
     keypoint1_scaled_ground = [keypoints_ground[0][0] * 5312, keypoints_ground[0][1] * 2988]
     keypoint2_scaled_ground = [keypoints_ground[1][0] * 5312, keypoints_ground[1][1] * 2988]
 
