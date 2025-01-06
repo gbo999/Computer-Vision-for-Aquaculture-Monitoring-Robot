@@ -97,8 +97,28 @@ def load_data(filtered_data_path, metadata_path):
     metadata_df = pd.read_excel(metadata_path)
     return filtered_df, metadata_df
 
+
+def load_data_body(filtered_data_path, metadata_path):
+    filtered_df = pd.read_excel(filtered_data_path)
+    metadata_df = pd.read_excel(metadata_path)
+    return filtered_df, metadata_df
+
+
 def create_dataset():
     dataset = fo.Dataset("prawn_combined_dataset", overwrite=True, persistent=True)
+    dataset.default_skeleton = fo.KeypointSkeleton(
+        labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
+        edges=[
+            [0, 1],  # start_carapace to eyes
+            [1, 2],  # eyes to rostrum
+            [0, 3]   # start_carapace to tail
+        ]
+    )
+    return dataset
+
+
+def create_dataset_body():
+    dataset = fo.Dataset("prawn_combined_dataset_body", overwrite=True, persistent=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
         labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
         edges=[
@@ -169,6 +189,10 @@ def process_poses(poses, is_ground_truth=False):
     
     return keypoints_list, detections
 
+
+
+
+
 def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     """
     Add metadata from Excel file to FiftyOne sample and process detections.
@@ -197,23 +221,29 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
         - Adds all metadata except 'file name' to sample
         - Calls add_prawn_detections() for further processing
     """
+
+    #undistorted_GX010073_55_1014.jpg_gamma
+    print(filename)
     # Remove 'undistorted_' prefix if present
     if 'undistorted' in filename:
         filename = filename.replace('undistorted_', '')
-
+    filename=filename.split('.')[0]
     # Extract compatible filename parts
     compatible_file_name = filename.split('_')[0:3]
-    comp = compatible_file_name[2].split('-')[0]
-    compatible_file_name[2] = comp
+    print(compatible_file_name)
 
-    print(f'compatible {compatible_file_name}')
+
+    # comp = compatible_file_name[1].split('-')[0]
+    # compatible_file_name[2] = comp
+
+    # print(f'compatible {compatible_file_name}')
 
     # Find matching rows in filtered_df
     matching_rows = filtered_df[filtered_df['Label'].str.contains('_'.join(compatible_file_name))]
     filename = matching_rows['Label'].values[0].split(':')[1] 
 
     # Create metadata lookup key
-    joined_string = '_'.join([compatible_file_name[0], compatible_file_name[2]])
+    joined_string = '_'.join([compatible_file_name[0], compatible_file_name[-1]])
     relevant_part = joined_string 
     
     # Find and add metadata
@@ -228,6 +258,240 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     
     # Process detections
     add_prawn_detections(sample, matching_rows, filtered_df, filename)
+
+    
+    # add_prawn_detections_body(sample, matching_rows, filtered_df, filename)
+
+def add_metadata_body(sample, filename, filtered_df, metadata_df, swimmingdf=None):
+    """
+    Add metadata from Excel file to FiftyOne sample and process detections.
+
+    This function:
+    1. Processes filename to match metadata format
+    2. Finds matching metadata in filtered_df and metadata_df
+    3. Adds camera parameters and setup information to sample
+    4. Triggers detection processing
+
+    Args:
+        sample (fo.Sample): FiftyOne sample to add metadata to
+        filename (str): Image filename (e.g., 'GX010152_36_378.jpg_gamma')
+        filtered_df (pd.DataFrame): DataFrame containing manual measurements and annotations
+        metadata_df (pd.DataFrame): DataFrame containing camera setup parameters
+        swimmingdf (pd.DataFrame, optional): Additional swimming data if available
+
+    Example:
+        Input filename: 'undistorted_GX010152_36_378.jpg_gamma'
+        Compatible format: 'GX010152_36'
+        Metadata matching: Uses 'GX010152_36' to find camera height, FOV, etc.
+
+    Note:
+        - Handles 'undistorted_' prefix in filenames
+        - Splits filename to match metadata format
+        - Adds all metadata except 'file name' to sample
+        - Calls add_prawn_detections() for further processing
+    """
+
+    #undistorted_GX010073_55_1014.jpg_gamma
+    print(filename)
+    # Remove 'undistorted_' prefix if present
+    if 'undistorted' in filename:
+        filename = filename.replace('undistorted_', '')
+    filename=filename.split('.')[0]
+    # Extract compatible filename parts
+    compatible_file_name = filename.split('_')[0:3]
+    print(compatible_file_name)
+
+
+    # comp = compatible_file_name[1].split('-')[0]
+    # compatible_file_name[2] = comp
+
+    # print(f'compatible {compatible_file_name}')
+
+    # Find matching rows in filtered_df
+    matching_rows = filtered_df[filtered_df['Label'].str.contains('_'.join(compatible_file_name))]
+    if len(matching_rows) == 0:
+        print(f"No matching data found for {filename}")
+        return
+    
+    
+    filename = matching_rows['Label'].values[0].split(':')[1] 
+
+   
+
+    # Create metadata lookup key
+    joined_string = '_'.join([compatible_file_name[0], compatible_file_name[-1]])
+    relevant_part = joined_string 
+    
+    # Find and add metadata
+    metadata_row = metadata_df[metadata_df['file_name_new'] == relevant_part]
+    if not metadata_row.empty:
+        metadata = metadata_row.iloc[0].to_dict() 
+        for key, value in metadata.items():
+            if key != 'file name':
+                sample[key] = value
+    else:
+        print(f"No metadata found for {relevant_part}")
+    
+    # Process detections
+    # add_prawn_detections(sample, matching_rows, filtered_df, filename)
+
+    
+    add_prawn_detections_body(sample, matching_rows, filtered_df, filename)
+
+def add_prawn_detections_body(sample, matching_rows, filtered_df, filename):
+    """
+  Add prawn detections and visualizations to a FiftyOne sample.
+
+    Args:
+        sample (fo.Sample): FiftyOne sample to add detections to
+        matching_rows (pd.DataFrame): Rows from filtered_df matching current image
+        filtered_df (pd.DataFrame): DataFrame containing manual measurements
+        filename (str): Current image filename
+
+    Visualization Details:
+        - Max bounding box: Red/Yellow diagonals
+        - Min bounding box: Blue/Green diagonals
+        - Each prawn gets 4 diagonal lines for size comparison
+
+    Note:
+        Bounding boxes are normalized to [0,1] range using:
+        - x_normalized = x / 5312
+        - y_normalized = y / 2988
+    """
+    # true_detections = []
+    min_diagonal_line_1=[]
+    min_diagonal_line_2=[]
+
+    max_diagonal_line_1=[]
+    max_diagonal_line_2=[]
+
+    for _, row in matching_rows.iterrows():
+        prawn_id = row['PrawnID']
+        bounding_boxes = []
+        for bbox_key in ['BoundingBox_1', 'BoundingBox_2', 'BoundingBox_3']:
+            if pd.notna(row[bbox_key]):
+                bbox = ast.literal_eval(row[bbox_key])
+                bbox = tuple(float(coord) for coord in bbox)  # Convert bounding box to tuple of floats
+                bounding_boxes.append(bbox)
+        
+        if not bounding_boxes:
+            print(f"No bounding boxes found for prawn ID {prawn_id} in {filename}.")
+            continue
+
+        # Select the largest bounding box based on area
+        min_bbox = min(bounding_boxes, key=calculate_bbox_area)
+        max_bbox = max(bounding_boxes, key=calculate_bbox_area)    
+
+
+
+
+
+        prawn_max_normalized_bbox = [max_bbox[0] / 5312, max_bbox[1] / 2988, max_bbox[2] / 5312, max_bbox[3] / 2988]
+
+        prawn_min_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
+
+        # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
+
+        closest_detection,ground = find_closest_detection(sample, min_bbox)
+
+        if closest_detection is not None:
+            process_detection_body(closest_detection, sample, filename, prawn_id, filtered_df,ground)
+
+        x_min_max=prawn_max_normalized_bbox[0]
+        y_min_max=prawn_max_normalized_bbox[1]
+        width_max=prawn_max_normalized_bbox[2]
+        heigh_maxt=prawn_max_normalized_bbox[3]
+
+        # Corners in normalized coordinates
+        top_left_max = [x_min_max, y_min_max]
+        top_right_max = [x_min_max + width_max, y_min_max]
+        bottom_left_max = [x_min_max, y_min_max + heigh_maxt]
+        bottom_right_max = [x_min_max + width_max, y_min_max + heigh_maxt]
+
+        # Diagonals
+        diagonal1_max = [top_left_max, bottom_right_max]
+        diagonal2_max = [top_right_max, bottom_left_max]
+        
+
+        diagonal1_polyline_max = fo.Polyline(
+            label="Diagonal 1",
+            points=[diagonal1_max],
+            closed=False,
+            filled=False,
+            line_color="red",
+            thickness=2,
+        )
+
+        diagonal2_polyline_max = fo.Polyline(
+            label="longest diagonal",
+            points=[diagonal2_max],
+            closed=False,
+            filled=False,
+            line_color="yellow",
+            thickness=2,
+        )
+
+        max_diagonal_line_1.append(diagonal1_polyline_max)
+        max_diagonal_line_2.append(diagonal2_polyline_max)
+
+        sample["max_diagonal_line_1"] = fo.Polylines(polylines=max_diagonal_line_1)
+        sample["max_diagonal_line_2"] = fo.Polylines(polylines=max_diagonal_line_2)
+
+
+
+        # Normalize the largest bounding box coordinates
+
+        x_min = prawn_min_normalized_bbox[0]
+        y_min = prawn_min_normalized_bbox[1]
+        width = prawn_min_normalized_bbox[2]
+        height = prawn_min_normalized_bbox[3]
+
+        # Corners in normalized coordinates
+        top_left = [x_min, y_min]
+        top_right = [x_min + width, y_min]
+        bottom_left = [x_min, y_min + height]
+        bottom_right = [x_min + width, y_min + height]
+
+        # Diagonals
+        min_diagonal1 = [top_left, bottom_right]
+        min_diagonal2 = [top_right, bottom_left]
+
+        # #take the longest diagonal
+        # if calculate_euclidean_distance(top_left, bottom_right) > calculate_euclidean_distance(top_right, bottom_left):
+        #     longest_diagonal = diagonal1
+        # else:
+        #     longest_diagonal = diagonal2
+
+
+        diagonal1_polyline = fo.Polyline(
+            label="Diagonal 1",
+            points=[min_diagonal1],
+            closed=False,
+            filled=False,
+            line_color="blue",
+            thickness=2,
+        )
+
+        diagonal2_polyline = fo.Polyline(
+            label="longest diagonal",
+            points=[min_diagonal2],
+            closed=False,
+            filled=False,
+            line_color="green",
+            thickness=2,
+        )
+
+
+        min_diagonal_line_1.append(diagonal1_polyline)
+
+
+        min_diagonal_line_2.append(diagonal2_polyline)
+
+
+    sample["min_diagonal_line_1"] = fo.Polylines(polylines=min_diagonal_line_1)
+    sample["min_diagonal_line_2"] = fo.Polylines(polylines=min_diagonal_line_2)
+
+
 
 def add_prawn_detections(sample, matching_rows, filtered_df, filename):
     """
@@ -665,7 +929,7 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
             
             
             # e.g., undistorted_GX010152_36_378.jpg_gamma
-        # identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
+        identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
 
 
         # Construct the paths to the prediction and ground truth files
@@ -676,19 +940,19 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
                 ground_truth_txt_path = gt_file
                 break
 
-        # Match ground truth based on the extracted identifier
-        # ground_truth_txt_path = None
-        # for gt_file in ground_truth_paths_text:
-        #     b= extract_identifier_from_gt(os.path.basename(gt_file))
-        #     if b == identifier:
-        #         ground_truth_txt_path = gt_file
+        ground_truth_txt_path = None
+        for gt_file in ground_truth_paths_text:
+            b= extract_identifier_from_gt(os.path.basename(gt_file))
+            if b == identifier:
+                ground_truth_txt_path = gt_file
 
-        #         break
-        # if ground_truth_txt_path is None:
-        #     print(f"No ground truth found for {filename}")
-        #     continue
+                break
+        if ground_truth_txt_path is None:
+            print(f"No ground truth found for {filename}")
+            continue
 
-        # Parse the pose estimation data from the TXT file
+
+
         pose_estimations = parse_pose_estimation(prediction_txt_path)
 
 
@@ -706,16 +970,297 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
         sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
 
         sample.tags.append(pond_type)
-        add_metadata(sample, filename, filtered_df, metadata_df)
+        add_metadata_body(sample, filename, filtered_df, metadata_df)
 
 
 
         dataset.add_sample(sample)
 
-        output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx' 
+        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_full_Filtered_Data_with_real_length.xlsx' 
 
-        print(filtered_df.columns) # Change this path accordingly
+        # print(filtered_df.columns) # Change this path accordingly
         filtered_df.to_excel(output_file_path, index=False)
 
 
 
+def process_images_body(image_paths, prediction_txt_path, ground_truth_paths_text, filtered_df, metadata_df, dataset,pond_type):
+
+    for image_path in tqdm(image_paths):
+
+
+
+        filename = os.path.basename(image_path)
+        base_filename = os.path.splitext(filename)[0]
+            
+            
+            # e.g., undistorted_GX010152_36_378.jpg_gamma
+        identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
+
+
+        # Construct the paths to the prediction and ground truth files
+        prediction_file = os.path.join(prediction_txt_path, f"{base_filename}.txt")
+
+        for gt_file in ground_truth_paths_text:
+            if filename in gt_file:
+                ground_truth_txt_path = gt_file
+                break
+
+        ground_truth_txt_path = None
+        for gt_file in ground_truth_paths_text:
+            b= extract_identifier_from_gt(os.path.basename(gt_file))
+            if b == identifier:
+                ground_truth_txt_path = gt_file
+
+                break
+        if ground_truth_txt_path is None:
+            print(f"No ground truth found for {filename}")
+            continue
+
+        if not os.path.exists(prediction_file):
+            print(f"No prediction file found for {filename}")
+            continue
+        
+        if not os.path.exists(ground_truth_txt_path):
+            print(f"No ground truth found for {filename}")
+            continue
+
+        ground_truth_txt_path = os.path.join(ground_truth_paths_text, f"{base_filename}.txt")
+
+
+        pose_estimations = parse_pose_estimation(prediction_file)
+        ground_truths = parse_pose_estimation(ground_truth_txt_path)
+        
+        # Process the pose estimations
+        keypoints_list, detections = process_poses(pose_estimations)
+
+        keypoints_list_truth, detections_truth = process_poses(ground_truths, is_ground_truth=True)
+
+        sample = fo.Sample(filepath=image_path)
+        sample["ground_truth"] = fo.Detections(detections=detections_truth)
+        sample["detections_predictions"] = fo.Detections(detections=detections)
+        sample["keypoints"] = fo.Keypoints(keypoints=keypoints_list)
+        sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
+
+        sample.tags.append(pond_type)
+        add_metadata_body(sample, filename, filtered_df, metadata_df)
+
+
+
+        dataset.add_sample(sample)
+
+
+
+        output_file_path = r'Updated_Filtered_Data_with_real_length.xlsx' 
+
+        # print(filtered_df.columns) # Change this path accordingly
+        filtered_df.to_excel(output_file_path, index=False)
+
+def process_detection_body(closest_detection, sample, filename, prawn_id, filtered_df,ground ):
+    """
+    Process matched detections and calculate measurements.
+
+    Args:
+        closest_detection (fo.Detection): Matched YOLO detection
+        sample (fo.Sample): FiftyOne sample
+        filename (str): Image filename
+        prawn_id (str): Unique prawn identifier
+        filtered_df (pd.DataFrame): DataFrame for storing results
+        ground (fo.Detection): Ground truth detection
+
+    Updates:
+        - filtered_df: Adds calculated measurements and errors
+        - sample: Adds visualization tags based on error thresholds
+    """
+    
+    height_mm = sample['heigtht(mm)']
+    if sample.tags[0] == 'test-left' or sample.tags[0] == 'test-right':
+        focal_length = 23.64
+    else:
+        focal_length = 24.72
+
+
+    # focal_length = 24.22  # Camera focal length
+    pixel_size = 0.00716844  # Pixel size in mm
+
+    
+
+
+
+
+
+    keypoints_dict = closest_detection.attributes["keypoints"]
+    # carapace_points = [keypoints_dict['start_carapace'], keypoints_dict['eyes']]
+    total_length_points = [keypoints_dict['tail'], keypoints_dict['rostrum']]
+
+    keypoint_id=keypoints_dict['keypoint_ID']   
+
+    keypoint1_scaled = [total_length_points[0][0] * 5312, total_length_points[0][1] * 2988]
+    keypoint2_scaled = [total_length_points[1][0] * 5312, total_length_points[1][1] * 2988]
+
+    euclidean_distance_pixels = calculate_euclidean_distance(keypoint1_scaled, keypoint2_scaled)
+    focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
+    
+    
+    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+    
+    distance_mm, angle_deg = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    
+    ####
+    keypoints_dict_ground = ground.attributes["keypoints"]
+    keypoints_ground = [keypoints_dict_ground['tail'], keypoints_dict_ground['rostrum']]
+    keypoint1_scaled_ground = [keypoints_ground[0][0] * 5312, keypoints_ground[0][1] * 2988]
+    keypoint2_scaled_ground = [keypoints_ground[1][0] * 5312, keypoints_ground[1][1] * 2988]
+
+    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+
+    distance_mm_ground, angle_deg_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
+    
+    #distance_mm_ground to table
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
+    
+
+    
+    
+    # fov=75.2
+    # FOV_width=2*height_mm*math.tan(math.radians(fov/2))
+    # length_fov=FOV_width*euclidean_distance_pixels/5312
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'id'] = keypoint_id
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_fov(mm)'] = distance_mm
+
+    #add height to the dataframe
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Height(mm)'] = height_mm
+
+
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'focal_RealLength(cm)'] = focal_real_length_cm
+
+    
+    min_true_length= min(abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]))
+
+    max_true_length= max(abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]))
+
+    #take the median of the three lengths
+    median_true_length= (abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0])+abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0])+abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0])-min_true_length-max_true_length)
+
+
+    #save each length_1, length_2, length_3 in pixels to dataframe , Lenght_1_pixels=(Length_1*scale_1)/10
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Scale_1'].values[0]))/10
+                                                                                                                                   
+    #lenght_2 in pixels
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Scale_2'].values[0]))/10
+
+    #lenght_3 in pixels
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3_pixels'] = (abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0])*abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Scale_3'].values[0]))/10
+                                                                                                                                                                                                                                                                    
+
+
+
+    # true_length = filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Avg_Length'].values[0]
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Pond_Type'] = sample.tags[0]        
+
+    #add euclidean distance in pixels
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Euclidean_Distance'] = euclidean_distance_pixels
+
+    error_percentage_min = abs(distance_mm - min_true_length) / min_true_length * 100
+    error_percentage_max = abs(distance_mm - max_true_length) / max_true_length * 100
+    error_percentage_median = abs(distance_mm - median_true_length) / median_true_length * 100
+
+
+    min_error_percentage = min(error_percentage_min, error_percentage_max, error_percentage_median)
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_fov_min'] = error_percentage_min
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_fov_max'] = error_percentage_max
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_fov_median'] = error_percentage_median
+    
+
+    #abs error fov
+    abs_error_min_fov = abs(distance_mm - min_true_length)
+    abs_error_max_fov = abs(distance_mm - max_true_length)
+    abs_error_median_fov = abs(distance_mm - median_true_length)
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_fov_min'] = abs_error_min_fov
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_fov_max'] = abs_error_max_fov
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_fov_median'] = abs_error_median_fov
+
+    #abs error focal
+    abs_error_min_focal = abs(focal_real_length_cm - min_true_length)
+    abs_error_max_focal = abs(focal_real_length_cm - max_true_length)
+    abs_error_median_focal = abs(focal_real_length_cm - median_true_length)
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_focal_min'] = abs_error_min_focal
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_focal_max'] = abs_error_max_focal
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'AbsError_focal_median'] = abs_error_median_focal
+
+
+
+    error_focal_min_precentage = abs(focal_real_length_cm - min_true_length) / min_true_length * 100
+    error_focal_max_precentage = abs(focal_real_length_cm - max_true_length) / max_true_length * 100
+    error_focal_median_precentage = abs(focal_real_length_cm - median_true_length) / median_true_length * 100
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_focal_min'] = error_focal_min_precentage
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_focal_max'] = error_focal_max_precentage
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'MPError_focal_median'] = error_focal_median_precentage
+
+
+    #error distance_mm_ground length_1_length_2_length_3
+    error_distance_mm_ground_min = abs(distance_mm_ground - min_true_length)
+    error_distance_mm_ground_max = abs(distance_mm_ground - max_true_length)
+    error_distance_mm_ground_median = abs(distance_mm_ground - median_true_length)
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_distance_mm_ground_min'] = error_distance_mm_ground_min
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_distance_mm_ground_max'] = error_distance_mm_ground_max
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_distance_mm_ground_median'] = error_distance_mm_ground_median
+
+    #error percentage distance_mm_ground length_1_length_2_length_3
+    error_percentage_distance_mm_ground_min = abs(distance_mm_ground - min_true_length) / min_true_length * 100
+    error_percentage_distance_mm_ground_max = abs(distance_mm_ground - max_true_length) / max_true_length * 100
+    error_percentage_distance_mm_ground_median = abs(distance_mm_ground - median_true_length) / median_true_length * 100
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_percentage_distance_mm_ground_min'] = error_percentage_distance_mm_ground_min
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_percentage_distance_mm_ground_max'] = error_percentage_distance_mm_ground_max
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Error_percentage_distance_mm_ground_median'] = error_percentage_distance_mm_ground_median
+
+
+
+
+
+
+
+    closest_detection_label = f'pred_length: {distance_mm},median_length: {median_true_length}  ,MPError_min: {error_percentage_min:.2f}% , MPError_max: {error_percentage_max:.2f}%, MPError_median: {error_percentage_median:.2f}%' 
+    
+    
+    
+    closest_detection.label = closest_detection_label
+    closest_detection.attributes["prawn_id"] =fo.Attribute(value=prawn_id)
+    # if abs(focal_real_length_cm - min_true_from_length_1_length_2_length_3) / min_true_from_length_1_length_2_length_3 * 100 > 25:
+    #     if "MPE_focal>25" not in sample.tags:
+    #         sample.tags.append("MPE_focal>25")
+
+
+
+    if min_error_percentage> 50:
+        if "MPE_fov>50" not in sample.tags:
+            sample.tags.append("MPE_fov>50")
+
+
+    if min_error_percentage > 25 and min_error_percentage <= 50:
+        if "MPE_fov>25" not in sample.tags:
+            sample.tags.append("MPE_fov>25")
+
+    if min_error_percentage > 10 and min_error_percentage <= 25:
+        if "MPE_fov>10" not in sample.tags:
+            sample.tags.append("MPE_fov>10")
+
+    if min_error_percentage > 5 and min_error_percentage <= 10:
+        if "MPE_fov>5" not in sample.tags:
+            sample.tags.append("MPE_fov>5")
+
+    if min_error_percentage <= 5:
+        if "MPE_fov<5" not in sample.tags:
+            sample.tags.append("MPE_fov<5")
+    
