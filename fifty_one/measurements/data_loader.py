@@ -223,14 +223,14 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     """
 
     #undistorted_GX010073_55_1014.jpg_gamma
-    print(filename)
+    # print(filename)
     # Remove 'undistorted_' prefix if present
     if 'undistorted' in filename:
         filename = filename.replace('undistorted_', '')
     filename=filename.split('.')[0]
     # Extract compatible filename parts
     compatible_file_name = filename.split('_')[0:3]
-    print(compatible_file_name)
+    # print(compatible_file_name)
 
 
     # comp = compatible_file_name[1].split('-')[0]
@@ -365,131 +365,177 @@ def add_prawn_detections_body(sample, matching_rows, filtered_df, filename):
     max_diagonal_line_1=[]
     max_diagonal_line_2=[]
 
+    mid_diagonal_line_1=[]
+    mid_diagonal_line_2=[]  
+
+
+
+
     for _, row in matching_rows.iterrows():
-        prawn_id = row['PrawnID']
-        bounding_boxes = []
-        for bbox_key in ['BoundingBox_1', 'BoundingBox_2', 'BoundingBox_3']:
-            if pd.notna(row[bbox_key]):
-                bbox = ast.literal_eval(row[bbox_key])
-                bbox = tuple(float(coord) for coord in bbox)  # Convert bounding box to tuple of floats
-                bounding_boxes.append(bbox)
+            prawn_id = row['PrawnID']
+            bounding_boxes = []
+            lengths = {}  # Store lengths with their corresponding bounding boxes
+            
+            # Get all lengths
+            length_1 = abs(float(row['Length_1'])) if pd.notna(row['Length_1']) else None
+            length_2 = abs(float(row['Length_2'])) if pd.notna(row['Length_2']) else None
+            length_3 = abs(float(row['Length_3'])) if pd.notna(row['Length_3']) else None
+            
+            # Associate lengths with bounding boxes
+            for bbox_key, length in zip(['BoundingBox_1', 'BoundingBox_2', 'BoundingBox_3'],
+                                    [length_1, length_2, length_3]):
+                if pd.notna(row[bbox_key]) and length is not None:
+                    bbox = ast.literal_eval(row[bbox_key])
+                    bbox = tuple(float(coord) for coord in bbox)
+                    bounding_boxes.append((bbox, length))
+            
+            if not bounding_boxes:
+                print(f"No bounding boxes found for prawn ID {prawn_id} in {filename}.")
+                continue
+
+            # Sort bounding boxes by area and get their associated lengths
+            sorted_boxes = sorted(bounding_boxes, key=lambda x: calculate_bbox_area(x[0]))
+            min_bbox, min_length = sorted_boxes[0]
+            mid_bbox, mid_length = sorted_boxes[1]
+            max_bbox, max_length = sorted_boxes[2]
+            
+
+            prawn_min_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
+            prawn_mid_normalized_bbox = [mid_bbox[0] / 5312, mid_bbox[1] / 2988, mid_bbox[2] / 5312, mid_bbox[3] / 2988]
+            prawn_max_normalized_bbox = [max_bbox[0] / 5312, max_bbox[1] / 2988, max_bbox[2] / 5312, max_bbox[3] / 2988]
+
+            closest_detection,ground = find_closest_detection(sample, min_bbox)
+
+            if closest_detection is not None:
+                process_detection_body(closest_detection, sample, filename, prawn_id, filtered_df,ground)
+
+            x_min_max=prawn_max_normalized_bbox[0]
+            y_min_max=prawn_max_normalized_bbox[1]
+            width_max=prawn_max_normalized_bbox[2]
+            heigh_maxt=prawn_max_normalized_bbox[3]
+
+            # Corners in normalized coordinates
+            top_left_max = [x_min_max, y_min_max]
+            top_right_max = [x_min_max + width_max, y_min_max]
+            bottom_left_max = [x_min_max, y_min_max + heigh_maxt]
+            bottom_right_max = [x_min_max + width_max, y_min_max + heigh_maxt]
+
+            # Diagonals
+            diagonal1_max = [top_left_max, bottom_right_max]
+            diagonal2_max = [top_right_max, bottom_left_max]
+
+            diagonal1_polyline_max = fo.Polyline(
+                label= "max diagonal- {} ".format(max_length),
+                points=[diagonal1_max],
+                closed=False,
+                filled=False,
+                line_color="red",
+                thickness=2,
+            )
+
+            # Longest diagonal  
+            diagonal2_polyline_max = fo.Polyline(
+                label= "max diagonal- {} ".format(max_length),
+                points=[diagonal2_max],
+                closed=False,
+                filled=False,
+                line_color="yellow",
+                thickness=2,
+            )
+
+            max_diagonal_line_1.append(diagonal1_polyline_max)
+            max_diagonal_line_2.append(diagonal2_polyline_max)
+
+            sample["max_diagonal_line_1"] = fo.Polylines(polylines=max_diagonal_line_1)
+            sample["max_diagonal_line_2"] = fo.Polylines(polylines=max_diagonal_line_2)
+
+
+            x_min_mid=prawn_mid_normalized_bbox[0]
+            y_min_mid=prawn_mid_normalized_bbox[1]
+            width_mid=prawn_mid_normalized_bbox[2]
+            height_mid=prawn_mid_normalized_bbox[3]
+
+            top_left_mid = [x_min_mid, y_min_mid]
+            top_right_mid = [x_min_mid + width_mid, y_min_mid]
+            bottom_left_mid = [x_min_mid, y_min_mid + height_mid]
+            bottom_right_mid = [x_min_mid + width_mid, y_min_mid + height_mid]
+
+            diagonal1_mid = [top_left_mid, bottom_right_mid]
+            diagonal2_mid = [top_right_mid, bottom_left_mid]
+
+            diagonal1_polyline_mid = fo.Polyline(
+                label= "mid diagonal- {} ".format(mid_length),
+                points=[diagonal1_mid],
+                closed=False,
+                filled=False,
+                line_color="blue",
+                thickness=2,
+            )
+
+            diagonal2_polyline_mid = fo.Polyline(
+                label= "mid diagonal- {} ".format(mid_length),
+                points=[diagonal2_mid],
+                closed=False,
+                filled=False,
+                line_color="green",
+                thickness=2,
+            )
+
+            mid_diagonal_line_1.append(diagonal1_polyline_mid)
+            mid_diagonal_line_2.append(diagonal2_polyline_mid)
+
+            sample["mid_diagonal_line_1"] = fo.Polylines(polylines=mid_diagonal_line_1)
+            sample["mid_diagonal_line_2"] = fo.Polylines(polylines=mid_diagonal_line_2) 
+
+            x_min_min=prawn_min_normalized_bbox[0]
+            y_min_min=prawn_min_normalized_bbox[1]
+            width_min=prawn_min_normalized_bbox[2]
+            height_min=prawn_min_normalized_bbox[3]
+
+            top_left_min = [x_min_min, y_min_min]
+            top_right_min = [x_min_min + width_min, y_min_min]
+            bottom_left_min = [x_min_min, y_min_min + height_min]
+            bottom_right_min = [x_min_min + width_min, y_min_min + height_min]
+
+            diagonal1_min = [top_left_min, bottom_right_min]
+            diagonal2_min = [top_right_min, bottom_left_min]
+
+            diagonal1_polyline_min = fo.Polyline(
+                label= "min diagonal- {} ".format(min_length),
+                points=[diagonal1_min],
+                closed=False,
+                filled=False,
+                line_color="blue",
+                thickness=2,
+            )
+
+
+            diagonal2_polyline_min = fo.Polyline(
+                label= "min diagonal- {} ".format(min_length),
+                points=[diagonal2_min],
+                closed=False,
+                filled=False,
+                line_color="green",
+                thickness=2,
+            )
+
+            min_diagonal_line_1.append(diagonal1_polyline_min)
+            min_diagonal_line_2.append(diagonal2_polyline_min)
+
+            sample["min_diagonal_line_1"] = fo.Polylines(polylines=min_diagonal_line_1)
+            sample["min_diagonal_line_2"] = fo.Polylines(polylines=min_diagonal_line_2)
+
+
+
+
+
+
+
+
         
-        if not bounding_boxes:
-            print(f"No bounding boxes found for prawn ID {prawn_id} in {filename}.")
-            continue
-
-        # Select the largest bounding box based on area
-        min_bbox = min(bounding_boxes, key=calculate_bbox_area)
-        max_bbox = max(bounding_boxes, key=calculate_bbox_area)    
 
 
-
-
-
-        prawn_max_normalized_bbox = [max_bbox[0] / 5312, max_bbox[1] / 2988, max_bbox[2] / 5312, max_bbox[3] / 2988]
-
-        prawn_min_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
-
-        # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
-
-        closest_detection,ground = find_closest_detection(sample, min_bbox)
-
-        if closest_detection is not None:
-            process_detection_body(closest_detection, sample, filename, prawn_id, filtered_df,ground)
-
-        x_min_max=prawn_max_normalized_bbox[0]
-        y_min_max=prawn_max_normalized_bbox[1]
-        width_max=prawn_max_normalized_bbox[2]
-        heigh_maxt=prawn_max_normalized_bbox[3]
-
-        # Corners in normalized coordinates
-        top_left_max = [x_min_max, y_min_max]
-        top_right_max = [x_min_max + width_max, y_min_max]
-        bottom_left_max = [x_min_max, y_min_max + heigh_maxt]
-        bottom_right_max = [x_min_max + width_max, y_min_max + heigh_maxt]
-
-        # Diagonals
-        diagonal1_max = [top_left_max, bottom_right_max]
-        diagonal2_max = [top_right_max, bottom_left_max]
-        
-
-        diagonal1_polyline_max = fo.Polyline(
-            label="Diagonal 1",
-            points=[diagonal1_max],
-            closed=False,
-            filled=False,
-            line_color="red",
-            thickness=2,
-        )
-
-        diagonal2_polyline_max = fo.Polyline(
-            label="longest diagonal",
-            points=[diagonal2_max],
-            closed=False,
-            filled=False,
-            line_color="yellow",
-            thickness=2,
-        )
-
-        max_diagonal_line_1.append(diagonal1_polyline_max)
-        max_diagonal_line_2.append(diagonal2_polyline_max)
-
-        sample["max_diagonal_line_1"] = fo.Polylines(polylines=max_diagonal_line_1)
-        sample["max_diagonal_line_2"] = fo.Polylines(polylines=max_diagonal_line_2)
-
-
-
-        # Normalize the largest bounding box coordinates
-
-        x_min = prawn_min_normalized_bbox[0]
-        y_min = prawn_min_normalized_bbox[1]
-        width = prawn_min_normalized_bbox[2]
-        height = prawn_min_normalized_bbox[3]
-
-        # Corners in normalized coordinates
-        top_left = [x_min, y_min]
-        top_right = [x_min + width, y_min]
-        bottom_left = [x_min, y_min + height]
-        bottom_right = [x_min + width, y_min + height]
-
-        # Diagonals
-        min_diagonal1 = [top_left, bottom_right]
-        min_diagonal2 = [top_right, bottom_left]
-
-        # #take the longest diagonal
-        # if calculate_euclidean_distance(top_left, bottom_right) > calculate_euclidean_distance(top_right, bottom_left):
-        #     longest_diagonal = diagonal1
-        # else:
-        #     longest_diagonal = diagonal2
-
-
-        diagonal1_polyline = fo.Polyline(
-            label="Diagonal 1",
-            points=[min_diagonal1],
-            closed=False,
-            filled=False,
-            line_color="blue",
-            thickness=2,
-        )
-
-        diagonal2_polyline = fo.Polyline(
-            label="longest diagonal",
-            points=[min_diagonal2],
-            closed=False,
-            filled=False,
-            line_color="green",
-            thickness=2,
-        )
-
-
-        min_diagonal_line_1.append(diagonal1_polyline)
-
-
-        min_diagonal_line_2.append(diagonal2_polyline)
-
-
-    sample["min_diagonal_line_1"] = fo.Polylines(polylines=min_diagonal_line_1)
-    sample["min_diagonal_line_2"] = fo.Polylines(polylines=min_diagonal_line_2)
+    
 
 
 
@@ -520,135 +566,275 @@ def add_prawn_detections(sample, matching_rows, filtered_df, filename):
     max_diagonal_line_1=[]
     max_diagonal_line_2=[]
 
+    mid_diagonal_line_1=[]
+    mid_diagonal_line_2=[]
+
     for _, row in matching_rows.iterrows():
-        prawn_id = row['PrawnID']
-        bounding_boxes = []
-        for bbox_key in ['BoundingBox_1', 'BoundingBox_2', 'BoundingBox_3']:
-            if pd.notna(row[bbox_key]):
-                bbox = ast.literal_eval(row[bbox_key])
-                bbox = tuple(float(coord) for coord in bbox)  # Convert bounding box to tuple of floats
-                bounding_boxes.append(bbox)
+            prawn_id = row['PrawnID']
+            bounding_boxes = []
+            lengths = {}  # Store lengths with their corresponding bounding boxes
+            
+            # Get all lengths
+            length_1 = abs(float(row['Length_1'])) if pd.notna(row['Length_1']) else None
+            length_2 = abs(float(row['Length_2'])) if pd.notna(row['Length_2']) else None
+            length_3 = abs(float(row['Length_3'])) if pd.notna(row['Length_3']) else None
+            
+            # Associate lengths with bounding boxes
+            for bbox_key, length in zip(['BoundingBox_1', 'BoundingBox_2', 'BoundingBox_3'],
+                                    [length_1, length_2, length_3]):
+                if pd.notna(row[bbox_key]) and length is not None:
+                    bbox = ast.literal_eval(row[bbox_key])
+                    bbox = tuple(float(coord) for coord in bbox)
+                    bounding_boxes.append((bbox, length))
+            
+            if not bounding_boxes:
+                print(f"No bounding boxes found for prawn ID {prawn_id} in {filename}.")
+                continue
+
+            # Sort bounding boxes by area and get their associated lengths
+            sorted_boxes = sorted(bounding_boxes, key=lambda x: calculate_bbox_area(x[0]))
+            min_bbox, min_length = sorted_boxes[0]
+            mid_bbox, mid_length = sorted_boxes[1]
+            max_bbox, max_length = sorted_boxes[2]
+
         
-        if not bounding_boxes:
-            print(f"No bounding boxes found for prawn ID {prawn_id} in {filename}.")
-            continue
+    
+            
+            prawn_max_normalized_bbox = [max_bbox[0] / 5312, max_bbox[1] / 2988, max_bbox[2] / 5312, max_bbox[3] / 2988]
 
-        # Select the largest bounding box based on area
-        min_bbox = min(bounding_boxes, key=calculate_bbox_area)
-        max_bbox = max(bounding_boxes, key=calculate_bbox_area)    
+            prawn_min_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
 
+            prawn_mid_normalized_bbox = [mid_bbox[0] / 5312, mid_bbox[1] / 2988, mid_bbox[2] / 5312, mid_bbox[3] / 2988]
+            # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
 
+            closest_detection,ground = find_closest_detection(sample, min_bbox)
 
+            if closest_detection is not None:
+                process_detection(closest_detection, sample, filename, prawn_id, filtered_df,ground)
 
+            x_min_max=prawn_max_normalized_bbox[0]
+            y_min_max=prawn_max_normalized_bbox[1]
+            width_max=prawn_max_normalized_bbox[2]
+            heigh_maxt=prawn_max_normalized_bbox[3]
 
-        prawn_max_normalized_bbox = [max_bbox[0] / 5312, max_bbox[1] / 2988, max_bbox[2] / 5312, max_bbox[3] / 2988]
+            # Corners in normalized coordinates
+            top_left_max = [x_min_max, y_min_max]
+            top_right_max = [x_min_max + width_max, y_min_max]
+            bottom_left_max = [x_min_max, y_min_max + heigh_maxt]
+            bottom_right_max = [x_min_max + width_max, y_min_max + heigh_maxt]
 
-        prawn_min_normalized_bbox = [min_bbox[0] / 5312, min_bbox[1] / 2988, min_bbox[2] / 5312, min_bbox[3] / 2988]
+            # Diagonals
+            diagonal1_max = [top_left_max, bottom_right_max]
+            diagonal2_max = [top_right_max, bottom_left_max]
+            
 
-        # true_detections.append(fo.Detection(label="prawn_true", bounding_box=prawn_normalized_bbox))
+            # diagonal1_polyline_max = fo.Polyline(
+            #     label="Diagonal 1",
+            #     points=[diagonal1_max],
+            #     closed=False,
+            #     filled=False,
+            #     line_color="red",
+            #     thickness=2,
+            # )
 
-        closest_detection,ground = find_closest_detection(sample, min_bbox)
+            # diagonal2_polyline_max = fo.Polyline(
+            #     label="longest diagonal",
+            #     points=[diagonal2_max],
+            #     closed=False,
+            #     filled=False,
+            #     line_color="yellow",
+            #     thickness=2,
+            # )
 
-        if closest_detection is not None:
-            process_detection(closest_detection, sample, filename, prawn_id, filtered_df,ground)
+            # max_diagonal_line_1.append(diagonal1_polyline_max)
+            # max_diagonal_line_2.append(diagonal2_polyline_max)
 
-        x_min_max=prawn_max_normalized_bbox[0]
-        y_min_max=prawn_max_normalized_bbox[1]
-        width_max=prawn_max_normalized_bbox[2]
-        heigh_maxt=prawn_max_normalized_bbox[3]
+            # sample["max_diagonal_line_1"] = fo.Polylines(polylines=max_diagonal_line_1)
+            # sample["max_diagonal_line_2"] = fo.Polylines(polylines=max_diagonal_line_2)
 
-        # Corners in normalized coordinates
-        top_left_max = [x_min_max, y_min_max]
-        top_right_max = [x_min_max + width_max, y_min_max]
-        bottom_left_max = [x_min_max, y_min_max + heigh_maxt]
-        bottom_right_max = [x_min_max + width_max, y_min_max + heigh_maxt]
-
-        # Diagonals
-        diagonal1_max = [top_left_max, bottom_right_max]
-        diagonal2_max = [top_right_max, bottom_left_max]
         
 
-        diagonal1_polyline_max = fo.Polyline(
-            label="Diagonal 1",
-            points=[diagonal1_max],
-            closed=False,
-            filled=False,
-            line_color="red",
-            thickness=2,
+
+        ##add tooltip of length_1, length_2, length_3 to the diagonals according to bbox key
+
+
+            x_min_mid=prawn_mid_normalized_bbox[0]
+            y_min_mid=prawn_mid_normalized_bbox[1]
+            width_mid=prawn_mid_normalized_bbox[2]
+            height_mid=prawn_mid_normalized_bbox[3]
+
+            top_left_mid = [x_min_mid, y_min_mid]
+            top_right_mid = [x_min_mid + width_mid, y_min_mid]
+            bottom_left_mid = [x_min_mid, y_min_mid + height_mid]
+            bottom_right_mid = [x_min_mid + width_mid, y_min_mid + height_mid]
+
+            diagonal1_mid = [top_left_mid, bottom_right_mid]
+            diagonal2_mid = [top_right_mid, bottom_left_mid]
+
+            # diagonal1_polyline_mid = fo.Polyline(
+            #     label="Diagonal 1",
+            #     points=[diagonal1_mid],
+            #     closed=False,
+            #     filled=False,
+            #     line_color="blue",
+            #     thickness=2,
+            # )
+
+            # diagonal2_polyline_mid = fo.Polyline(
+            #     label="shortest diagonal",
+            #     points=[diagonal2_mid],
+            #     closed=False,
+            #     filled=False,
+            #     line_color="green",
+            #     thickness=2,
+            # )
+
+            # mid_diagonal_line_1.append(diagonal1_polyline_mid)
+            # mid_diagonal_line_2.append(diagonal2_polyline_mid)
+
+            # sample["mid_diagonal_line_1"] = fo.Polylines(polylines=mid_diagonal_line_1)
+            # sample["mid_diagonal_line_2"] = fo.Polylines(polylines=mid_diagonal_line_2)
+
+
+            # Normalize the largest bounding box coordinates
+
+            x_min = prawn_min_normalized_bbox[0]
+            y_min = prawn_min_normalized_bbox[1]
+            width = prawn_min_normalized_bbox[2]
+            height = prawn_min_normalized_bbox[3]
+
+            # Corners in normalized coordinates
+            top_left = [x_min, y_min]
+            top_right = [x_min + width, y_min]
+            bottom_left = [x_min, y_min + height]
+            bottom_right = [x_min + width, y_min + height]
+
+            # Diagonals
+            min_diagonal1 = [top_left, bottom_right]
+            min_diagonal2 = [top_right, bottom_left]
+
+            # #take the longest diagonal
+            # if calculate_euclidean_distance(top_left, bottom_right) > calculate_euclidean_distance(top_right, bottom_left):
+            #     longest_diagonal = diagonal1
+            # else:
+            #     longest_diagonal = diagonal2
+
+
+            # diagonal1_polyline = fo.Polyline(
+            #     label="Diagonal 1",
+            #     points=[min_diagonal1],
+            #     closed=False,
+            #     filled=False,
+            #     line_color="blue",
+            #     thickness=2,
+            # )
+
+            # diagonal2_polyline = fo.Polyline(
+            #     label="longest diagonal",
+            #     points=[min_diagonal2],
+            #     closed=False,
+            #     filled=False,
+            #     line_color="green",
+            #     thickness=2,
+            # )
+
+
+            # min_diagonal_line_1.append(diagonal1_polyline)
+
+
+            # min_diagonal_line_2.append(diagonal2_polyline)
+
+
+            # sample["min_diagonal_line_1"] = fo.Polylines(polylines=min_diagonal_line_1)
+            # sample["min_diagonal_line_2"] = fo.Polylines(polylines=min_diagonal_line_2)
+
+            diagonal1_polyline_max = fo.Polyline(
+                label=f"Max diagonal 1 - Length: {max_length:.2f}mm",
+                points=[diagonal1_max],
+                closed=False,
+                filled=False,
+                line_color="red",
+                thickness=2,
+            )
+
+            diagonal1_polyline_max.label= f'{max_length:.2f}mm'
+
+            diagonal2_polyline_max = fo.Polyline(
+                label=f"Max diagonal 2 - Length: {max_length:.2f}mm",
+                points=[diagonal2_max],
+                closed=False,
+                filled=False,
+                line_color="yellow",
+                thickness=2,
+            )
+            diagonal2_polyline_max.label= f'{max_length:.2f}mm'
+
+            # For mid bounding box diagonals
+            diagonal1_polyline_mid = fo.Polyline(
+                label=f"Mid diagonal 1 - Length: {mid_length:.2f}mm",
+                points=[diagonal1_mid],
+                closed=False,
+                filled=False,
+                line_color="blue",
+                thickness=2,
+            )
+
+            diagonal1_polyline_mid.label= f'{mid_length:.2f}mm'
+
+            diagonal2_polyline_mid = fo.Polyline(
+                label=f"Mid diagonal 2 - Length: {mid_length:.2f}mm",
+                points=[diagonal2_mid],
+                closed=False,
+                filled=False,
+                line_color="green",
+                thickness=2,
+            )
+
+            diagonal2_polyline_mid.label=f'{mid_length:.2f}mm'
+
+            # For min bounding box diagonals
+            diagonal1_polyline = fo.Polyline(
+                label=f"Min diagonal 1 - Length: {min_length:.2f}mm",
+                points=[min_diagonal1],
+                closed=False,
+                filled=False,
+                line_color="blue",
+                thickness=2,
+            )
+
+            diagonal1_polyline.label= f'{min_length:.2f}mm' 
+
+            diagonal2_polyline = fo.Polyline(
+                label=f"Min diagonal 2 - Length: {min_length:.2f}mm",
+                points=[min_diagonal2],
+                closed=False,
+                filled=False,
+                line_color="green",
+                thickness=2,
         )
+            
+            diagonal2_polyline.label= f'{min_length:.2f}mm' 
 
-        diagonal2_polyline_max = fo.Polyline(
-            label="longest diagonal",
-            points=[diagonal2_max],
-            closed=False,
-            filled=False,
-            line_color="yellow",
-            thickness=2,
-        )
+            min_diagonal_line_1.append(diagonal1_polyline)
+            min_diagonal_line_2.append(diagonal2_polyline)  
 
-        max_diagonal_line_1.append(diagonal1_polyline_max)
-        max_diagonal_line_2.append(diagonal2_polyline_max)
+            max_diagonal_line_1.append(diagonal1_polyline_max)
+            max_diagonal_line_2.append(diagonal2_polyline_max)
 
-        sample["max_diagonal_line_1"] = fo.Polylines(polylines=max_diagonal_line_1)
-        sample["max_diagonal_line_2"] = fo.Polylines(polylines=max_diagonal_line_2)
+            mid_diagonal_line_1.append(diagonal1_polyline_mid)
+            mid_diagonal_line_2.append(diagonal2_polyline_mid)
 
 
-
-        # Normalize the largest bounding box coordinates
-
-        x_min = prawn_min_normalized_bbox[0]
-        y_min = prawn_min_normalized_bbox[1]
-        width = prawn_min_normalized_bbox[2]
-        height = prawn_min_normalized_bbox[3]
-
-        # Corners in normalized coordinates
-        top_left = [x_min, y_min]
-        top_right = [x_min + width, y_min]
-        bottom_left = [x_min, y_min + height]
-        bottom_right = [x_min + width, y_min + height]
-
-        # Diagonals
-        min_diagonal1 = [top_left, bottom_right]
-        min_diagonal2 = [top_right, bottom_left]
-
-        # #take the longest diagonal
-        # if calculate_euclidean_distance(top_left, bottom_right) > calculate_euclidean_distance(top_right, bottom_left):
-        #     longest_diagonal = diagonal1
-        # else:
-        #     longest_diagonal = diagonal2
+            sample["min_diagonal_line_1"] = fo.Polylines(polylines=min_diagonal_line_1)
+            sample["min_diagonal_line_2"] = fo.Polylines(polylines=min_diagonal_line_2)
+            sample["max_diagonal_line_1"] = fo.Polylines(polylines=max_diagonal_line_1)
+            sample["max_diagonal_line_2"] = fo.Polylines(polylines=max_diagonal_line_2)
+            sample["mid_diagonal_line_1"] = fo.Polylines(polylines=mid_diagonal_line_1)
+            sample["mid_diagonal_line_2"] = fo.Polylines(polylines=mid_diagonal_line_2)
 
 
-        diagonal1_polyline = fo.Polyline(
-            label="Diagonal 1",
-            points=[min_diagonal1],
-            closed=False,
-            filled=False,
-            line_color="blue",
-            thickness=2,
-        )
-
-        diagonal2_polyline = fo.Polyline(
-            label="longest diagonal",
-            points=[min_diagonal2],
-            closed=False,
-            filled=False,
-            line_color="green",
-            thickness=2,
-        )
-
-
-        min_diagonal_line_1.append(diagonal1_polyline)
-
-
-        min_diagonal_line_2.append(diagonal2_polyline)
-
-
-    sample["min_diagonal_line_1"] = fo.Polylines(polylines=min_diagonal_line_1)
-    sample["min_diagonal_line_2"] = fo.Polylines(polylines=min_diagonal_line_2)
-
-
-
-
+    #add length tooltip to the diagonals according to length_1, length_2, length_3 
+   
 
 
     # sample["true_detections"] = fo.Detections(detections=true_detections)
@@ -866,8 +1052,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
 
 
-    closest_detection_label = f'pred_length: {distance_mm},median_length: {median_true_length}  ,MPError_min: {error_percentage_min:.2f}% , MPError_max: {error_percentage_max:.2f}%, MPError_median: {error_percentage_median:.2f}%' 
-    
+    closest_detection_label = f'pred_length: {distance_mm:.2f}mm'
     
     
     closest_detection.label = closest_detection_label
@@ -1231,7 +1416,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
 
 
 
-    closest_detection_label = f'pred_length: {distance_mm},median_length: {median_true_length}  ,MPError_min: {error_percentage_min:.2f}% , MPError_max: {error_percentage_max:.2f}%, MPError_median: {error_percentage_median:.2f}%' 
+    closest_detection_label = f'pred_length: {distance_mm:.2f}mm' 
     
     
     
