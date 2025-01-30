@@ -46,7 +46,7 @@ def analyze_measurements(csv_path):
             keypoints.append([x, y])
         
         # Calculate distances
-        if 'right'in csv_path and row['which'] == 'big':
+        if 'circle2'in csv_path and row['which'] == 'big':
             height_mm = 700  # For right images
             expected_total = 180  # 18cm in mm
             expected_carapace = 63  # 6.3cm in mm
@@ -58,7 +58,7 @@ def analyze_measurements(csv_path):
             height_mm = 410  # For square/left images
             expected_total = 145  # 14.5cm in mm
             expected_carapace = 41  # 4.1cm in mm
-        elif 'right' in csv_path and row['which'] == 'small':
+        elif 'circle2' in csv_path and row['which'] == 'small':
             height_mm = 700  # For right images
             expected_total = 145  # 14.5cm in mm
             expected_carapace = 41  # 4.1cm in mm
@@ -88,7 +88,7 @@ def analyze_measurements(csv_path):
     
     # Convert results to DataFrame and save
     results_df = pd.DataFrame(results)
-    output_path = Path(csv_path).parent / 'measurement_analysis_square.csv'
+    output_path = Path(csv_path).parent / f'measurement_analysis_{csv_path.split("/")[-1].split("_")[-1]}'
     results_df.to_csv(output_path, index=False)
     
     # Print summary statistics
@@ -101,5 +101,5 @@ def analyze_measurements(csv_path):
     return results_df
 
 # Analyze both CSV files and save them to diffe
-# right_results = analyze_measurements("fifty_one/measurements/filter_detections_stats_right.csv")
+ight_results = analyze_measurements("fifty_one/measurements/filter_detections_stats_circle2.csv")
 square_results = analyze_measurements("fifty_one/measurements/filter_detections_stats_square.csv") 

@@ -66,7 +66,7 @@ def analyze_and_filter_labels(labels_dir, confidence_df):
            
 
             print(f"target_confidence: {target_confidence}, obj_confidence: {obj_confidence}")
-            if abs(obj_confidence - target_confidence) < 0.01:  # Using small epsilon for float comparison
+            if abs(obj_confidence - target_confidence) < 0.1:  # Using small epsilon for float comparison
                 valid_detections.append(det)
                 
                 # Add row to detailed stats
@@ -92,7 +92,7 @@ def analyze_and_filter_labels(labels_dir, confidence_df):
         print(f"Processed {label_file.name}: {len(detections)} -> {len(valid_detections)} detections (target conf: {target_confidence})")
     
     # Save detailed stats to CSV
-    detailed_stats.to_csv("fifty_one/measurements/filter_detections_stats_right.csv", index=False)
+    detailed_stats.to_csv("/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/measurement_analysis_square.csv", index=False)
     
     # Print summary statistics
     print("\nFiltering Summary:")
@@ -105,8 +105,8 @@ def analyze_and_filter_labels(labels_dir, confidence_df):
     return stats
 
 # Read confidence thresholds from Excel
-confidence_df = pd.read_excel("/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/measurements/molts.xlsx")
+confidence_df = pd.read_excel("/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/measurements/molts_all.xlsx")
 
 # Process the labels
-labels_dir = "/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/runs/pose/predict19/labels"
+labels_dir = "/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/runs/predict/square_molt/exp/labels"
 stats = analyze_and_filter_labels(labels_dir, confidence_df)

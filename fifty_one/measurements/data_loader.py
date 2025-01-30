@@ -292,14 +292,14 @@ def add_metadata_body(sample, filename, filtered_df, metadata_df, swimmingdf=Non
     """
 
     #undistorted_GX010073_55_1014.jpg_gamma
-    print(filename)
+    # print(filename)
     # Remove 'undistorted_' prefix if present
     if 'undistorted' in filename:
         filename = filename.replace('undistorted_', '')
     filename=filename.split('.')[0]
     # Extract compatible filename parts
     compatible_file_name = filename.split('_')[0:3]
-    print(compatible_file_name)
+    # print(compatible_file_name)
 
 
     # comp = compatible_file_name[1].split('-')[0]
@@ -1161,7 +1161,7 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
         dataset.add_sample(sample)
 
-        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_full_Filtered_Data_with_real_length.xlsx' 
+        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_Full_Filtered_Data_with_real_length.xlsx' 
 
         # print(filtered_df.columns) # Change this path accordingly
         filtered_df.to_excel(output_file_path, index=False)
