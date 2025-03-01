@@ -2,6 +2,12 @@
 __pycache__/
 *.py[cod]
 
+# Training runs
+runs/
+
+# Output and processed images
+processed_images/
+
 # C extensions
 *.so
 

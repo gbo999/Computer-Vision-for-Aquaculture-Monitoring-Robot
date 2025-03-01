@@ -4,10 +4,14 @@ import numpy as np
 def parse_pose_estimation(txt_file):
     pose_estimations = []
 
-    with open(txt_file, 'r') as f:
-        for line in f:
-            pose_estimations.append([float(x) for x in line.strip().split()])
-    return pose_estimations
+    try:
+        with open(txt_file, 'r') as f:
+            for line in f:
+                pose_estimations.append([float(x) for x in line.strip().split()])
+        return pose_estimations
+    except Exception as e:
+        print(f"Error reading pose estimation file {txt_file}: {str(e)}")
+        return []
 
 def calculate_euclidean_distance(point1, point2):
     return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
