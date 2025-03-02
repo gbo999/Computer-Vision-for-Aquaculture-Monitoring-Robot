@@ -1,0 +1,69 @@
+# Comprehensive Workflow for Automated Exuviae Detection and Measurement
+
+## Overview
+This document outlines the complete workflow developed for the automated detection, filtering, measurement, and analysis of crayfish exuviae from underwater imagery. The pipeline combines computer vision techniques with manual verification to ensure accurate measurements and reliable data collection for ecological monitoring.
+
+## 1. Image Collection and Preprocessing
+
+### Data Collection
+- videos collected from two environments: a circular pond and a square pond
+- images were extracted using the previous method 
+### Preprocessing
+- Images undistorted to correct for lens effects
+- Resized while maintaining aspect ratio to standardize processing
+
+## 2. Color-Based Image Segmentation
+### Segmentation Process
+- Implemented a color-based segmentation algorithm to transform raw images
+- Each image processed to highlight exuviae against the background:
+  * Turquoise color (BGR: 31, 156, 212) applied to background areas to mimic usual background
+  * grayish color (BGR: 79, 66, 52) applied to exuviae areas to mimic the prawns that was trained on
+- Segmentation based on grayscale threshold (value 60) to distinguish between:
+  * light on black(the plane which it sits) areas (potential exuviae): Colored with grayish
+  * Light areas (background): Colored with Turquoise
+
+### Implementation Details
+- Grayscale conversion followed by binary thresholding
+- Color mapping applied to create visually distinct areas
+`
+
+### Benefits of Segmentation
+- Enhanced contrast between exuviae and background
+- Reduced visual complexity for more accurate detection
+- Consistent color scheme to improve model performance
+- Facilitated easier visual verification during review
+
+## 3. Exuviae Detection System
+
+### Detection Model
+- Implemented a keypoint-based pose estimation model to identify exuviae in underwater imagery
+- The model was trained to detect key anatomical landmarks:
+  * Eyes (bilateral points)
+  * Rostrum (anterior point)
+  * Start of carapace
+  * telson (posterior point)
+- Detection results stored as keypoint coordinates in standardized text files
+
+
+
+### Automated Size-Based Filtering
+- Implemented preliminary automated filtering based on size constraints:
+- This first-pass filtering removed obvious false positives while preserving all potential valid detections
+
+
+## 5. Manual Review and Filtering
+
+### Review Tool Development
+- Created a custom review tool with matplotlib for manual verification of detections
+- Tool features:
+  * Interactive image navigation (previous/next)
+  * One-click marking of detections as "good" or "bad"
+  * Visualization of keypoints overlaid on original images
+  * Automatic result tracking and saving
+
+
+### Filtering Process
+- Manually reviewed all detections using the review tool
+- Classified detections as either "good" (satisfy enough) or "bad" (not relevant)
+- Review status visually indicated by button colors (highlighted when selected)
+
