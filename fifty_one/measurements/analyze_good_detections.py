@@ -114,19 +114,41 @@ def analyze_good_detections():
                 
                 # Determine size
                 size = determine_size(total_length_mm)
-                
+                further_labels_dir = Path('runs/pose/predict57/further_labels_files')
+                further_labels_dir.mkdir(exist_ok=True)
                 # Store measurements in the appropriate columns
                 if size == "BIG":
                     entry['big_total_length'] = round(total_length_mm, 1)
                     entry['big_carapace_length'] = round(carapace_length_mm, 1)
                     entry['big_eye_x'] = round(eye_x, 1)
                     entry['big_eye_y'] = round(eye_y, 1)
+                    
+                    #add the full detection to the further label file
+                    image_name = Path(entry['image_name']).stem
+                    label_file = further_labels_dir / f"{image_name}.txt"
+                    with open(label_file, 'a') as f:
+                        f.write(detection)
                 elif size == "SMALL":
                     entry['small_total_length'] = round(total_length_mm, 1)
                     entry['small_carapace_length'] = round(carapace_length_mm, 1)
                     entry['small_eye_x'] = round(eye_x, 1)
                     entry['small_eye_y'] = round(eye_y, 1)
+
+                    #add the full detection to the further label file
+                    image_name = Path(entry['image_name']).stem
+                    label_file = further_labels_dir / f"{image_name}.txt"
+                    with open(label_file, 'a') as f:
+                        f.write(detection)
+                    
+                    
+                    # Create label file path with same name as image
+                   
+
+                        
+
+                    #add detection to  fuether label file
         
+
         # Add to analysis data
         analysis_data.append(entry)
     
