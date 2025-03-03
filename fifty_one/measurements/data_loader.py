@@ -1156,13 +1156,13 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
         sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
 
         sample.tags.append(pond_type)
-        add_metadata(sample, filename, filtered_df, metadata_df)
+        add_metadata_body(sample, filename, filtered_df, metadata_df)
 
 
 
         dataset.add_sample(sample)
 
-        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_Filtered_Data_with_real_length.xlsx' 
+        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_full_body_Filtered_Data_with_real_length.xlsx' 
 
         # print(filtered_df.columns) # Change this path accordingly
         filtered_df.to_excel(output_file_path, index=False)

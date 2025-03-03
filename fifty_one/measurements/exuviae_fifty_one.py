@@ -18,23 +18,27 @@ def create_dataset():
     return dataset
 
 def process_label_file(label_path):
-    """Read and process a label file to extract keypoints"""
+    """Read and process a label file to extract all keypoints"""
     with open(label_path, 'r') as f:
         lines = f.readlines()
         if not lines:
-            return None
+            return []
             
-        # Process first detection in the file
-        values = list(map(float, lines[0].strip().split()))
-        
-        # Extract keypoints (they start at index 5, in groups of 3: x,y,conf)
-        keypoints = []
-        for i in range(5, len(values)-1, 3):
-            x = values[i]
-            y = values[i+1]
-            keypoints.append([x, y])
+        # Process all detections in the file (not just the first one)
+        all_keypoints = []
+        for line in lines:
+            values = list(map(float, line.strip().split()))
             
-        return keypoints
+            # Extract keypoints (they start at index 5, in groups of 3: x,y,conf)
+            keypoints = []
+            for i in range(5, len(values)-1, 3):
+                x = values[i]
+                y = values[i+1]
+                keypoints.append([x, y])
+                
+            all_keypoints.append(keypoints)
+            
+        return all_keypoints
 
 def main():
     # Define paths
@@ -64,37 +68,50 @@ def main():
             print(f"Warning: Label file not found: {label_file}")
             continue
             
-        # Process label file to get keypoints
-        keypoints = process_label_file(label_file)
-        if keypoints is None:
+        # Process label file to get all keypoints
+        all_keypoints = process_label_file(label_file)
+        if not all_keypoints:
             print(f"Warning: No detections in label file: {label_file}")
             continue
         
-        # Create sample and add keypoints with length labels
+        # Create sample
         sample = fo.Sample(filepath=str(image_path))
         
-        # Prepare label text based on whether it's big or small
-        if pd.notna(row['big_total_length']):
-            length_label = f"BIG: Total={row['big_total_length']:.1f}mm, Carapace={row['big_carapace_length']:.1f}mm"
-        elif pd.notna(row['small_total_length']):
-            length_label = f"SMALL: Total={row['small_total_length']:.1f}mm, Carapace={row['small_carapace_length']:.1f}mm"
-        else:
-            length_label = "No measurements"
-
-        keypoints_obj = fo.Keypoints(
-            keypoints=[fo.Keypoint(
-                points=keypoints,
-                label=length_label
-            )],
-            skeleton=dataset.default_skeleton
-        )
-        sample["keypoints"] = keypoints_obj
+        # Add keypoints field to sample
+        keypoints_list = []
         
-        # Add measurements as metadata
-        sample["big_length"] = row['big_total_length']
-        sample["small_length"] = row['small_total_length']
+        # Add big prawn keypoints if available
+        if pd.notna(row['big_total_length']) and len(all_keypoints) > 0:
+            keypoints_list.append(
+                fo.Keypoint(
+                    points=all_keypoints[0],  # First detection is likely the big prawn
+                    label=f"BIG: Total={row['big_total_length']:.1f}mm, Carapace={row['big_carapace_length']:.1f}mm"
+                )
+            )
         
-        dataset.add_sample(sample)
+        # Add small prawn keypoints if available
+        if pd.notna(row['small_total_length']) and len(all_keypoints) > 1:
+            keypoints_list.append(
+                fo.Keypoint(
+                    points=all_keypoints[1],  # Second detection is likely the small prawn
+                    label=f"SMALL: Total={row['small_total_length']:.1f}mm, Carapace={row['small_carapace_length']:.1f}mm"
+                )
+            )
+        
+        # If we have keypoints to add
+        if keypoints_list:
+            keypoints_obj = fo.Keypoints(
+                keypoints=keypoints_list,
+                skeleton=dataset.default_skeleton
+            )
+            sample["keypoints"] = keypoints_obj
+        
+            # Add measurements as metadata
+            sample["big_length"] = row['big_total_length']
+            sample["small_length"] = row['small_total_length']
+            
+            # Add the sample to the dataset
+            dataset.add_sample(sample)
     
     print(f"Created dataset with {len(dataset)} samples")
     
