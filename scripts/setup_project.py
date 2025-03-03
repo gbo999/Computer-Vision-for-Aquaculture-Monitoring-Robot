@@ -17,27 +17,67 @@ PROJECT_STRUCTURE = {
     "data": {
         "raw": {},
         "processed": {},
+        "test_sets": {
+            "test-left": {},
+            "test-right": {},
+            "test-car": {},
+        },
     },
-    "notebooks": {},
     "src": {
+        "counting": {
+            "detection": {},
+            "tracking": {},
+            "validation": {},
+        },
+        "measurement": {
+            "segmentation": {},
+            "keypoints": {},
+            "calibration": {},
+            "image_enhancement": {},
+        },
+        "data": {
+            "loaders": {},
+            "augmentation": {},
+            "preparation": {},
+        },
+        "utils": {
+            "visualization": {},
+            "metrics": {},
+            "io": {},
+        },
+    },
+    "notebooks": {
+        "exploration": {},
+        "prototyping": {},
+        "analysis": {},
+    },
+    "scripts": {
+        "preprocessing": {},
+        "analysis": {},
+        "visualization": {},
+        "deployment": {},
+        "tools": {},
+    },
+    "tests": {
         "counting": {},
         "measurement": {},
-        "data": {},
         "utils": {},
     },
-    "scripts": {},
-    "tests": {},
+    "models": {
+        "detection": {},
+        "segmentation": {},
+    },
+    "results": {
+        "figures": {},
+        "reports": {},
+    },
     "docs": {
         "workflow": {},
         "api": {},
         "usage": {},
         "images": {},
     },
-    "models": {},
-    "results": {
-        "figures": {},
-        "reports": {},
-    },
+    "docker": {},
     ".github": {
         "workflows": {},
     },
@@ -45,16 +85,40 @@ PROJECT_STRUCTURE = {
 
 # Files to move to their appropriate locations
 FILES_TO_MOVE = {
-    "segment_molt.py": "scripts/",
-    "visualize_predictions.py": "scripts/",
-    "show_examples.py": "scripts/",
-    "analyze_sizes_by_group.py": "scripts/",
-    "analyze_sizes.py": "scripts/",
-    "filter_predictions.py": "scripts/",
-    "pred.py": "scripts/",
-    "organize_test_data.py": "scripts/",
+    # Python scripts
+    "segment_molt.py": "scripts/preprocessing/",
+    "organize_test_data.py": "scripts/preprocessing/",
+    "analyze_sizes.py": "scripts/analysis/",
+    "analyze_sizes_by_group.py": "scripts/analysis/",
+    "filter_predictions.py": "scripts/analysis/",
+    "visualize_predictions.py": "scripts/visualization/",
+    "show_examples.py": "scripts/visualization/",
+    "pred.py": "scripts/deployment/",
+    
+    # Result files
     "size_analysis.png": "results/figures/",
+    
+    # Documentation
     "exuviae_analysis_workflow.txt": "docs/workflow/original_workflow.txt",
+    
+    # Configuration files
+    "Dockerfile": "docker/",
+    
+    # Test data directories
+    "test-left": "data/test_sets/",
+    "test-right": "data/test_sets/",
+    "test-car": "data/test_sets/",
+    
+    # Calibration files
+    "standard_calibration.json": "src/measurement/calibration/",
+    
+    # Move notebook directories
+    "colab_notebooks": "notebooks/",
+    "cpu_predictions _notebooks": "notebooks/",
+    
+    # Other files that need better organization
+    "f.py": "scripts/tools/legacy_f.py",  # Generic filenames should be renamed meaningfully
+    "g.py": "scripts/tools/legacy_g.py",
 }
 
 # Sample README files to create
@@ -67,6 +131,7 @@ This directory contains data used in the counting research algorithms project.
 
 - `raw/`: Raw data collected from experiments
 - `processed/`: Data after preprocessing steps
+- `test_sets/`: Organized test datasets
 
 ## Data Sources
 
@@ -80,12 +145,20 @@ algorithm development, and results visualization.
 
 ## Notebooks
 
-- [List of notebooks and their purposes]
+- `exploration/`: Data exploration notebooks
+- `prototyping/`: Algorithm prototyping and development
+- `analysis/`: Results analysis and visualization
 
 """,
     "tests/README.md": """# Tests
 
-This directory contains unit and integration tests for the counting algorithms.
+This directory contains unit and integration tests for the counting and measurement algorithms.
+
+## Structure
+
+- `counting/`: Tests for counting modules
+- `measurement/`: Tests for measurement modules
+- `utils/`: Tests for utility functions
 
 ## Running Tests
 
@@ -93,8 +166,8 @@ This directory contains unit and integration tests for the counting algorithms.
 # Run all tests
 pytest
 
-# Run specific test
-pytest tests/test_detection.py
+# Run specific test category
+pytest tests/counting/
 ```
 
 """,
@@ -104,8 +177,28 @@ This directory contains model definition files and saved model weights.
 
 ## Models
 
-- [List of models and their purposes]
-- [Performance metrics]
+- `detection/`: Object detection models (e.g., YOLOv8)
+- `segmentation/`: Segmentation models
+
+## Performance Metrics
+
+[Include performance metrics for each model]
+
+""",
+    "src/README.md": """# Source Code Directory
+
+This directory contains the core functionality of the counting research algorithms.
+
+## Structure
+
+- `counting/`: Algorithms for detecting and counting objects
+- `measurement/`: Algorithms for measuring detected objects
+- `data/`: Data processing utilities
+- `utils/`: General utility functions
+
+## Usage
+
+See the main README for usage examples.
 
 """,
 }
@@ -134,7 +227,7 @@ def move_files(base_path, files_map):
         
         # Skip if source file doesn't exist
         if not os.path.exists(source_path):
-            print(f"Warning: Source file {source_path} does not exist. Skipping.")
+            print(f"Warning: Source file/directory {source_path} does not exist. Skipping.")
             continue
         
         # Create target directory if it doesn't exist
@@ -149,13 +242,21 @@ def move_files(base_path, files_map):
             # Use the specified filename
             target_file = target_path
         
-        # Move the file
+        # Move the file or directory
         if os.path.exists(source_path):
             print(f"Moving {source_path} to {target_file}")
             # Use copy instead of move to be safe
-            shutil.copy2(source_path, target_file)
+            if os.path.isdir(source_path):
+                if os.path.exists(target_file):
+                    shutil.rmtree(target_file, ignore_errors=True)
+                shutil.copytree(source_path, target_file)
+            else:
+                shutil.copy2(source_path, target_file)
             # Optionally uncomment to remove the original
-            # os.remove(source_path)
+            # if os.path.isdir(source_path):
+            #     shutil.rmtree(source_path)
+            # else:
+            #     os.remove(source_path)
 
 
 def create_readme_files(base_path, readme_templates):
@@ -175,6 +276,16 @@ def create_readme_files(base_path, readme_templates):
                 f.write(content)
 
 
+def create_init_files(base_path, directory="src"):
+    """Create __init__.py files in all subdirectories of the given directory."""
+    for root, dirs, files in os.walk(os.path.join(base_path, directory)):
+        init_file = os.path.join(root, "__init__.py")
+        if not os.path.exists(init_file):
+            print(f"Creating __init__.py in {root}")
+            with open(init_file, 'w') as f:
+                f.write("# Package initialization\n")
+
+
 def main():
     """Main function to set up the project structure."""
     # Get the base directory (repository root)
@@ -191,11 +302,15 @@ def main():
     # 3. Create README files
     create_readme_files(base_dir, README_TEMPLATES)
     
+    # 4. Create __init__.py files
+    create_init_files(base_dir)
+    
     print("\nProject setup complete!")
     print("\nNext steps:")
     print("1. Review the new directory structure")
-    print("2. Update the README.md with your project-specific information")
-    print("3. Commit the changes to your repository")
+    print("2. Update README.md files with project-specific information")
+    print("3. Run tests to ensure everything works correctly")
+    print("4. Commit the changes to your repository")
 
 
 if __name__ == "__main__":
