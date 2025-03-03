@@ -90,7 +90,7 @@ class ObjectLengthMeasurer:
         # Compute real-world distance
         distance_mm = self.compute_length(distance_px, normalized_angle)
         
-        return distance_mm, normalized_angle
+        return distance_mm, normalized_angle, distance_px
 
 def load_data(filtered_data_path, metadata_path):
     filtered_df = pd.read_csv(filtered_data_path)
@@ -924,7 +924,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     
     object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
     
-    distance_mm, angle_deg = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
     ####
     keypoints_dict_ground = ground.attributes["keypoints"]
@@ -934,11 +934,12 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
     object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
 
-    distance_mm_ground, angle_deg_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
+    distance_mm_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     
     #distance_mm_ground to table
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
-    
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation_pixels'] = distance_px_ground
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'pred_Distance_pixels'] = distance_px
 
     
     
@@ -1155,13 +1156,13 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
         sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
 
         sample.tags.append(pond_type)
-        add_metadata_body(sample, filename, filtered_df, metadata_df)
+        add_metadata(sample, filename, filtered_df, metadata_df)
 
 
 
         dataset.add_sample(sample)
 
-        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_full_body_Filtered_Data_with_real_length.xlsx' 
+        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_Filtered_Data_with_real_length.xlsx' 
 
         # print(filtered_df.columns) # Change this path accordingly
         filtered_df.to_excel(output_file_path, index=False)
@@ -1288,7 +1289,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
     
     object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
     
-    distance_mm, angle_deg = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
     ####
     keypoints_dict_ground = ground.attributes["keypoints"]
@@ -1298,13 +1299,14 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
 
     object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
 
-    distance_mm_ground, angle_deg_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
+    distance_mm_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     
     #distance_mm_ground to table
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation_pixels'] = distance_px_ground
     
-
-    
+    #distnace in pixels to table
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'pred_Distance_pixels'] = distance_px
     
     # fov=75.2
     # FOV_width=2*height_mm*math.tan(math.radians(fov/2))
