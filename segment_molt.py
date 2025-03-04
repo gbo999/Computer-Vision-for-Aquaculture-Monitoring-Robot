@@ -11,7 +11,7 @@ def segment_molt(image_path, output_path):
     if img is not None:
         # Define colors (BGR format)
         TURQUOISE_COLOR = np.array([31, 156, 212])  # Brownish color for exuviae
-        AZURE_COLOR = np.array([79, 66, 52])  # Turquoise for background
+        BROWNISH_COLOR = np.array([79, 66, 52])  # Turquoise for background
 
         # Convert to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -23,7 +23,7 @@ def segment_molt(image_path, output_path):
         segmented = np.zeros_like(img)
         
         # Apply colors directly - everything turquoise except dark areas
-        segmented[mask > 0] = AZURE_COLOR  # Light areas get turquoise
+        segmented[mask > 0] = BROWNISH_COLOR  # Light areas get turquoise
         segmented[mask == 0] = TURQUOISE_COLOR
         
         # Save the result and convert to RGB

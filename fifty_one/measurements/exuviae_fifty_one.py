@@ -1,6 +1,7 @@
 import fiftyone as fo
 import os
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 
@@ -17,6 +18,20 @@ def create_dataset():
     )
     return dataset
 
+def calculate_error_tag(measured, expected):
+    """Calculate error percentage and return appropriate tag"""
+    if pd.isna(measured):
+        return None
+    
+    error_percent = abs(measured - expected) / expected * 100
+    
+    if error_percent < 5:
+        return "error_below_5"
+    elif error_percent < 10:
+        return "error_5_to_10"
+    else:
+        return "error_above_10"
+
 def process_label_file(label_path):
     """Read and process a label file to extract all keypoints"""
     with open(label_path, 'r') as f:
@@ -24,12 +39,11 @@ def process_label_file(label_path):
         if not lines:
             return []
             
-        # Process all detections in the file (not just the first one)
+        # Process all detections in the file
         all_keypoints = []
         for line in lines:
             values = list(map(float, line.strip().split()))
             
-            # Extract keypoints (they start at index 5, in groups of 3: x,y,conf)
             keypoints = []
             for i in range(5, len(values)-1, 3):
                 x = values[i]
@@ -46,6 +60,10 @@ def main():
     analysis_csv = Path("runs/pose/predict57/length_analysis.csv")
     labels_dir = Path("runs/pose/predict57/further_labels_files")
     
+    # Expected values
+    expected_big_total = 180  # mm
+    expected_small_total = 145  # mm
+    
     # Read the analysis CSV
     analysis_df = pd.read_csv(analysis_csv)
     
@@ -57,18 +75,15 @@ def main():
         image_name = row['image_name']
         image_path = images_dir / image_name
         
-        # Check if image exists
         if not image_path.exists():
             print(f"Warning: Image not found: {image_path}")
             continue
         
-        # Get corresponding label file
         label_file = labels_dir / f"{image_name.replace('.jpg', '.txt')}"
         if not label_file.exists():
             print(f"Warning: Label file not found: {label_file}")
             continue
             
-        # Process label file to get all keypoints
         all_keypoints = process_label_file(label_file)
         if not all_keypoints:
             print(f"Warning: No detections in label file: {label_file}")
@@ -77,24 +92,42 @@ def main():
         # Create sample
         sample = fo.Sample(filepath=str(image_path))
         
+        # Initialize tags list
+        tags = []
+        
+        # Calculate error tags
+        big_error_tag = calculate_error_tag(row['big_total_length'], expected_big_total)
+        small_error_tag = calculate_error_tag(row['small_total_length'], expected_small_total)
+        
+        # Add tags if they exist
+        if big_error_tag:
+            tags.append(f"big_{big_error_tag}")
+        if small_error_tag:
+            tags.append(f"small_{small_error_tag}")
+        
+        # Add tags to sample
+        sample.tags = tags
+        
         # Add keypoints field to sample
         keypoints_list = []
         
         # Add big prawn keypoints if available
         if pd.notna(row['big_total_length']) and len(all_keypoints) > 0:
+            error_percent = abs(row['big_total_length'] - expected_big_total) / expected_big_total * 100
             keypoints_list.append(
                 fo.Keypoint(
-                    points=all_keypoints[0],  # First detection is likely the big prawn
-                    label=f"BIG: Total={row['big_total_length']:.1f}mm, Carapace={row['big_carapace_length']:.1f}mm"
+                    points=all_keypoints[0],
+                    label=f"BIG: Total={row['big_total_length']:.1f}mm (Error: {error_percent:.1f}%)"
                 )
             )
         
         # Add small prawn keypoints if available
         if pd.notna(row['small_total_length']) and len(all_keypoints) > 1:
+            error_percent = abs(row['small_total_length'] - expected_small_total) / expected_small_total * 100
             keypoints_list.append(
                 fo.Keypoint(
-                    points=all_keypoints[1],  # Second detection is likely the small prawn
-                    label=f"SMALL: Total={row['small_total_length']:.1f}mm, Carapace={row['small_carapace_length']:.1f}mm"
+                    points=all_keypoints[1],
+                    label=f"SMALL: Total={row['small_total_length']:.1f}mm (Error: {error_percent:.1f}%)"
                 )
             )
         
@@ -110,10 +143,27 @@ def main():
             sample["big_length"] = row['big_total_length']
             sample["small_length"] = row['small_total_length']
             
+            # Add error percentages as metadata
+            if pd.notna(row['big_total_length']):
+                sample["big_error_percent"] = abs(row['big_total_length'] - expected_big_total) / expected_big_total * 100
+            if pd.notna(row['small_total_length']):
+                sample["small_error_percent"] = abs(row['small_total_length'] - expected_small_total) / expected_small_total * 100
+            
             # Add the sample to the dataset
             dataset.add_sample(sample)
     
-    print(f"Created dataset with {len(dataset)} samples")
+    # Print summary of tags
+    print("\nDataset Statistics:")
+    print(f"Total samples: {len(dataset)}")
+    print("\nError Distribution:")
+    print("Big prawns:")
+    print(f"  Below 5%: {len(dataset.match_tags('big_error_below_5'))}")
+    print(f"  5-10%: {len(dataset.match_tags('big_error_5_to_10'))}")
+    print(f"  Above 10%: {len(dataset.match_tags('big_error_above_10'))}")
+    print("\nSmall prawns:")
+    print(f"  Below 5%: {len(dataset.match_tags('small_error_below_5'))}")
+    print(f"  5-10%: {len(dataset.match_tags('small_error_5_to_10'))}")
+    print(f"  Above 10%: {len(dataset.match_tags('small_error_above_10'))}")
     
     # Launch the FiftyOne app
     session = fo.launch_app(dataset, port=5159)
