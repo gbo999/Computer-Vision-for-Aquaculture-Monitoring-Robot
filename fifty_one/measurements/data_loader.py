@@ -182,7 +182,7 @@ def process_poses(poses, is_ground_truth=False):
                 ))
             else:
                 detections.append(fo.Detection(
-                    label="prawn_truth",
+                    label=f"prawn_truth",
                     bounding_box=[x1_rel, y1_rel, width_rel, height_rel],
                     attributes={'keypoints': keypoints_dict}
                 ))
@@ -1050,7 +1050,10 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
 
 
+    #ground truth detection label
+    ground_truth_detection_label = f'prawn_truth{distance_mm_ground:.2f}mm'
 
+    ground.label = ground_truth_detection_label    
 
 
     closest_detection_label = f'pred_length: {distance_mm:.2f}mm'
@@ -1414,7 +1417,10 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
 
 
 
+    #ground truth detection label
+    ground_truth_detection_label = f'prawn_truth{distance_mm_ground:.2f}mm'
 
+    ground.label = ground_truth_detection_label    
 
 
 
