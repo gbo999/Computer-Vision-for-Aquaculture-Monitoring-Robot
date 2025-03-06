@@ -47,7 +47,7 @@ min_mpe_index = min_mpe_column.map(column_to_index)
 df['best_length'] = df.apply(lambda row: row[f'Length_{min_mpe_index[row.name]}'], axis=1)
 
 # Calculate best length in pixels using the corresponding scale
-df['best_length_pixels'] = df.apply(lambda row: row['best_length'] / row[f'Scale_{min_mpe_index[row.name]}'], axis=1)
+df['best_length_pixels'] = df.apply(lambda row: row[f'Length_{min_mpe_index[row.name]}_pixels'], axis=1)
 
 # # Calculate pixel differences
 # df['min_expert_pixels'] = df[['Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].min(axis=1)
@@ -77,13 +77,13 @@ df['min_gt_diff'] = abs(df['best_length_pixels'] - df['Length_ground_truth_annot
 
 # Define flags for potential error sources
 # 1. High pixel difference between ground truth and expert
-df['flag_high_gt_diff'] = df['min_gt_diff'] > 20
+df['flag_high_gt_diff'] = df['min_gt_diff']/df['best_length_pixels']*100 > 10
 
 # # 2. High variability between expert measurements
 # df['flag_high_expert_var'] = df['expert_range_pixels'] > 15
 
 # 3. High pixel difference between prediction and expert 
-df['flag_high_pred_diff'] = df['pred_pixels_diff'] > 20
+df['flag_high_pred_diff'] = df['pred_pixels_diff'] / df['best_length_pixels'] * 100 > 10
 
 # 4. Low pose evaluation score (if available)
 if 'pose_eval' in df.columns:
@@ -94,7 +94,7 @@ else:
     df['flag_low_pose_eval'] = False
     print("Warning: No pose evaluation column found!")
 
-df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff'] > 20
+df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['best_length_pixels']*100 > 10
 
 # Count how many flags each measurement has
 df['flag_count'] = df[['flag_high_gt_diff',  'flag_high_pred_diff', 'flag_low_pose_eval', 'flag_pred_gt_diff']].sum(axis=1)
@@ -181,9 +181,13 @@ for i, flag1 in enumerate(flag_cols):
     for j, flag2 in enumerate(flag_cols):
         # Calculate conditional probability: P(flag2=True | flag1=True)
         if len(df[df[flag1]]) > 0:
-            heatmap_data.iloc[i, j] = df[df[flag1]][flag2].mean() * 100
+            # Convert to numeric values explicitly
+            heatmap_data.iloc[i, j] = df[df[flag1]][flag2].astype(float).mean() * 100
         else:
-            heatmap_data.iloc[i, j] = 0
+            heatmap_data.iloc[i, j] = 0.0
+
+# Convert the entire DataFrame to float type
+heatmap_data = heatmap_data.astype(float)
 
 plt.figure(figsize=(10, 8))
 sns.heatmap(heatmap_data, annot=True, cmap='YlOrRd', fmt='.1f', vmin=0, vmax=100)
@@ -209,6 +213,89 @@ fig = px.scatter(df,
 # Add horizontal line at 10% error
 fig.add_hline(y=10, line_dash="dash", line_color="red")
 fig.update_layout(height=600, width=900)
+fig.show()
+
+# Create a more detailed scatter plot with flag information in hover
+# Create a helper function to generate flag descriptions for hover text
+def get_flag_descriptions(row):
+    return (
+        f"High GT Diff: {row['flag_high_gt_diff']}, val: {row['min_gt_diff']:.1f}px<br>" +
+        f"High Pred Diff: {row['flag_high_pred_diff']}, val: {row['pred_pixels_diff']:.1f}px<br>" +
+        f"Low Pose Eval: {row['flag_low_pose_eval']}, val: {row['pose_eval_iou'] if 'pose_eval_iou' in row else row['pose_eval'] if 'pose_eval' in row else 'N/A'}<br>" +
+        f"High Pred-GT Diff: {row['flag_pred_gt_diff']}, val: {row['pred_pixel_gt_diff']:.1f}px"
+    )
+
+# Add flag description column
+df['flag_description'] = df.apply(get_flag_descriptions, axis=1)
+
+# Create the enhanced scatter plot
+fig = px.scatter(df, 
+                x='min_gt_diff', 
+                y='min_mpe',
+                color='flag_count',
+                color_continuous_scale='Viridis',
+                hover_data={
+                    'PrawnID': True,
+                    'Label': True, 
+                    'Pond_Type': True,
+                    'min_gt_diff': ':.1f',
+                    'min_mpe': ':.1f',
+                    'flag_count': True,
+                    'flag_description': True,
+                    'pred_Distance_pixels': ':.1f',
+                    'best_length_pixels': ':.1f'
+                },
+                title='Error vs Ground Truth Difference, Colored by Number of Flags',
+                labels={
+                    'min_gt_diff': 'Ground Truth Pixel Difference',
+                    'min_mpe': 'Min MPE (%)',
+                    'flag_count': 'Number of Flags',
+                    'flag_description': 'Flags',
+                    'pred_Distance_pixels': 'Predicted Length (px)',
+                    'best_length_pixels': 'Best Expert Length (px)'
+                })
+
+# Add horizontal line at 10% error
+fig.add_hline(y=10, line_dash="dash", line_color="red")
+fig.update_layout(height=600, width=900)
+
+# Customize hover template
+fig.update_traces(
+    hovertemplate='<b>ID:</b> %{customdata[0]}<br>' +
+                 '<b>Image:</b> %{customdata[1]}<br>' +
+                 '<b>GT Diff:</b> %{customdata[3]:.1f}px<br>' +
+                 '<b>Error:</b> %{customdata[4]:.1f}%<br>' +
+                 '<b>FLAGS:</b><br>%{customdata[6]}<br>' +
+                 '<extra></extra>'
+)
+
+# Simplify the enhanced scatter plot with direct flags
+# First create simple column flags for better hover display
+df['flag_info'] = df.apply(lambda row: 
+                        f"GT Diff: {row['flag_high_gt_diff']}, {row['min_gt_diff']:.1f}px\n" +
+                        f"Pred Diff: {row['flag_high_pred_diff']}, {row['pred_pixels_diff']:.1f}px\n" +
+                        f"Pose Eval: {row['flag_low_pose_eval']}\n" +
+                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {row['pred_pixel_gt_diff']:.1f}px", 
+                        axis=1)
+
+# Create simple scatter plot with direct flag info
+fig = px.scatter(df, 
+                x='min_gt_diff', 
+                y='min_mpe',
+                color='flag_count',
+                color_continuous_scale='Viridis',
+                hover_data=['PrawnID', 'Label', 'flag_info'],
+                title='Error vs Ground Truth Difference, Colored by Number of Flags',
+                labels={
+                    'min_gt_diff': 'Ground Truth Pixel Difference',
+                    'min_mpe': 'Min MPE (%)',
+                    'flag_count': 'Number of Flags'
+                })
+
+# Add horizontal line at 10% error
+fig.add_hline(y=10, line_dash="dash", line_color="red")
+fig.update_layout(height=600, width=900)
+
 fig.show()
 
 # Create categorical count plot showing distribution of flags in high error vs low error
@@ -278,5 +365,72 @@ fig.update_layout(
 
 fig.update_yaxes(title_text="Number of Measurements", secondary_y=False)
 fig.update_yaxes(title_text="Percentage with Error >10%", secondary_y=True, range=[0, 100])
+
+fig.show()
+
+# Keep only this scatter plot with pond type shapes
+# Improve flag info display and use pond type for shapes
+df['flag_info'] = df.apply(lambda row: 
+                        f"GT Diff: {row['flag_high_gt_diff']}, {(row['min_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"Pred Diff: {row['flag_high_pred_diff']}, {(row['pred_pixels_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"Pose Eval: {row['flag_low_pose_eval']}\n" +
+                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['best_length_pixels']*100):.1f}%", 
+                        axis=1)
+
+# Map pond types to marker symbols
+pond_shapes = {
+    'circle_male': 'circle', 
+    'circle_female': 'diamond', 
+    'square': 'square'
+}
+
+# Create figure using Plotly Graph Objects for more control
+fig = go.Figure()
+
+# Add traces for each pond type with improved hover information
+for pond_type, shape in pond_shapes.items():
+    pond_df = df[df['Pond_Type'] == pond_type]
+    
+    fig.add_trace(go.Scatter(
+        x=pond_df['min_gt_diff'],
+        y=pond_df['min_mpe'],
+        mode='markers',
+        marker=dict(
+            size=10,
+            symbol=shape,
+            color=pond_df['flag_count'],
+            colorscale='Viridis',
+            colorbar=dict(title='Number of Flags') if pond_type == list(pond_shapes.keys())[0] else None,
+            showscale=pond_type == list(pond_shapes.keys())[0]
+        ),
+        name=pond_type,
+        text=pond_df['flag_info'],
+        hovertemplate=
+            "<b>ID:</b> %{customdata[0]}<br>" +
+            "<b>Image:</b> %{customdata[1]}<br>" +
+            "<b>Pond Type:</b> %{customdata[2]}<br>" +
+            "<b>Error (%):</b> %{customdata[3]:.1f}%<br>" +
+            "<b>GT Diff (px):</b> %{customdata[4]:.1f}px<br>" +
+            "<b>Flags:</b><br>%{text}<br>" +
+            "<extra></extra>",
+        customdata=pond_df[['PrawnID', 'Label', 'Pond_Type', 'min_mpe', 'min_gt_diff']].values
+    ))
+
+# Add horizontal line at 10% error threshold
+fig.add_shape(
+    type='line',
+    x0=0, x1=df['min_gt_diff'].max() * 1.1,
+    y0=10, y1=10,
+    line=dict(color='red', dash='dash')
+)
+
+# Update layout
+fig.update_layout(
+    title='Error vs Ground Truth Difference, Colored by Number of Flags',
+    xaxis_title='Ground Truth Pixel Difference',
+    yaxis_title='Min MPE (%)',
+    legend_title='Pond Type',
+    height=600, width=900
+)
 
 fig.show() 
