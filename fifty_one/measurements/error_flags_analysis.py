@@ -223,7 +223,7 @@ else:
     df['flag_low_pose_eval'] = False
     print("Warning: No pose evaluation column found!")
 
-df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['expert_normalized_pixels']*100 > 3
+df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['Length_ground_truth_annotation_pixels']*100 > 5
 
 # Count how many flags each measurement has
 df['flag_count'] = df[['flag_high_gt_diff',  'flag_high_pred_diff', 'flag_low_pose_eval', 'flag_pred_gt_diff']].sum(axis=1)
@@ -1319,7 +1319,7 @@ def get_primary_flag_by_pct(row):
     
   
     if row['flag_pred_gt_diff']:
-        return 'Prediction-GT pixel diff >3%'
+        return 'Prediction-GT pixel diff >5%'
 
 
     # Check for multiple errors last
