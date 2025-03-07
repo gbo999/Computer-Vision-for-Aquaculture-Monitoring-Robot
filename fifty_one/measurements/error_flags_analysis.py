@@ -5,6 +5,28 @@ import seaborn as sns
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
+def calculate_mape(estimated_lengths, true_lengths):
+    """
+    Calculate Mean Absolute Percentage Error
+    
+    Parameters:
+    -----------
+    estimated_lengths : array-like
+        Estimated length measurements (Len_e)
+    true_lengths : array-like
+        True length measurements (Len_t)
+        
+    Returns:
+    --------
+    float
+        Mean Absolute Percentage Error (%)
+    """
+    # Calculate individual absolute percentage errors
+    absolute_percentage_errors = [abs(est - true) / est * 100 for est, true in zip(estimated_lengths, true_lengths)]
+    
+    # Calculate mean of absolute percentage errors
+    
+    return absolute_percentage_errors
 
 # Load the data
 df = pd.read_excel(r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/updated_filtered_data_with_lengths_body-all.xlsx')
@@ -37,6 +59,9 @@ column_to_index = {
     'MPE_length3': 3
 }
 
+
+df['pred_scale']=df['pred_Distance_pixels']/df['Length_fov(mm)']*10
+
 # Get the column name that has the minimum MPE for each row
 min_mpe_column = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].idxmin(axis=1)
 
@@ -46,15 +71,45 @@ min_mpe_index = min_mpe_column.map(column_to_index)
 # Now we can use this index to get the corresponding length
 df['best_length'] = df.apply(lambda row: row[f'Length_{min_mpe_index[row.name]}'], axis=1)
 
-# Calculate best length in pixels using the corresponding scale
+
 df['best_length_pixels'] = df.apply(lambda row: row[f'Length_{min_mpe_index[row.name]}_pixels'], axis=1)
+
+
+
+
+df['expert_normalized_pixels']=df.apply(lambda row: row['best_length_pixels']*row['pred_scale']/row[f'Scale_{min_mpe_index[row.name]}'],axis=1 )
+
+
+# #differente between pred pixels and expert measurement pixels
+# df['pred_pixels_diff_1']=abs( df['pred_Distance_pixels'] - df['Length_1_pixels'])
+# df['pred_pixels_diff_2']=abs(df['pred_Distance_pixels'] - df['Length_2_pixels'])
+# df['pred_pixels_diff_3']=abs(df['pred_Distance_pixels'] - df['Length_3_pixels'])
+
+
+#min error in pixels
+df['min_error_pixels']=abs(df['expert_normalized_pixels']-df['pred_Distance_pixels'])
+
+
+
+# #mape in pixels 
+# df['mape_pixels_1']=calculate_mape(df['pred_Distance_pixels'], df['Length_1_pixels'])
+# df['mape_pixels_2']=calculate_mape(df['pred_Distance_pixels'], df['Length_2_pixels'])
+# df['mape_pixels_3']=calculate_mape(df['pred_Distance_pixels'], df['Length_3_pixels'])
+
+
+#min mape in pixels
+df['min_mape_pixels']=df['min_error_pixels']/df['pred_Distance_pixels']*100
+
+
+
+
 
 # # Calculate pixel differences
 # df['min_expert_pixels'] = df[['Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].min(axis=1)
 # df['max_expert_pixels'] = df[['Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].max(axis=1)
 # df['expert_range_pixels'] = df['max_expert_pixels'] - df['min_expert_pixels']
 
-df['pred_pixels_diff'] = abs(df['pred_Distance_pixels'] - df['best_length_pixels'])
+df['pred_pixels_diff'] = abs(df['pred_Distance_pixels'] - df['expert_normalized_pixels'])
 
 df['pred_pixel_gt_diff'] = abs(df['Length_ground_truth_annotation_pixels'] - df['pred_Distance_pixels'])
 
@@ -67,23 +122,97 @@ print(f"Percentage of measurements with errors > 10%: {high_error_pct:.1f}%")
 
 
 
-df['min_gt_diff'] = abs(df['best_length_pixels'] - df['Length_ground_truth_annotation_pixels'])
+df['min_gt_diff'] = abs(df['expert_normalized_pixels'] - df['Length_ground_truth_annotation_pixels'])
 
 
+# Calculate pixel differences for each measurement
+df['pixel_diff_1'] = abs(df['pred_Distance_pixels'] - df['Length_1_pixels']) 
+df['pixel_diff_2'] = abs(df['pred_Distance_pixels'] - df['Length_2_pixels'])
+df['pixel_diff_3'] = abs(df['pred_Distance_pixels'] - df['Length_3_pixels'])
 
+# Calculate pixel percentage differences for each measurement
+df['pixel_diff_pct_1'] = df['pixel_diff_1'] / df['Length_1_pixels'] * 100
+df['pixel_diff_pct_2'] = df['pixel_diff_2'] / df['Length_2_pixels'] * 100
+df['pixel_diff_pct_3'] = df['pixel_diff_3'] / df['Length_3_pixels'] * 100
+
+# Define a threshold for high pixel percentage error
+pixel_pct_threshold = 10  # Adjust as needed (e.g., 10%)
+
+# Create a flag for when all three measurements exceed the threshold
+df['flag_all_high_pixel_error'] = (
+    (df['pixel_diff_pct_1'] > pixel_pct_threshold) & 
+    (df['pixel_diff_pct_2'] > pixel_pct_threshold) & 
+    (df['pixel_diff_pct_3'] > pixel_pct_threshold)
+)
+
+# Create a flag for when any of the three measurements exceed the threshold
+df['flag_any_high_pixel_error'] = (
+    (df['pixel_diff_pct_1'] > pixel_pct_threshold) | 
+    (df['pixel_diff_pct_2'] > pixel_pct_threshold) | 
+    (df['pixel_diff_pct_3'] > pixel_pct_threshold)
+)
+
+# Calculate average pixel percentage error
+df['avg_pixel_error_pct'] = (df['pixel_diff_pct_1'] + df['pixel_diff_pct_2'] + df['pixel_diff_pct_3']) / 3
+
+# Create flag for high average pixel error
+df['flag_high_avg_pixel_error'] = df['avg_pixel_error_pct'] > pixel_pct_threshold
+
+# Print statistics about the new flags
+print(f"Measurements with all pixel errors > {pixel_pct_threshold}%: {df['flag_all_high_pixel_error'].sum()} ({df['flag_all_high_pixel_error'].mean()*100:.1f}%)")
+print(f"Measurements with any pixel error > {pixel_pct_threshold}%: {df['flag_any_high_pixel_error'].sum()} ({df['flag_any_high_pixel_error'].mean()*100:.1f}%)")
+print(f"Measurements with avg pixel error > {pixel_pct_threshold}%: {df['flag_high_avg_pixel_error'].sum()} ({df['flag_high_avg_pixel_error'].mean()*100:.1f}%)") 
+
+# Calculate GT-Expert pixel differences for each measurement
+df['gt_expert_diff_1'] = abs(df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels'])
+df['gt_expert_diff_2'] = abs(df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels'])
+df['gt_expert_diff_3'] = abs(df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels'])
+
+# Calculate GT-Expert pixel percentage differences for each measurement
+df['gt_expert_diff_pct_1'] = df['gt_expert_diff_1'] / df['Length_1_pixels'] * 100
+df['gt_expert_diff_pct_2'] = df['gt_expert_diff_2'] / df['Length_2_pixels'] * 100
+df['gt_expert_diff_pct_3'] = df['gt_expert_diff_3'] / df['Length_3_pixels'] * 100
+
+# Define a threshold for high GT-Expert pixel percentage error
+gt_expert_pct_threshold = 10  # Adjust as needed (e.g., 10%)
+
+# Create a flag for when all three GT-Expert measurements exceed the threshold
+df['flag_all_high_gt_expert_error'] = (
+    (df['gt_expert_diff_pct_1'] > gt_expert_pct_threshold) & 
+    (df['gt_expert_diff_pct_2'] > gt_expert_pct_threshold) & 
+    (df['gt_expert_diff_pct_3'] > gt_expert_pct_threshold)
+)
+
+# Create a flag for when any of the three GT-Expert measurements exceed the threshold
+df['flag_any_high_gt_expert_error'] = (
+    (df['gt_expert_diff_pct_1'] > gt_expert_pct_threshold) | 
+    (df['gt_expert_diff_pct_2'] > gt_expert_pct_threshold) | 
+    (df['gt_expert_diff_pct_3'] > gt_expert_pct_threshold)
+)
+
+# Calculate average GT-Expert pixel percentage error
+df['avg_gt_expert_error_pct'] = (df['gt_expert_diff_pct_1'] + df['gt_expert_diff_pct_2'] + df['gt_expert_diff_pct_3']) / 3
+
+# Create flag for high average GT-Expert pixel error
+df['flag_high_avg_gt_expert_error'] = df['avg_gt_expert_error_pct'] > gt_expert_pct_threshold
+
+# Print statistics about the new GT-Expert flags
+print(f"Measurements with all GT-Expert errors > {gt_expert_pct_threshold}%: {df['flag_all_high_gt_expert_error'].sum()} ({df['flag_all_high_gt_expert_error'].mean()*100:.1f}%)")
+print(f"Measurements with any GT-Expert error > {gt_expert_pct_threshold}%: {df['flag_any_high_gt_expert_error'].sum()} ({df['flag_any_high_gt_expert_error'].mean()*100:.1f}%)")
+print(f"Measurements with avg GT-Expert error > {gt_expert_pct_threshold}%: {df['flag_high_avg_gt_expert_error'].sum()} ({df['flag_high_avg_gt_expert_error'].mean()*100:.1f}%)")
 
 
 
 
 # Define flags for potential error sources
 # 1. High pixel difference between ground truth and expert
-df['flag_high_gt_diff'] = df['min_gt_diff']/df['best_length_pixels']*100 > 3
+df['flag_high_gt_diff'] = df['min_gt_diff']/df['expert_normalized_pixels']*100 > 3
 
 # # 2. High variability between expert measurements
 # df['flag_high_expert_var'] = df['expert_range_pixels'] > 15
 
 # 3. High pixel difference between prediction and expert 
-df['flag_high_pred_diff'] = df['pred_pixels_diff'] / df['best_length_pixels'] * 100 > 3
+df['flag_high_pred_diff'] = df['min_mape_pixels']  > 3
 
 # 4. Low pose evaluation score (if available)
 if 'pose_eval' in df.columns:
@@ -94,7 +223,7 @@ else:
     df['flag_low_pose_eval'] = False
     print("Warning: No pose evaluation column found!")
 
-df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['best_length_pixels']*100 > 3
+df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['expert_normalized_pixels']*100 > 3
 
 # Count how many flags each measurement has
 df['flag_count'] = df[['flag_high_gt_diff',  'flag_high_pred_diff', 'flag_low_pose_eval', 'flag_pred_gt_diff']].sum(axis=1)
@@ -107,9 +236,16 @@ images_with_multiple_high_errors = high_error_counts_by_image[high_error_counts_
 # Add the flag to dataframe - but we'll still name it "100% Error Rate Image" in displays
 df['flag_image_multiple_errors'] = df['Label'].isin(images_with_multiple_high_errors)
 
+# Get images where all measurements have high errors
+image_100_error_rate = high_error_counts_by_image[(high_error_counts_by_image == high_error_counts_by_image)& (high_error_counts_by_image >1)].index.tolist()
+
+df['flag_all_high_error_rate_image'] = df['Label'].isin(image_100_error_rate)
+
+
+
 # Add to flag count
 df['flag_count'] = df[['flag_high_gt_diff', 'flag_high_pred_diff', 'flag_low_pose_eval', 
-                       'flag_pred_gt_diff', 'flag_image_multiple_errors']].sum(axis=1)
+                       'flag_pred_gt_diff', 'flag_image_multiple_errors','flag_all_high_error_rate_image']].sum(axis=1)
 
 # Print statistics for multiple error images
 print(f"Images with multiple high errors: {len(images_with_multiple_high_errors)}")
@@ -143,10 +279,10 @@ print(image_error_stats.to_string(index=False))
 
 # Update flag info display to include the new flag
 df['flag_info'] = df.apply(lambda row: 
-                        f"GT Diff: {row['flag_high_gt_diff']}, {(row['min_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
-                        f"Pred Diff: {row['flag_high_pred_diff']}, {(row['pred_pixels_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"GT Diff: {row['flag_high_gt_diff']}, {(row['min_gt_diff']/row['expert_normalized_pixels']*100):.1f}%\n" +
+                        f"Pred Diff: {row['flag_high_pred_diff']}, {(row['min_mape_pixels']):.1f}%\n" +
                         f"Pose Eval: {row['flag_low_pose_eval']}\n" +
-                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['expert_normalized_pixels']*100):.1f}%\n" +
                         f"100% Error Rate Image: {row['flag_image_multiple_errors']}", 
                         axis=1)
 
@@ -296,7 +432,7 @@ fig.show()
 def get_flag_descriptions(row):
     return (
         f"High GT Diff: {row['flag_high_gt_diff']}, val: {row['min_gt_diff']:.1f}px<br>" +
-        f"High Pred Diff: {row['flag_high_pred_diff']}, val: {row['pred_pixels_diff']:.1f}px<br>" +
+        f"High Pred Diff: {row['flag_high_pred_diff']}, val: {row['min_mape_pixels']:.1f}%<br>" +
         f"Low Pose Eval: {row['flag_low_pose_eval']}, val: {row['pose_eval_iou'] if 'pose_eval_iou' in row else row['pose_eval'] if 'pose_eval' in row else 'N/A'}<br>" +
         f"High Pred-GT Diff: {row['flag_pred_gt_diff']}, val: {row['pred_pixel_gt_diff']:.1f}px"
     )
@@ -319,7 +455,7 @@ fig = px.scatter(df,
                     'flag_count': True,
                     'flag_description': True,
                     'pred_Distance_pixels': ':.1f',
-                    'best_length_pixels': ':.1f'
+                    'expert_normalized_pixels': ':.1f'
                 },
                 title='Error vs Ground Truth Difference, Colored by Number of Flags',
                 labels={
@@ -328,7 +464,7 @@ fig = px.scatter(df,
                     'flag_count': 'Number of Flags',
                     'flag_description': 'Flags',
                     'pred_Distance_pixels': 'Predicted Length (px)',
-                    'best_length_pixels': 'Best Expert Length (px)'
+                    'expert_normalized_pixels': 'Best Expert Length (px)'
                 })
 
 # Add horizontal line at 10% error
@@ -349,7 +485,7 @@ fig.update_traces(
 # First create simple column flags for better hover display
 df['flag_info'] = df.apply(lambda row: 
                         f"GT Diff: {row['flag_high_gt_diff']}, {row['min_gt_diff']:.1f}px\n" +
-                        f"Pred Diff: {row['flag_high_pred_diff']}, {row['pred_pixels_diff']:.1f}px\n" +
+                        f"Pred Diff: {row['flag_high_pred_diff']}, {row['min_mape_pixels']:.1f}%\n" +
                         f"Pose Eval: {row['flag_low_pose_eval']}\n" +
                         f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {row['pred_pixel_gt_diff']:.1f}px", 
                         axis=1)
@@ -447,10 +583,10 @@ fig.show()
 # Keep only this scatter plot with pond type shapes
 # Improve flag info display and use pond type for shapes
 df['flag_info'] = df.apply(lambda row: 
-                        f"GT Diff: {row['flag_high_gt_diff']}, {(row['min_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
-                        f"Pred Diff: {row['flag_high_pred_diff']}, {(row['pred_pixels_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"GT Diff: {row['flag_high_gt_diff']}, {(row['min_gt_diff']/row['expert_normalized_pixels']*100):.1f}%\n" +
+                        f"Pred Diff: {row['flag_high_pred_diff']}, {(row['min_mape_pixels']):.1f}%\n" +
                         f"Pose Eval: {row['flag_low_pose_eval']}\n" +
-                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['expert_normalized_pixels']*100):.1f}%\n" +
                         f"100% Error Rate Image: {row['flag_image_multiple_errors']}", 
                         axis=1)
 
@@ -485,9 +621,9 @@ for pond_type, shape in pond_shapes.items():
         hovertemplate=
             "<b>ID:</b> %{customdata[0]}<br>" +
             "<b>Image:</b> %{customdata[1]}<br>" +
-            "<b>Pond Type:</b> %{customdata[2]}<br>" +
-            "<b>Error (%):</b> %{customdata[3]:.1f}%<br>" +
-            "<b>GT Diff (px):</b> %{customdata[4]:.1f}px<br>" +
+            "<b>Pond Type:</b> " + pond_type + "<br>" +
+            "<b>Error (%):</b> %{customdata[2]:.1f}%<br>" +
+            "<b>GT Diff (px):</b> %{customdata[3]:.1f}px<br>" +
             "<b>Flags:</b><br>%{text}<br>" +
             "<extra></extra>",
         customdata=pond_df[['PrawnID', 'Label', 'Pond_Type', 'min_mpe', 'min_gt_diff']].values
@@ -1134,44 +1270,74 @@ multi_flag_fig.show()
 # Create a new comprehensive box plot with mutually exclusive categories
 exclusive_flags_fig = go.Figure()
 
-# Set the priority order for exclusive category assignment
-priority_flags = [
-    'flag_low_pose_eval',
-    'flag_high_gt_diff',
-    'flag_pred_gt_diff',
-    'flag_high_pred_diff',
-    'flag_image_multiple_errors',
-]
+# Define priorities based on percentage thresholds
+# New approach: Add columns with the actual percentage values for each flag
+df['gt_diff_pct'] = df['min_gt_diff'] / df['expert_normalized_pixels'] * 100
+df['pred_diff_pct'] = df['min_mape_pixels']
+df['pred_gt_diff_pct'] = df['pred_pixel_gt_diff'] / df['pred_Distance_pixels'] * 100
 
-# Define labels for the priority flags
-priority_names = [
-    'Pose error >15%',
-    'GT-Expert pixel diff >3%',
-    'Prediction-GT pixel diff >3%',
-    'Prediction-Expert pixel diff >3%',
-    'Multiple Errors in Same Image',
-]
+# Set the pose value to a comparable scale (0-100)
+if 'pose_eval' in df.columns:
+    df['pose_pct'] = (1 - df['pose_eval']) * 100  # Convert to percent error (higher = worse)
+elif 'pose_eval_iou' in df.columns:
+    df['pose_pct'] = (1 - df['pose_eval_iou']) * 100
+else:
+    df['pose_pct'] = 0
 
-priority_colors = ['#9b59b6', '#2ecc71', '#3498db', '#f39c12', '#e74c3c']
+# Now determine the primary flag based on the highest percentage
+def get_primary_flag_by_pct(row):
+    # Check all other flags first to find the one with highest percentage value
+    
+    
+    if row['pose_pct'] > 15:
+        return 'Pose error >15%'
 
-# Define marker shapes for pond types
-pond_shapes = {
-    'circle_female': 'circle',
-    'circle_male': 'circle-open',
-    'square': 'square',
-}
+    if row['flag_all_high_error_rate_image']:
+      print("All High error rate image")
+      return 'All High error rate image'
+    
+    if row['flag_all_high_gt_expert_error']:
+        return 'All GT-Expert error >10%'
 
-# Initialize a column to track if a measurement has been assigned
-df['assigned_category'] = None
+    if row['flag_all_high_pixel_error']:
+        return 'All High Pixel Error'
+    
+  
+    if row['flag_pred_gt_diff']:
+        return 'Prediction-GT pixel diff >3%'
 
-# Assign each measurement to exactly one category based on priority
-for flag_col, flag_name in zip(priority_flags, priority_names):
-    # Only consider measurements that have this flag and haven't been assigned yet
-    mask = (df[flag_col]) & (df['assigned_category'].isna())
-    df.loc[mask, 'assigned_category'] = flag_name
+
+    # Check for multiple errors last
+    if row['flag_image_multiple_errors']:
+        return 'Multiple Errors in Same Image'
+    
+    # If no flags at all
+    return 'No Flags'
+
+# Assign each measurement to exactly one category based on highest percentage
+df['assigned_category'] = df.apply(get_primary_flag_by_pct, axis=1)
 
 # Create a category for measurements with no flags
 df.loc[df['assigned_category'].isna(), 'assigned_category'] = 'No Flags'
+
+# The order for visualization still needs to be defined
+priority_names = [
+    'Pose error >15%',
+    'All GT-Expert error >10%',
+    'All High Pixel Error',
+    'Prediction-GT pixel diff >3%',
+    'All High error rate image',
+    'Multiple Errors in Same Image',
+]
+
+# Print some statistics about our prioritized assignments
+print("\nAssignments based on percentage values:")
+for category in priority_names + ['No Flags']:
+    count = len(df[df['assigned_category'] == category])
+    print(f"{category}: {count} measurements")
+
+# Store colors for visualization
+priority_colors = ['#9b59b6', '#2ecc71', '#f39c12', '#3498db', '#e74c3c']
 
 # Add a box plot for each exclusive category
 categories = [cat for cat in priority_names] + ['No Flags']
@@ -1181,109 +1347,54 @@ for i, category in enumerate(categories):
     if len(cat_df) > 0:  # Only add if there are measurements in this category
         color = priority_colors[i] if i < len(priority_colors) else 'gray'
         
-        # First add the calculated percentage columns to cat_df
-        cat_df = cat_df.copy()  # Create a copy to avoid SettingWithCopyWarning
-        cat_df['gt_diff_pct'] = cat_df['min_gt_diff'] / cat_df['best_length_pixels'] * 100
-        cat_df['pred_gt_diff_pct'] = cat_df['pred_pixel_gt_diff'] / cat_df['best_length_pixels'] * 100
-        cat_df['pred_diff_pct'] = cat_df['pred_pixels_diff'] / cat_df['best_length_pixels'] * 100
-        
-        # Group by pond type and add separate traces for each
-        for pond_type in sorted(cat_df['Pond_Type'].unique()):
-            pond_cat_df = cat_df[cat_df['Pond_Type'] == pond_type]
-            if len(pond_cat_df) == 0:
-                continue
-                
-            marker_symbol = pond_shapes.get(pond_type, 'circle')
-            
-            exclusive_flags_fig.add_trace(go.Box(
-                y=pond_cat_df['min_mpe'],
-                name=category,
-                boxmean=True,
-                marker_color=color,
-                boxpoints='all',
-                jitter=0.3,
-                pointpos=-1.5,
-                width=0.6,
-                quartilemethod="linear",
-                legendgroup=category,
-                showlegend=pond_type == sorted(cat_df['Pond_Type'].unique())[0],  # Only show in legend once per category
-                marker=dict(
-                    symbol=marker_symbol,
-                    line=dict(width=1, color='black'),
-                    size=8
-                ),
-                hovertemplate=
-                    f"<b>{category}</b><br>" +
-                    "<b>ID:</b> %{customdata[0]}<br>" +
-                    "<b>Image:</b> %{customdata[1]}<br>" +
-                    "<b>Pond Type:</b> " + pond_type + "<br>" +
-                    "<b>Error:</b> %{y:.1f}%<br>" +
-                    "<b>GT Diff:</b> %{customdata[2]:.1f}px (%{customdata[4]:.1f}%)<br>" +
-                    "<b>Pred-GT Diff:</b> %{customdata[5]:.1f}px (%{customdata[6]:.1f}%)<br>" +
-                    "<b>Pred Diff:</b> %{customdata[7]:.1f}px (%{customdata[8]:.1f}%)<br>" +
-                    "<b>Flag Count:</b> %{customdata[3]}<br>" +
-                    "<extra></extra>",
-                customdata=pond_cat_df[['PrawnID', 'Label', 'min_gt_diff', 'flag_count', 
-                                'gt_diff_pct', 'pred_pixel_gt_diff', 'pred_gt_diff_pct',
-                                'pred_pixels_diff', 'pred_diff_pct','Pond_Type']].values
-            ))
+        exclusive_flags_fig.add_trace(go.Box(
+            y=cat_df['min_mpe'],
+            name=category,
+            boxmean=True,
+            marker_color=color,
+            boxpoints='all',
+            jitter=0.3,
+            pointpos=-1.5,
+            width=0.6,
+            quartilemethod="linear",
+            hovertemplate=
+                f"<b>{category}</b><br>" +
+                "<b>ID:</b> %{customdata[0]}<br>" +
+                "<b>Image:</b> %{customdata[1]}<br>" +
+                  "<b>Pond Type:</b> %{customdata[9]}<br>" +
+                "<b>Error:</b> %{y:.1f}%<br>" +
+                "<b>GT Diff:</b> %{customdata[2]:.1f}px (%{customdata[4]:.1f}%)<br>" +
+                "<b>Pred-GT Diff:</b> %{customdata[5]:.1f}px (%{customdata[6]:.1f}%)<br>" +
+                "<b>Pred Diff:</b> %{customdata[7]:.1f}px (%{customdata[8]:.1f}%)<br>" +
+                "<b>Flag Count:</b> %{customdata[3]}<br>" +
+                "<b>best pixels</b> %{customdata[10]:.1f}px<br>" +
+                "<b>pred pixels</b> %{customdata[11]:.1f}px<br>" +
+                "<b>pixel diff 1</b> %{customdata[12]:.1f}%<br>" +
+                "<b>pixel diff 2</b> %{customdata[13]:.1f}%<br>" +
+                "<b>pixel diff 3</b> %{customdata[14]:.1f}%<br>" ,
+            customdata=cat_df[['PrawnID', 'Label', 'min_gt_diff', 'flag_count', 
+                              'gt_diff_pct', 'pred_pixel_gt_diff', 'pred_gt_diff_pct',
+                            'min_error_pixels', 'min_mape_pixels','Pond_Type','best_length_pixels','pred_Distance_pixels','pixel_diff_pct_1','pixel_diff_pct_2','pixel_diff_pct_3']].values
+        ))
 
-# Add a horizontal line at 10% error
+# Add horizontal line at 10% error
 exclusive_flags_fig.add_shape(
-    type="line",
-    x0=-0.5,
-    y0=10,
-    x1=len(categories) - 0.5,
-    y1=10,
-    line=dict(color="red", width=2, dash="dash"),
+    type='line',
+    x0=-0.5, x1=len(categories) - 0.5,
+    y0=10, y1=10,
+    line=dict(color='red', dash='dash')
 )
 
-# Add box plot count to the box names
-for i, trace in enumerate(exclusive_flags_fig.data):
-    if hasattr(trace, 'name') and trace.name in categories:
-        category = trace.name
-        pond_type = "all"
-        if hasattr(trace, 'marker') and hasattr(trace.marker, 'symbol'):
-            for pt, symbol in pond_shapes.items():
-                if trace.marker.symbol == symbol:
-                    pond_type = pt
-                    break
-        
-        # Count points in this category and pond type
-        points_count = len(df[(df['assigned_category'] == category) & (df['Pond_Type'] == pond_type)])
-        trace.name = f"{category} (n={points_count})"
-
-# Update layout with added pond type legend
+# Update layout
 exclusive_flags_fig.update_layout(
-    title="Error Distribution by Flag Type (Mutually Exclusive Categories)",
-    xaxis_title="Error Flag Category",
-    yaxis_title="Error (%)",
+    title='Error Distribution by Exclusive Flag Categories (Prioritizing Multiple Errors in Image)',
+    yaxis_title='Min MPE (%)',
+    height=600, width=1000,
     boxmode='group',
-    height=700,
-    width=1000,
-    margin=dict(l=50, r=50, t=80, b=80),
-    legend=dict(
-        title="Error Flag Categories",
-        yanchor="top",
-        y=0.99,
-        xanchor="left",
-        x=0.01
-    )
-)
-
-# Add a second legend for pond types
-pond_shapes_fig = go.Figure()
-for pond_type, marker_symbol in pond_shapes.items():
-    pond_shapes_fig.add_trace(go.Scatter(
-        x=[0], y=[0],
-        mode='markers',
-        marker=dict(symbol=marker_symbol, size=10),
-        name=pond_type,
-        showlegend=True
-    ))
-pond_shapes_fig.update_layout(
-    title="Pond Types",
-    showlegend=True
+    yaxis=dict(
+        range=[0, max(50, df['min_mpe'].max() * 1.1)]
+    ),
+    margin=dict(l=50, r=50, t=80, b=120)
 )
 
 # Add counts to the box plot names
@@ -1393,8 +1504,8 @@ mae_px_filtered = filtered_df['pixel_error'].mean()
 print(f"MAE (pixels) | {mae_px_all:.2f}px | {mae_px_filtered:.2f}px")
 
 # Calculate MAE as percentage of prawn size
-df['pixel_error_pct'] = df['pixel_error'] / df['best_length_pixels'] * 100
-filtered_df['pixel_error_pct'] = filtered_df['pixel_error'] / filtered_df['best_length_pixels'] * 100
+df['pixel_error_pct'] = df['pixel_error'] / df['expert_normalized_pixels'] * 100
+filtered_df['pixel_error_pct'] = filtered_df['pixel_error'] / filtered_df['expert_normalized_pixels'] * 100
 
 mae_pct_all = df['pixel_error_pct'].mean()
 mae_pct_filtered = filtered_df['pixel_error_pct'].mean()
@@ -1436,4 +1547,5 @@ comparison_fig.show()
 # Calculate MAE - abs(Length_fov(mm) - best_length)
 mae_all = abs(df['Length_fov(mm)'] - df['best_length']).mean()
 mae_filtered = abs(filtered_df['Length_fov(mm)'] - filtered_df['best_length']).mean()
-print(f"MAE (mm) | {mae_all:.2f}mm | {mae_filtered:.2f}mm") 
+print(f"MAE (mm) | {mae_all:.2f}mm | {mae_filtered:.2f}mm")
+
