@@ -77,13 +77,13 @@ df['min_gt_diff'] = abs(df['best_length_pixels'] - df['Length_ground_truth_annot
 
 # Define flags for potential error sources
 # 1. High pixel difference between ground truth and expert
-df['flag_high_gt_diff'] = df['min_gt_diff']/df['best_length_pixels']*100 > 10
+df['flag_high_gt_diff'] = df['min_gt_diff']/df['best_length_pixels']*100 > 3
 
 # # 2. High variability between expert measurements
 # df['flag_high_expert_var'] = df['expert_range_pixels'] > 15
 
 # 3. High pixel difference between prediction and expert 
-df['flag_high_pred_diff'] = df['pred_pixels_diff'] / df['best_length_pixels'] * 100 > 10
+df['flag_high_pred_diff'] = df['pred_pixels_diff'] / df['best_length_pixels'] * 100 > 3
 
 # 4. Low pose evaluation score (if available)
 if 'pose_eval' in df.columns:
@@ -94,14 +94,61 @@ else:
     df['flag_low_pose_eval'] = False
     print("Warning: No pose evaluation column found!")
 
-df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['best_length_pixels']*100 > 10
+df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['best_length_pixels']*100 > 3
 
 # Count how many flags each measurement has
 df['flag_count'] = df[['flag_high_gt_diff',  'flag_high_pred_diff', 'flag_low_pose_eval', 'flag_pred_gt_diff']].sum(axis=1)
 
+# Calculate images with multiple high errors (this is where we make the key change)
+# First count how many high errors per image
+high_error_counts_by_image = df[df['min_mpe'] > 10].groupby('Label').size()
+# Create a dictionary with image labels as keys and counts as values
+images_with_multiple_high_errors = high_error_counts_by_image[high_error_counts_by_image > 1].index.tolist()
+# Add the flag to dataframe - but we'll still name it "100% Error Rate Image" in displays
+df['flag_image_multiple_errors'] = df['Label'].isin(images_with_multiple_high_errors)
 
+# Add to flag count
+df['flag_count'] = df[['flag_high_gt_diff', 'flag_high_pred_diff', 'flag_low_pose_eval', 
+                       'flag_pred_gt_diff', 'flag_image_multiple_errors']].sum(axis=1)
 
+# Print statistics for multiple error images
+print(f"Images with multiple high errors: {len(images_with_multiple_high_errors)}")
+print(f"Measurements from images with multiple high errors: {df['flag_image_multiple_errors'].sum()}")
+if df['flag_image_multiple_errors'].sum() > 0:
+    print(f"Percentage with this flag: {df['flag_image_multiple_errors'].mean()*100:.1f}%")
 
+# Print detailed information about images with multiple high errors
+print("\nDetailed information about images with multiple high errors:")
+print("Image ID | High Error Count | Total Measurements | Error Rate (%)")
+print("-" * 65)
+
+for image in images_with_multiple_high_errors:
+    high_error_count = high_error_counts_by_image[image]
+    total_count = len(df[df['Label'] == image])
+    error_rate = (high_error_count / total_count) * 100
+    print(f"{image} | {high_error_count} | {total_count} | {error_rate:.1f}%")
+
+# Group measurements by image and show the distribution
+image_error_stats = pd.DataFrame({
+    'Image': images_with_multiple_high_errors,
+    'High_Error_Count': [high_error_counts_by_image[img] for img in images_with_multiple_high_errors],
+    'Total_Count': [len(df[df['Label'] == img]) for img in images_with_multiple_high_errors]
+})
+
+image_error_stats['Error_Rate'] = (image_error_stats['High_Error_Count'] / image_error_stats['Total_Count']) * 100
+image_error_stats = image_error_stats.sort_values('Error_Rate', ascending=False)
+
+print("\nImages with multiple high errors sorted by error rate:")
+print(image_error_stats.to_string(index=False))
+
+# Update flag info display to include the new flag
+df['flag_info'] = df.apply(lambda row: 
+                        f"GT Diff: {row['flag_high_gt_diff']}, {(row['min_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"Pred Diff: {row['flag_high_pred_diff']}, {(row['pred_pixels_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"Pose Eval: {row['flag_low_pose_eval']}\n" +
+                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"100% Error Rate Image: {row['flag_image_multiple_errors']}", 
+                        axis=1)
 
 # Print statistics on flags
 print("\nFlag Statistics:")
@@ -175,25 +222,54 @@ plt.savefig('error_flags_impact.png', dpi=300)
 plt.show()
 
 # Create a heatmap showing co-occurrence of flags
+flag_columns = ['flag_high_gt_diff', 'flag_high_pred_diff', 'flag_low_pose_eval', 'flag_pred_gt_diff']
+flag_labels = ['High GT Diff', 'High Pred Diff', 'Low Pose Eval', 'High Pred-GT Diff']
+
+# For the enhanced heatmap, add the multiple errors flag and MPE
+enhanced_flag_columns = flag_columns + ['flag_image_multiple_errors', 'min_mpe']
+enhanced_flag_labels = flag_labels + ['Multiple Errors in Image', 'MPE']
+
+# Create a heatmap showing correlations between all variables including MPE
+corr_matrix = pd.DataFrame()
+
+# Add flag columns (binary variables)
+for i, flag_col in enumerate(flag_columns + ['flag_image_multiple_errors']):
+    corr_matrix[enhanced_flag_labels[i]] = df[flag_col].astype(float)
+
+# Add MPE as a continuous variable
+corr_matrix['MPE'] = df['min_mpe']
+
+# Calculate correlation matrix
+correlation_matrix = corr_matrix.corr()
+
+# Plot the enhanced correlation heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', vmin=-1, vmax=1)
+plt.title('Correlation Matrix: Error Flags and MPE')
+plt.tight_layout()
+plt.show()
+
+# Original heatmap showing co-occurrence of flags
 heatmap_data = pd.DataFrame(index=flag_labels, columns=flag_labels)
 
-for i, flag1 in enumerate(flag_cols):
-    for j, flag2 in enumerate(flag_cols):
-        # Calculate conditional probability: P(flag2=True | flag1=True)
-        if len(df[df[flag1]]) > 0:
-            # Convert to numeric values explicitly
-            heatmap_data.iloc[i, j] = df[df[flag1]][flag2].astype(float).mean() * 100
+for i, flag1 in enumerate(flag_columns):
+    for j, flag2 in enumerate(flag_columns):
+        if i == j:
+            heatmap_data.iloc[i, j] = df[flag1].mean() * 100  # Percentage of measurements with this flag
         else:
-            heatmap_data.iloc[i, j] = 0.0
+            # Percentage of measurements with flag1 that also have flag2
+            if df[flag1].sum() > 0:
+                heatmap_data.iloc[i, j] = df[df[flag1]][flag2].astype(float).mean() * 100
+            else:
+                heatmap_data.iloc[i, j] = 0.0
 
-# Convert the entire DataFrame to float type
+# Convert to float to ensure compatibility with heatmap
 heatmap_data = heatmap_data.astype(float)
 
 plt.figure(figsize=(10, 8))
 sns.heatmap(heatmap_data, annot=True, cmap='YlOrRd', fmt='.1f', vmin=0, vmax=100)
-plt.title('Co-occurrence of Error Flags (% of rows with row flag that also have column flag)')
+plt.title('Flag Co-occurrence (%)')
 plt.tight_layout()
-plt.savefig('error_flags_cooccurrence.png', dpi=300)
 plt.show()
 
 # Create scatter plot with points colored by number of flags
@@ -374,7 +450,8 @@ df['flag_info'] = df.apply(lambda row:
                         f"GT Diff: {row['flag_high_gt_diff']}, {(row['min_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
                         f"Pred Diff: {row['flag_high_pred_diff']}, {(row['pred_pixels_diff']/row['best_length_pixels']*100):.1f}%\n" +
                         f"Pose Eval: {row['flag_low_pose_eval']}\n" +
-                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['best_length_pixels']*100):.1f}%", 
+                        f"Pred-GT Diff: {row['flag_pred_gt_diff']}, {(row['pred_pixel_gt_diff']/row['best_length_pixels']*100):.1f}%\n" +
+                        f"100% Error Rate Image: {row['flag_image_multiple_errors']}", 
                         axis=1)
 
 # Map pond types to marker symbols
@@ -433,4 +510,930 @@ fig.update_layout(
     height=600, width=900
 )
 
-fig.show() 
+fig.show()
+
+# Create a new correlation subplot with two visualizations
+from plotly.subplots import make_subplots
+
+# Create a subplot with 1 row and 2 columns
+correlation_fig = make_subplots(rows=1, cols=2, 
+                                subplot_titles=("Error Distribution by Multiple Errors Flag", 
+                                              "Percentage of High Errors by Flag"),
+                                specs=[[{"type": "box"}, {"type": "bar"}]])
+
+# 1. Box plot for error distribution by flag
+correlation_fig.add_trace(
+    go.Box(
+        y=df[df['flag_image_multiple_errors']]['min_mpe'],
+        name='Multiple Errors in Image',
+        boxmean=True,
+        marker_color='#e74c3c'
+    ),
+    row=1, col=1
+)
+
+# Create a more detailed box plot to show all errors by flag
+box_fig = go.Figure()
+
+# Add box plot for measurements from images with multiple errors
+box_fig.add_trace(go.Box(
+    y=df[df['flag_image_multiple_errors']]['min_mpe'],
+    name='From Images with Multiple Errors',
+    boxmean=True,
+    marker_color='#e74c3c',
+    boxpoints='all',  # Show all points
+    jitter=0.3,
+    pointpos=-1.5,
+    hovertemplate=
+        "<b>ID:</b> %{customdata[0]}<br>" +
+        "<b>Image:</b> %{customdata[1]}<br>" +
+        "<b>Error:</b> %{y:.1f}%<br>" +
+        "<b>GT Diff:</b> %{customdata[2]:.1f}px<br>" +
+        "<extra></extra>",
+    customdata=df[df['flag_image_multiple_errors']][['PrawnID', 'Label', 'min_gt_diff']].values
+))
+
+# Add box plot for measurements from images without multiple errors
+box_fig.add_trace(go.Box(
+    y=df[~df['flag_image_multiple_errors']]['min_mpe'],
+    name='From Images without Multiple Errors',
+    boxmean=True,
+    marker_color='#2ecc71',
+    boxpoints='all',  # Show all points
+    jitter=0.3,
+    pointpos=-1.5,
+    hovertemplate=
+        "<b>ID:</b> %{customdata[0]}<br>" +
+        "<b>Image:</b> %{customdata[1]}<br>" +
+        "<b>Error:</b> %{y:.1f}%<br>" +
+        "<b>GT Diff:</b> %{customdata[2]:.1f}px<br>" +
+        "<extra></extra>",
+    customdata=df[~df['flag_image_multiple_errors']][['PrawnID', 'Label', 'min_gt_diff']].values
+))
+
+# Add horizontal line at 10% error
+box_fig.add_shape(
+    type='line',
+    x0=-0.5, x1=1.5,
+    y0=10, y1=10,
+    line=dict(color='red', dash='dash')
+)
+
+# Calculate statistics and add annotations
+mean_with_flag = df[df['flag_image_multiple_errors']]['min_mpe'].mean()
+mean_without_flag = df[~df['flag_image_multiple_errors']]['min_mpe'].mean()
+median_with_flag = df[df['flag_image_multiple_errors']]['min_mpe'].median()
+median_without_flag = df[~df['flag_image_multiple_errors']]['min_mpe'].median()
+
+# Count points in each category
+count_with_flag = len(df[df['flag_image_multiple_errors']])
+count_without_flag = len(df[~df['flag_image_multiple_errors']])
+
+# Count high errors in each category
+high_with_flag = len(df[(df['flag_image_multiple_errors']) & (df['min_mpe'] > 10)])
+high_without_flag = len(df[(~df['flag_image_multiple_errors']) & (df['min_mpe'] > 10)])
+
+# Calculate percentages
+pct_high_with_flag = (high_with_flag / count_with_flag) * 100
+pct_high_without_flag = (high_without_flag / count_without_flag) * 100
+
+# Add annotations for statistics
+box_fig.add_annotation(
+    x=0, y=max(50, df['min_mpe'].max() * 0.9),
+    text=f"n={count_with_flag}<br>High Errors: {high_with_flag} ({pct_high_with_flag:.1f}%)<br>Mean: {mean_with_flag:.1f}%<br>Median: {median_with_flag:.1f}%",
+    showarrow=False,
+    align="center"
+)
+
+box_fig.add_annotation(
+    x=1, y=max(50, df['min_mpe'].max() * 0.9),
+    text=f"n={count_without_flag}<br>High Errors: {high_without_flag} ({pct_high_without_flag:.1f}%)<br>Mean: {mean_without_flag:.1f}%<br>Median: {median_without_flag:.1f}%",
+    showarrow=False,
+    align="center"
+)
+
+# Update layout
+box_fig.update_layout(
+    title='Error Distribution by Image Multiple Errors Flag',
+    yaxis_title='Min MPE (%)',
+    height=600, width=900,
+    boxmode='group',
+    # Use violin plot instead of box plot
+    yaxis=dict(
+        range=[0, max(50, df['min_mpe'].max() * 1.1)]
+    )
+)
+
+box_fig.show()
+
+# Create a scatter plot specifically for the Multiple Errors in Image flag
+# Group points by image and calculate average min_mpe for each image
+image_avg_error = df.groupby('Label')['min_mpe'].mean().reset_index()
+image_error_count = df[df['min_mpe'] > 10].groupby('Label').size().reset_index(name='high_error_count')
+image_data = pd.merge(image_avg_error, image_error_count, on='Label', how='left')
+image_data['high_error_count'] = image_data['high_error_count'].fillna(0)
+image_data['has_multiple_errors'] = image_data['high_error_count'] > 1
+
+# Get count of measurements per image
+image_measure_count = df.groupby('Label').size().reset_index(name='measurement_count')
+image_data = pd.merge(image_data, image_measure_count, on='Label', how='left')
+
+# Calculate error rate percentage
+image_data['error_rate'] = (image_data['high_error_count'] / image_data['measurement_count']) * 100
+
+# Create scatter plot of images
+image_flag_fig = go.Figure()
+
+# Add scatter plot for images with multiple high errors
+image_flag_fig.add_trace(go.Scatter(
+    x=image_data[image_data['has_multiple_errors']]['measurement_count'],
+    y=image_data[image_data['has_multiple_errors']]['min_mpe'],
+    mode='markers',
+    marker=dict(
+        size=image_data[image_data['has_multiple_errors']]['high_error_count'] * 5,
+        color='red',
+        opacity=0.7,
+        line=dict(width=1, color='black')
+    ),
+    name='Multiple High Errors',
+    text=image_data[image_data['has_multiple_errors']]['Label'],
+    hovertemplate=
+        "<b>Image:</b> %{text}<br>" +
+        "<b>Total Measurements:</b> %{x}<br>" +
+        "<b>Avg Error:</b> %{y:.1f}%<br>" +
+        "<b>High Error Count:</b> %{marker.size/5}<br>" +
+        "<b>Error Rate:</b> %{customdata:.1f}%<br>" +
+        "<extra></extra>",
+    customdata=image_data[image_data['has_multiple_errors']]['error_rate']
+))
+
+# Add scatter plot for images without multiple high errors
+image_flag_fig.add_trace(go.Scatter(
+    x=image_data[~image_data['has_multiple_errors']]['measurement_count'],
+    y=image_data[~image_data['has_multiple_errors']]['min_mpe'],
+    mode='markers',
+    marker=dict(
+        size=image_data[~image_data['has_multiple_errors']]['high_error_count'] * 5 + 5,
+        color='green',
+        opacity=0.7,
+        line=dict(width=1, color='black')
+    ),
+    name='No Multiple High Errors',
+    text=image_data[~image_data['has_multiple_errors']]['Label'],
+    hovertemplate=
+        "<b>Image:</b> %{text}<br>" +
+        "<b>Total Measurements:</b> %{x}<br>" +
+        "<b>Avg Error:</b> %{y:.1f}%<br>" +
+        "<b>High Error Count:</b> %{marker.size/5 - 1}<br>" +
+        "<b>Error Rate:</b> %{customdata:.1f}%<br>" +
+        "<extra></extra>",
+    customdata=image_data[~image_data['has_multiple_errors']]['error_rate']
+))
+
+# Add horizontal line at 10% error
+image_flag_fig.add_shape(
+    type='line',
+    x0=0, x1=image_data['measurement_count'].max() * 1.1,
+    y0=10, y1=10,
+    line=dict(color='red', dash='dash')
+)
+
+# Update layout
+image_flag_fig.update_layout(
+    title='Image Error Analysis: Average Error vs Number of Measurements',
+    xaxis_title='Number of Measurements in Image',
+    yaxis_title='Average Error Rate (%)',
+    height=600, width=900,
+    legend=dict(
+        yanchor="top",
+        y=0.99,
+        xanchor="right",
+        x=0.99
+    )
+)
+
+image_flag_fig.show()
+
+# Create a more direct scatter plot showing relationship between MPE and image error density
+# First, create a dictionary of image labels to high error counts
+image_to_error_count = df[df['min_mpe'] > 10].groupby('Label').size().to_dict()
+
+# Add a column for number of high errors in the same image
+df['same_image_error_count'] = df['Label'].map(image_to_error_count).fillna(0)
+# For each point, subtract 1 from count if the point itself has high error (to get count of OTHER errors)
+df['other_high_errors_in_image'] = df.apply(
+    lambda row: row['same_image_error_count'] - 1 if row['min_mpe'] > 10 else row['same_image_error_count'], 
+    axis=1
+)
+
+# Create error density (high errors per measurement) for each image
+total_measurements_per_image = df.groupby('Label').size().to_dict()
+df['image_measurement_count'] = df['Label'].map(total_measurements_per_image)
+df['image_error_density'] = df['same_image_error_count'] / df['image_measurement_count'] * 100
+
+# Create scatter plot
+error_density_fig = go.Figure()
+
+# Add separate traces for high error and normal measurements
+error_density_fig.add_trace(go.Scatter(
+    x=df['other_high_errors_in_image'],
+    y=df['min_mpe'],
+    mode='markers',
+    marker=dict(
+        size=10,
+        color=df['image_error_density'],
+        colorscale='Viridis',
+        colorbar=dict(title='Error Density (%)'),
+        opacity=0.7,
+        line=dict(width=1, color='black')
+    ),
+    text=df['Label'],
+    hovertemplate=
+        "<b>ID:</b> %{customdata[0]}<br>" +
+        "<b>Image:</b> %{text}<br>" +
+        "<b>Error:</b> %{y:.1f}%<br>" +
+        "<b>Other High Errors:</b> %{x}<br>" + 
+        "<b>Total Measurements:</b> %{customdata[1]}<br>" +
+        "<b>Error Density:</b> %{marker.color:.1f}%<br>" +
+        "<extra></extra>",
+    customdata=df[['PrawnID', 'image_measurement_count']].values
+))
+
+# Add horizontal line at 10% error
+error_density_fig.add_shape(
+    type='line',
+    x0=-0.5, x1=df['other_high_errors_in_image'].max() + 0.5,
+    y0=10, y1=10,
+    line=dict(color='red', dash='dash')
+)
+
+# Add a vertical line at x=0 to separate points with no other high errors
+error_density_fig.add_shape(
+    type='line',
+    x0=0, x1=0,
+    y0=0, y1=df['min_mpe'].max() * 1.1,
+    line=dict(color='gray', dash='dash')
+)
+
+# Update layout
+error_density_fig.update_layout(
+    title='Measurement Error vs Number of Other High Errors in Same Image',
+    xaxis_title='Number of Other High Errors in Same Image',
+    yaxis_title='Min MPE (%)',
+    height=600, width=900,
+    xaxis=dict(
+        tickmode='linear',
+        tick0=0,
+        dtick=1
+    )
+)
+
+error_density_fig.show()
+
+# Create categorical scatter plot - MPE vs categorical variables
+# Create category based on number of other high errors in the same image
+df['error_category'] = pd.cut(
+    df['other_high_errors_in_image'],
+    bins=[-1, 0, 1, 2, float('inf')],
+    labels=['0', '1', '2', '3+']
+)
+
+# Create the categorical scatter plot - REMOVING THIS TO FIX ERROR
+# cat_error_fig = go.Figure()
+# ... rest of cat_error_fig code ...
+
+# Create another categorical plot by pond type - REMOVING THIS TO FIX ERROR
+# pond_error_fig = go.Figure()
+# ... rest of pond_error_fig code ...
+
+# Create a simple correlation plot between MPE and multiple errors flag
+# Calculate the correlation coefficient
+correlation = df['min_mpe'].corr(df['flag_image_multiple_errors'])
+
+# Create a simplified x-axis (0 = no multiple errors, 1 = multiple errors)
+x_values = df['flag_image_multiple_errors'].astype(int)
+
+# Create figure
+corr_fig = go.Figure()
+
+# Add scatter plot
+corr_fig.add_trace(go.Scatter(
+    x=x_values,
+    y=df['min_mpe'],
+    mode='markers',
+    marker=dict(
+        size=8,
+        opacity=0.7,
+        color=df['min_mpe'],
+        colorscale='Viridis',
+        colorbar=dict(title='Min MPE (%)'),
+    ),
+    text=df['Label'],
+    hovertemplate=
+        "<b>ID:</b> %{customdata[0]}<br>" +
+        "<b>Image:</b> %{text}<br>" +
+        "<b>Error:</b> %{y:.1f}%<br>" +
+        "<b>Multiple Errors in Image:</b> %{x}<br>" +
+        "<extra></extra>",
+    customdata=df[['PrawnID']].values
+))
+
+# Add linear regression line
+x_range = [0, 1]
+slope, intercept = np.polyfit(x_values, df['min_mpe'], 1)
+corr_fig.add_trace(go.Scatter(
+    x=x_range,
+    y=[intercept + slope * x for x in x_range],
+    mode='lines',
+    line=dict(color='red', width=2, dash='dash'),
+    name=f'Correlation: {correlation:.3f}'
+))
+
+# Add horizontal line at 10% error
+corr_fig.add_shape(
+    type='line',
+    x0=-0.1, x1=1.1,
+    y0=10, y1=10,
+    line=dict(color='red', dash='dot')
+)
+
+# Calculate mean for each group
+mean_no_multiple = df[~df['flag_image_multiple_errors']]['min_mpe'].mean()
+mean_with_multiple = df[df['flag_image_multiple_errors']]['min_mpe'].mean()
+
+# Add text annotations for means
+corr_fig.add_annotation(
+    x=0,
+    y=mean_no_multiple,
+    text=f"Mean: {mean_no_multiple:.1f}%",
+    showarrow=True,
+    arrowhead=1,
+    ax=40,
+    ay=0
+)
+
+corr_fig.add_annotation(
+    x=1,
+    y=mean_with_multiple,
+    text=f"Mean: {mean_with_multiple:.1f}%",
+    showarrow=True,
+    arrowhead=1,
+    ax=-40,
+    ay=0
+)
+
+# Update layout
+corr_fig.update_layout(
+    title=f'Correlation Between MPE and 100% Error Rate Images (r = {correlation:.3f})',
+    xaxis_title='100% Error Rate Image (0=No, 1=Yes)',
+    yaxis_title='Min MPE (%)',
+    height=500, width=800,
+    xaxis=dict(
+        tickmode='array',
+        tickvals=[0, 1],
+        ticktext=['No 100% Error Rate', '100% Error Rate']
+    )
+)
+
+corr_fig.show()
+
+# Now analyze if measurements with the new flag (100% Error Rate) are more likely to have high errors
+mean_no_multiple = df[~df['flag_image_multiple_errors']]['min_mpe'].mean()
+mean_with_multiple = df[df['flag_image_multiple_errors']]['min_mpe'].mean()
+
+# Print statistics
+print(f"\nMean MPE for measurements from 100% error rate images: {mean_with_multiple:.2f}%")
+print(f"Mean MPE for other measurements: {mean_no_multiple:.2f}%")
+
+# Create a comprehensive box plot showing all error flag types
+all_flags_fig = go.Figure()
+
+# Define all the flag columns and nice display names
+flag_columns = [
+    'flag_high_gt_diff',
+    'flag_high_pred_diff',
+    'flag_low_pose_eval',
+    'flag_pred_gt_diff',
+    'flag_image_multiple_errors'
+]
+
+flag_names = [
+    'GT-Expert pixel  diff >10%',
+    'Prediction-Expert pixel diff >10%',
+    'Pose error >15%',
+    'Prediction-GT pixel diff >10%',
+    '100% Error Rate Image'
+]
+
+descriptive_tooltips = [
+    'High difference between ground truth and expert measurements (>10% of size)',
+    'High difference between prediction and expert measurements (>10% of size)',
+    'Low pose evaluation score indicating poor keypoint detection (<0.85)',
+    'High difference between ground truth and prediction (>10% of size)',
+    'Image contains multiple measurements with high errors'
+]
+
+colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6']
+
+# Add a box plot for each flag (True and False values)
+for i, (flag_col, flag_name, tooltip) in enumerate(zip(flag_columns, flag_names, descriptive_tooltips)):
+    # Add box plot for when flag is True
+    all_flags_fig.add_trace(go.Box(
+        y=df[df[flag_col]]['min_mpe'],
+        name=flag_name + ' (Yes)',
+        boxmean=True,
+        marker_color=colors[i],
+        boxpoints='all',
+        jitter=0.3,
+        pointpos=-1.5,
+        hovertemplate=
+            f"<b>{flag_name}</b><br>" +
+            f"<i>{tooltip}</i><br>" +
+            "<b>ID:</b> %{customdata[0]}<br>" +
+            "<b>Image:</b> %{customdata[1]}<br>" +
+            "<b>Error:</b> %{y:.1f}%<br>" +
+            "<b>GT Diff:</b> %{customdata[2]:.1f}px<br>" +
+            "<extra></extra>",
+        customdata=df[df[flag_col]][['PrawnID', 'Label', 'min_gt_diff']].values
+    ))
+    
+    # Add box plot for when flag is False
+    all_flags_fig.add_trace(go.Box(
+        y=df[~df[flag_col]]['min_mpe'],
+        name=flag_name + ' (No)',
+        boxmean=True,
+        marker_color=colors[i],
+        opacity=0.5,
+        boxpoints=False,  # Don't show individual points for False values (cleaner)
+        hovertemplate=
+            f"<b>{flag_name} (Absent)</b><br>" +
+            f"<i>{tooltip}</i><br>" +
+            "<b>Mean:</b> %{mean:.1f}%<br>" +
+            "<b>Median:</b> %{median:.1f}%<br>" +
+            "<extra></extra>"
+    ))
+
+# Add horizontal line at 10% error
+all_flags_fig.add_shape(
+    type='line',
+    x0=-0.5, x1=len(flag_columns)*2 - 0.5,
+    y0=10, y1=10,
+    line=dict(color='red', dash='dash')
+)
+
+# Update layout with wider boxes
+all_flags_fig.update_layout(
+    title='Error Distribution by Flag Type',
+    yaxis_title='Min MPE (%)',
+    height=700, width=1200,
+    boxmode='group',
+    yaxis=dict(
+        range=[0, max(50, df['min_mpe'].max() * 1.1)]
+    ),
+    # Increase box width by adjusting gaps
+    boxgroupgap=0.2,  # Gap between different flag types (smaller = more space for boxes)
+    boxgap=0.3,       # Gap between Yes/No boxes within a group (larger = wider boxes)
+    margin=dict(l=50, r=50, t=80, b=80)  # Add more margin for better visibility
+)
+
+# Update the individual traces to make them wider
+for i in range(len(all_flags_fig.data)):
+    all_flags_fig.data[i].update(
+        width=0.6,  # Explicitly set box width
+        quartilemethod="linear"  # This can make the boxes look more substantial
+    )
+
+all_flags_fig.show()
+
+# Add analysis to determine the primary cause of errors when multiple flags are present
+# First, calculate correlation between each flag and error percentage
+flag_correlations = []
+for flag_col in flag_columns:
+    correlation = df[flag_col].corr(df['min_mpe'])
+    flag_correlations.append(correlation)
+
+# Create a DataFrame to store flag correlations
+correlation_df = pd.DataFrame({
+    'Flag': flag_names,
+    'Correlation': flag_correlations
+})
+correlation_df = correlation_df.sort_values('Correlation', ascending=False)
+
+print("\nCorrelation between flags and error percentage:")
+for flag_col, flag_name in zip(
+    ['flag_low_pose_eval', 'flag_high_pred_diff', 'flag_pred_gt_diff', 'flag_image_multiple_errors', 'flag_high_gt_diff'],
+    ['Pose error >15%', 'Prediction-Expert pixel diff >10%', 'Prediction-GT pixel diff >10%', 'Multiple Errors in Same Image', 'GT-Expert pixel  diff >10%']
+):
+    correlation = df['min_mpe'].corr(df[flag_col])
+    print(f"{flag_name}: {correlation:.3f}")
+
+# Create a function to identify the most likely cause flag for each measurement
+def get_primary_flag(row):
+    if row['flag_count'] == 0:
+        return "No Flags"
+    
+    # Get all active flags and their correlations
+    active_flags = []
+    for flag_col, flag_name in zip(flag_columns, flag_names):
+        if row[flag_col]:
+            corr = correlation_df[correlation_df['Flag'] == flag_name]['Correlation'].values[0]
+            active_flags.append((flag_name, corr))
+    
+    # Sort by correlation strength
+    active_flags.sort(key=lambda x: x[1], reverse=True)
+    
+    return active_flags[0][0] if active_flags else "No Flags"
+
+# Add a column for primary cause
+df['primary_cause'] = df.apply(get_primary_flag, axis=1)
+
+# Create a visualization of error rates by primary cause
+primary_cause_fig = go.Figure()
+
+# Group data by primary cause
+for cause in df['primary_cause'].unique():
+    if cause == "No Flags":
+        continue  # Skip measurements with no flags
+        
+    cause_df = df[df['primary_cause'] == cause]
+    
+    primary_cause_fig.add_trace(go.Box(
+        y=cause_df['min_mpe'],
+        name=cause,
+        boxmean=True,
+        marker_color=colors[flag_names.index(cause) if cause in flag_names else -1],
+        boxpoints='all',
+        jitter=0.3,
+        pointpos=-1.5,
+        hovertemplate=
+            f"<b>Primary Cause: {cause}</b><br>" +
+            "<b>ID:</b> %{customdata[0]}<br>" +
+            "<b>Image:</b> %{customdata[1]}<br>" +
+            "<b>Error:</b> %{y:.1f}%<br>" +
+            "<b>Flag Count:</b> %{customdata[2]}<br>" +
+            "<extra></extra>",
+        customdata=cause_df[['PrawnID', 'Label', 'flag_count']].values
+    ))
+
+# Add horizontal line at 10% error
+primary_cause_fig.add_shape(
+    type='line',
+    x0=-0.5, x1=len(df['primary_cause'].unique()),
+    y0=10, y1=10,
+    line=dict(color='red', dash='dash')
+)
+
+# Update layout
+primary_cause_fig.update_layout(
+    title='Error Distribution by Primary Cause',
+    yaxis_title='Min MPE (%)',
+    height=600, width=1000,
+    boxmode='group',
+    yaxis=dict(
+        range=[0, max(50, df['min_mpe'].max() * 1.1)]
+    ),
+    margin=dict(l=50, r=50, t=80, b=120)  # Add more margin for better visibility
+)
+
+# Update the individual traces to make them wider
+for i in range(len(primary_cause_fig.data)):
+    primary_cause_fig.data[i].update(
+        width=0.6,  # Explicitly set box width
+        quartilemethod="linear"  # This can make the boxes look more substantial
+    )
+
+primary_cause_fig.show()
+
+# Also create a scatter plot to visualize measurements with multiple flags
+multi_flag_fig = px.scatter(
+    df[df['flag_count'] > 1],  # Only include measurements with multiple flags
+    x='flag_count',
+    y='min_mpe',
+    color='primary_cause',
+    size='min_gt_diff',  # Size points by ground truth difference
+    hover_data=['PrawnID', 'Label', 'primary_cause', 'flag_info'],
+    title='Measurements with Multiple Flags: Which Flag is Most Correlated with Errors?',
+    labels={
+        'flag_count': 'Number of Flags',
+        'min_mpe': 'Error (%)',
+        'primary_cause': 'Primary Cause',
+        'min_gt_diff': 'GT Diff (px)'
+    }
+)
+
+# Add horizontal line at 10% error
+multi_flag_fig.add_hline(y=10, line_dash="dash", line_color="red")
+
+# Update layout
+multi_flag_fig.update_layout(
+    height=600, width=1000
+)
+
+multi_flag_fig.show()
+
+# Create a new comprehensive box plot with mutually exclusive categories
+exclusive_flags_fig = go.Figure()
+
+# Set the priority order for exclusive category assignment
+priority_flags = [
+    'flag_low_pose_eval',
+    'flag_high_gt_diff',
+    'flag_pred_gt_diff',
+    'flag_high_pred_diff',
+    'flag_image_multiple_errors',
+]
+
+# Define labels for the priority flags
+priority_names = [
+    'Pose error >15%',
+    'GT-Expert pixel diff >3%',
+    'Prediction-GT pixel diff >3%',
+    'Prediction-Expert pixel diff >3%',
+    'Multiple Errors in Same Image',
+]
+
+priority_colors = ['#9b59b6', '#2ecc71', '#3498db', '#f39c12', '#e74c3c']
+
+# Define marker shapes for pond types
+pond_shapes = {
+    'circle_female': 'circle',
+    'circle_male': 'circle-open',
+    'square': 'square',
+}
+
+# Initialize a column to track if a measurement has been assigned
+df['assigned_category'] = None
+
+# Assign each measurement to exactly one category based on priority
+for flag_col, flag_name in zip(priority_flags, priority_names):
+    # Only consider measurements that have this flag and haven't been assigned yet
+    mask = (df[flag_col]) & (df['assigned_category'].isna())
+    df.loc[mask, 'assigned_category'] = flag_name
+
+# Create a category for measurements with no flags
+df.loc[df['assigned_category'].isna(), 'assigned_category'] = 'No Flags'
+
+# Add a box plot for each exclusive category
+categories = [cat for cat in priority_names] + ['No Flags']
+for i, category in enumerate(categories):
+    cat_df = df[df['assigned_category'] == category]
+    
+    if len(cat_df) > 0:  # Only add if there are measurements in this category
+        color = priority_colors[i] if i < len(priority_colors) else 'gray'
+        
+        # First add the calculated percentage columns to cat_df
+        cat_df = cat_df.copy()  # Create a copy to avoid SettingWithCopyWarning
+        cat_df['gt_diff_pct'] = cat_df['min_gt_diff'] / cat_df['best_length_pixels'] * 100
+        cat_df['pred_gt_diff_pct'] = cat_df['pred_pixel_gt_diff'] / cat_df['best_length_pixels'] * 100
+        cat_df['pred_diff_pct'] = cat_df['pred_pixels_diff'] / cat_df['best_length_pixels'] * 100
+        
+        # Group by pond type and add separate traces for each
+        for pond_type in sorted(cat_df['Pond_Type'].unique()):
+            pond_cat_df = cat_df[cat_df['Pond_Type'] == pond_type]
+            if len(pond_cat_df) == 0:
+                continue
+                
+            marker_symbol = pond_shapes.get(pond_type, 'circle')
+            
+            exclusive_flags_fig.add_trace(go.Box(
+                y=pond_cat_df['min_mpe'],
+                name=category,
+                boxmean=True,
+                marker_color=color,
+                boxpoints='all',
+                jitter=0.3,
+                pointpos=-1.5,
+                width=0.6,
+                quartilemethod="linear",
+                legendgroup=category,
+                showlegend=pond_type == sorted(cat_df['Pond_Type'].unique())[0],  # Only show in legend once per category
+                marker=dict(
+                    symbol=marker_symbol,
+                    line=dict(width=1, color='black'),
+                    size=8
+                ),
+                hovertemplate=
+                    f"<b>{category}</b><br>" +
+                    "<b>ID:</b> %{customdata[0]}<br>" +
+                    "<b>Image:</b> %{customdata[1]}<br>" +
+                    "<b>Pond Type:</b> " + pond_type + "<br>" +
+                    "<b>Error:</b> %{y:.1f}%<br>" +
+                    "<b>GT Diff:</b> %{customdata[2]:.1f}px (%{customdata[4]:.1f}%)<br>" +
+                    "<b>Pred-GT Diff:</b> %{customdata[5]:.1f}px (%{customdata[6]:.1f}%)<br>" +
+                    "<b>Pred Diff:</b> %{customdata[7]:.1f}px (%{customdata[8]:.1f}%)<br>" +
+                    "<b>Flag Count:</b> %{customdata[3]}<br>" +
+                    "<extra></extra>",
+                customdata=pond_cat_df[['PrawnID', 'Label', 'min_gt_diff', 'flag_count', 
+                                'gt_diff_pct', 'pred_pixel_gt_diff', 'pred_gt_diff_pct',
+                                'pred_pixels_diff', 'pred_diff_pct','Pond_Type']].values
+            ))
+
+# Add a horizontal line at 10% error
+exclusive_flags_fig.add_shape(
+    type="line",
+    x0=-0.5,
+    y0=10,
+    x1=len(categories) - 0.5,
+    y1=10,
+    line=dict(color="red", width=2, dash="dash"),
+)
+
+# Add box plot count to the box names
+for i, trace in enumerate(exclusive_flags_fig.data):
+    if hasattr(trace, 'name') and trace.name in categories:
+        category = trace.name
+        pond_type = "all"
+        if hasattr(trace, 'marker') and hasattr(trace.marker, 'symbol'):
+            for pt, symbol in pond_shapes.items():
+                if trace.marker.symbol == symbol:
+                    pond_type = pt
+                    break
+        
+        # Count points in this category and pond type
+        points_count = len(df[(df['assigned_category'] == category) & (df['Pond_Type'] == pond_type)])
+        trace.name = f"{category} (n={points_count})"
+
+# Update layout with added pond type legend
+exclusive_flags_fig.update_layout(
+    title="Error Distribution by Flag Type (Mutually Exclusive Categories)",
+    xaxis_title="Error Flag Category",
+    yaxis_title="Error (%)",
+    boxmode='group',
+    height=700,
+    width=1000,
+    margin=dict(l=50, r=50, t=80, b=80),
+    legend=dict(
+        title="Error Flag Categories",
+        yanchor="top",
+        y=0.99,
+        xanchor="left",
+        x=0.01
+    )
+)
+
+# Add a second legend for pond types
+pond_shapes_fig = go.Figure()
+for pond_type, marker_symbol in pond_shapes.items():
+    pond_shapes_fig.add_trace(go.Scatter(
+        x=[0], y=[0],
+        mode='markers',
+        marker=dict(symbol=marker_symbol, size=10),
+        name=pond_type,
+        showlegend=True
+    ))
+pond_shapes_fig.update_layout(
+    title="Pond Types",
+    showlegend=True
+)
+
+# Add counts to the box plot names
+for i, trace in enumerate(exclusive_flags_fig.data):
+    category = trace.name
+    count = len(df[df['assigned_category'] == category])
+    trace.name = f"{category} (n={count})"
+
+exclusive_flags_fig.show()
+
+# Focus on images with 100% error rate
+perfect_error_images = images_with_multiple_high_errors
+print("\n---------- IMAGES WITH MULTIPLE HIGH ERRORS ----------")
+print(f"Number of images with multiple high errors: {len(perfect_error_images)}")
+print("\nDetailed information about images with multiple high errors:")
+print("Image ID | High Error Count | Total Measurements | Error Rate (%)")
+print("-" * 65)
+
+for image in perfect_error_images:
+    high_error_count = high_error_counts_by_image[image]
+    total_count = len(df[df['Label'] == image])
+    error_rate = (high_error_count / total_count) * 100
+    print(f"{image} | {high_error_count} | {total_count} | {error_rate:.1f}%")
+
+# Get all measurements from these images
+perfect_error_df = df[df['Label'].isin(perfect_error_images)]
+
+# Analyze what other flags are present in these images
+flag_columns_display = ['flag_high_gt_diff', 'flag_high_pred_diff', 'flag_low_pose_eval', 'flag_pred_gt_diff']
+flag_names_display = [
+    'GT-Expert Diff >10%',
+    'Prediction-Expert Diff >10%',
+    'Pose Eval <0.85',
+    'GT-Prediction Diff >10%',
+    'Multiple Errors in Same Image'
+]
+
+print("\nFlag distribution in images with multiple high errors:")
+for flag_col, flag_name in zip(flag_columns_display, flag_names_display):
+    percentage = perfect_error_df[flag_col].mean() * 100
+    count = perfect_error_df[flag_col].sum()
+    total = len(perfect_error_df)
+    print(f"{flag_name}: {count}/{total} measurements ({percentage:.1f}%)")
+
+# Show the average MPE in these images
+print(f"\nAverage MPE in images with multiple high errors: {perfect_error_df['min_mpe'].mean():.2f}%")
+print(f"Min MPE: {perfect_error_df['min_mpe'].min():.2f}%, Max MPE: {perfect_error_df['min_mpe'].max():.2f}%")
+
+# Show the pond type distribution for these images
+pond_distribution = perfect_error_df['Pond_Type'].value_counts()
+print("\nPond type distribution in images with multiple high errors:")
+for pond_type, count in pond_distribution.items():
+    percentage = count / len(perfect_error_df) * 100
+    print(f"{pond_type}: {count} measurements ({percentage:.1f}%)")
+
+# Create a visual representation of perfect error images without using flag_info
+perfect_error_fig = px.scatter(
+    perfect_error_df,
+    x="min_gt_diff", 
+    y="min_mpe",
+    color="Pond_Type", 
+    symbol="Pond_Type",
+    size="flag_count",
+    hover_data=["PrawnID", "Label"],
+    title="Measurements from Images with Multiple High Errors",
+    labels={
+        "min_gt_diff": "Ground Truth Difference (px)",
+        "min_mpe": "Error (%)",
+        "flag_count": "Number of Flags"
+    }
+)
+
+# Add horizontal line at 10% error
+perfect_error_fig.add_hline(y=10, line_dash="dash", line_color="red")
+
+# Update layout
+perfect_error_fig.update_layout(height=600, width=900)
+perfect_error_fig.show()
+
+# ADDITIONAL ANALYSIS: Remove measurements above 10% MPE and recalculate metrics
+print("\n\n====================== FILTERED ANALYSIS ======================")
+print("Removing all measurements with MPE > 10% and recalculating metrics")
+
+# Create filtered dataset
+filtered_df = df[df['min_mpe'] <= 10]
+print(f"\nOriginal dataset: {len(df)} measurements")
+print(f"Filtered dataset: {len(filtered_df)} measurements")
+print(f"Removed: {len(df) - len(filtered_df)} measurements ({((len(df) - len(filtered_df)) / len(df) * 100):.1f}% of data)")
+
+# Calculate error metrics for both datasets
+print("\nError Metrics Comparison:")
+print("Metric | All Data | Filtered Data (<=10% MPE)")
+print("-" * 50)
+
+# Mean Percentage Error (MPE)
+mpe_all = df['min_mpe'].mean()
+mpe_filtered = filtered_df['min_mpe'].mean()
+print(f"Mean MPE | {mpe_all:.2f}% | {mpe_filtered:.2f}%")
+
+# Mean Absolute Error (MAE) in pixels
+# Calculate actual pixel error
+df['pixel_error'] = df['min_gt_diff']  # Ground truth difference in pixels
+filtered_df['pixel_error'] = filtered_df['min_gt_diff']  # Ground truth difference in pixels
+
+mae_px_all = df['pixel_error'].mean()
+mae_px_filtered = filtered_df['pixel_error'].mean()
+print(f"MAE (pixels) | {mae_px_all:.2f}px | {mae_px_filtered:.2f}px")
+
+# Calculate MAE as percentage of prawn size
+df['pixel_error_pct'] = df['pixel_error'] / df['best_length_pixels'] * 100
+filtered_df['pixel_error_pct'] = filtered_df['pixel_error'] / filtered_df['best_length_pixels'] * 100
+
+mae_pct_all = df['pixel_error_pct'].mean()
+mae_pct_filtered = filtered_df['pixel_error_pct'].mean()
+print(f"MAE (% of size) | {mae_pct_all:.2f}% | {mae_pct_filtered:.2f}%")
+
+# Flag distribution in filtered dataset
+print("\nFlag distribution in filtered dataset (≤10% MPE):")
+for flag_col, flag_name in zip(flag_columns_display, flag_names_display):
+    percentage = filtered_df[flag_col].mean() * 100
+    count = filtered_df[flag_col].sum()
+    total = len(filtered_df)
+    print(f"{flag_name}: {count}/{total} measurements ({percentage:.1f}%)")
+
+# Pond type distribution in filtered dataset
+print("\nPond type distribution in filtered dataset:")
+pond_filtered_distribution = filtered_df['Pond_Type'].value_counts()
+for pond_type, count in pond_filtered_distribution.items():
+    percentage = count / len(filtered_df) * 100
+    print(f"{pond_type}: {count} measurements ({percentage:.1f}%)")
+
+# Create a comparison visualization
+comparison_fig = px.histogram(
+    df, 
+    x="min_mpe",
+    color=df["min_mpe"] > 10,
+    barmode="overlay",
+    nbins=40,
+    opacity=0.7,
+    color_discrete_map={False: "green", True: "red"},
+    labels={"min_mpe": "Min MPE (%)", "color": "MPE > 10%"},
+    title="Distribution of Error Rates (Red = Removed in Filtered Analysis)"
+)
+
+# Add vertical line at 10%
+comparison_fig.add_vline(x=10, line_dash="dash", line_color="black")
+comparison_fig.update_layout(height=500, width=900)
+comparison_fig.show()
+
+# Calculate MAE - abs(Length_fov(mm) - best_length)
+mae_all = abs(df['Length_fov(mm)'] - df['best_length']).mean()
+mae_filtered = abs(filtered_df['Length_fov(mm)'] - filtered_df['best_length']).mean()
+print(f"MAE (mm) | {mae_all:.2f}mm | {mae_filtered:.2f}mm") 
