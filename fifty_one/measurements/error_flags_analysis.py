@@ -230,17 +230,32 @@ df['flag_count'] = df[['flag_high_gt_diff',  'flag_high_pred_diff', 'flag_low_po
 
 # Calculate images with multiple high errors (this is where we make the key change)
 # First count how many high errors per image
-high_error_counts_by_image = df[df['min_mpe'] > 10].groupby('Label').size()
-# Create a dictionary with image labels as keys and counts as values
-images_with_multiple_high_errors = high_error_counts_by_image[high_error_counts_by_image > 1].index.tolist()
-# Add the flag to dataframe - but we'll still name it "100% Error Rate Image" in displays
-df['flag_image_multiple_errors'] = df['Label'].isin(images_with_multiple_high_errors)
+# Get the complete list of image labels
+all_image_labels = df['Label'].unique()
 
-# Get images where all measurements have high errors
-image_100_error_rate = high_error_counts_by_image[(high_error_counts_by_image == high_error_counts_by_image)& (high_error_counts_by_image >1)].index.tolist()
+# Calculate total measurements per image
+total_measurements_by_image = df.groupby('Label').size()
 
+# Calculate high error counts per image
+high_error_df = df[df['min_mpe'] > 10]  # Filter for high errors
+high_error_counts_by_image = high_error_df.groupby('Label').size()
+
+# Reindex both Series to ensure they have the same index
+total_measurements_by_image = total_measurements_by_image.reindex(all_image_labels, fill_value=0)
+high_error_counts_by_image = high_error_counts_by_image.reindex(all_image_labels, fill_value=0)
+
+# Now they have the same index and can be compared safely
+image_100_error_rate = high_error_counts_by_image[
+    (high_error_counts_by_image == total_measurements_by_image) & 
+    (total_measurements_by_image > 1)
+].index.tolist()
+
+# Flag these images in the DataFrame
 df['flag_all_high_error_rate_image'] = df['Label'].isin(image_100_error_rate)
 
+images_with_multiple_high_errors = high_error_counts_by_image[high_error_counts_by_image > 1].index.tolist()
+
+df['flag_image_multiple_errors'] = df['Label'].isin(images_with_multiple_high_errors)
 
 
 # Add to flag count
