@@ -136,6 +136,7 @@ Key components:
     lambda row: row['best_length_pixels'] * row['pred_scale'] / row[f'Scale_{min_mpe_index[row.name]}'],
     axis=1
 )
+    
 
 # Calculate minimum error in pixels (absolute difference between expert and prediction)
     df['min_error_pixels'] = abs(df['expert_normalized_pixels'] - df['pred_Distance_pixels'])

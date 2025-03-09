@@ -6,6 +6,7 @@ import ast
 from tqdm import tqdm
 from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt, calculate_bbox_area
 import math
+import re
 
 
 """
@@ -223,7 +224,7 @@ def add_metadata(sample, filename, filtered_df, metadata_df, swimmingdf=None):
     """
 
     #undistorted_GX010073_55_1014.jpg_gamma
-    # print(filename)
+    print(filename)
     # Remove 'undistorted_' prefix if present
     if 'undistorted' in filename:
         filename = filename.replace('undistorted_', '')
@@ -266,62 +267,44 @@ def add_metadata_body(sample, filename, filtered_df, metadata_df, swimmingdf=Non
     """
     Add metadata from Excel file to FiftyOne sample and process detections.
 
-    This function:
-    1. Processes filename to match metadata format
-    2. Finds matching metadata in filtered_df and metadata_df
-    3. Adds camera parameters and setup information to sample
-    4. Triggers detection processing
-
     Args:
         sample (fo.Sample): FiftyOne sample to add metadata to
-        filename (str): Image filename (e.g., 'GX010152_36_378.jpg_gamma')
-        filtered_df (pd.DataFrame): DataFrame containing manual measurements and annotations
+        filename (str): Image filename
+        filtered_df (pd.DataFrame): DataFrame containing manual measurements
         metadata_df (pd.DataFrame): DataFrame containing camera setup parameters
         swimmingdf (pd.DataFrame, optional): Additional swimming data if available
+    # """
+    # print(f'filename {filename}')
+    # # Remove 'undistorted_' prefix if present
+    # if 'undistorted' in filename:
+    #     filename = filename.replace('undistorted_', '')
+    # filename=filename.split('.')[0]
+    # # Extract compatible filename parts
+    # compatible_file_name = filename.split('_')[0:3]
+    # # print(compatible_file_name)
+    # print(f'compatible_file_name {compatible_file_name}')
 
-    Example:
-        Input filename: 'undistorted_GX010152_36_378.jpg_gamma'
-        Compatible format: 'GX010152_36'
-        Metadata matching: Uses 'GX010152_36' to find camera height, FOV, etc.
 
-    Note:
-        - Handles 'undistorted_' prefix in filenames
-        - Splits filename to match metadata format
-        - Adds all metadata except 'file name' to sample
-        - Calls add_prawn_detections() for further processing
-    """
 
-    #undistorted_GX010073_55_1014.jpg_gamma
-    # print(filename)
-    # Remove 'undistorted_' prefix if present
-    if 'undistorted' in filename:
-        filename = filename.replace('undistorted_', '')
-    filename=filename.split('.')[0]
-    # Extract compatible filename parts
-    compatible_file_name = filename.split('_')[0:3]
-    # print(compatible_file_name)
-
+    identifier = extract_identifier(filename)
+    print(f'identifier {identifier}')
 
     # comp = compatible_file_name[1].split('-')[0]
     # compatible_file_name[2] = comp
 
     # print(f'compatible {compatible_file_name}')
 
-    # Find matching rows in filtered_df
-    matching_rows = filtered_df[filtered_df['Label'].str.contains('_'.join(compatible_file_name))]
-    if len(matching_rows) == 0:
-        print(f"No matching data found for {filename}")
+    matching_rows = pd.DataFrame()
+    for index, row in filtered_df.iterrows():
+        if identifier in str(row['Label']):
+            matching_rows = filtered_df.loc[filtered_df['Label'] == row['Label']]
+            break
+    if matching_rows.empty:
+        print(f'no matching rows found for {identifier}')
         return
     
     
-    filename = matching_rows['Label'].values[0].split(':')[1] 
-
-   
-
-    # Create metadata lookup key
-    joined_string = '_'.join([compatible_file_name[0], compatible_file_name[-1]])
-    relevant_part = joined_string 
-    
+    relevant_part =identifier.split('_')[0] + '_' + identifier.split('_')[-1]
     # Find and add metadata
     metadata_row = metadata_df[metadata_df['file_name_new'] == relevant_part]
     if not metadata_row.empty:
@@ -332,10 +315,16 @@ def add_metadata_body(sample, filename, filtered_df, metadata_df, swimmingdf=Non
     else:
         print(f"No metadata found for {relevant_part}")
     
-    # Process detections
-    # add_prawn_detections(sample, matching_rows, filtered_df, filename)
-
     
+    
+    for file in filtered_df['Label'].unique():
+        if identifier in file.split(':')[1]:
+            filename=file.split(':')[1]
+            break
+
+
+
+    # Process detections
     add_prawn_detections_body(sample, matching_rows, filtered_df, filename)
 
 def add_prawn_detections_body(sample, matching_rows, filtered_df, filename):
@@ -893,7 +882,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
         - filtered_df: Adds calculated measurements and errors
         - sample: Adds visualization tags based on error thresholds
     """
-    height_mm = sample['heigtht(mm)']
+    height_mm = sample['height(mm)']  # Fixed typo
     if sample.tags[0] == 'test-left' or sample.tags[0] == 'test-right':
         focal_length = 23.64
     else:
@@ -1091,7 +1080,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
 
 # No close match found
 
-def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset,pond_type):
+def process_images(image_paths, prediction_folder_path, ground_truth_paths_text, filtered_df, metadata_df, dataset,pond_type, measurement_type ):
     """
     Main pipeline for processing images and predictions.
 
@@ -1113,31 +1102,48 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
 
 
-        filename = os.path.splitext(os.path.basename(image_path))[0] 
+        
+        identifier = extract_identifier(image_path)
+        if not identifier:
+            print(f"Warning: Could not extract identifier from {image_path}")
+            continue
             
-            
+        #find the GX010179_200_3927 like pattern like in the filename
+
             
             # e.g., undistorted_GX010152_36_378.jpg_gamma
-        identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
+        # identifier = filename.replace('undistorted_', '').replace('.jpg_gamma', '')  # Extract the identifier from the filename
 
 
         # Construct the paths to the prediction and ground truth files
-        prediction_txt_path = os.path.join(prediction_folder_path, f"{filename}.txt")
+
+
+       #find the filename in the prediction_folder_path using the identifier
+
+       
+        # prediction_txt_path = os.path.join(prediction_folder_path, f"{identifier}.txt")
+
+        for pred_file in os.listdir(prediction_folder_path):
+            if identifier in pred_file:
+                prediction_txt_path = os.path.join(prediction_folder_path, pred_file)
+                break
+
+
 
         for gt_file in ground_truth_paths_text:
-            if filename in gt_file:
+            if identifier in gt_file:
                 ground_truth_txt_path = gt_file
                 break
 
         ground_truth_txt_path = None
         for gt_file in ground_truth_paths_text:
-            b= extract_identifier_from_gt(os.path.basename(gt_file))
+            b= extract_identifier((gt_file))
             if b == identifier:
                 ground_truth_txt_path = gt_file
 
                 break
         if ground_truth_txt_path is None:
-            print(f"No ground truth found for {filename}")
+            print(f"No ground truth found for {identifier}")
             continue
 
 
@@ -1159,16 +1165,24 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
         sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
 
         sample.tags.append(pond_type)
-        add_metadata_body(sample, filename, filtered_df, metadata_df)
+
+        if measurement_type == 'carapace':
+            add_metadata(sample, identifier, filtered_df, metadata_df)
+        else:
+            add_metadata_body(sample, identifier, filtered_df, metadata_df)
 
 
 
         dataset.add_sample(sample)
-
+    if measurement_type == 'carapace':  
+        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_carapace_Filtered_Data_with_real_length.xlsx' 
+    else:
         output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_full_body_Filtered_Data_with_real_length.xlsx' 
 
         # print(filtered_df.columns) # Change this path accordingly
-        filtered_df.to_excel(output_file_path, index=False)
+    filtered_df.to_excel(output_file_path, index=False)
+
+    return filtered_df
 
 
 
@@ -1180,6 +1194,10 @@ def process_images_body(image_paths, prediction_txt_path, ground_truth_paths_tex
 
         filename = os.path.basename(image_path)
         base_filename = os.path.splitext(filename)[0]
+        identifier = extract_identifier(filename)
+        if not identifier:
+            print(f"Warning: Could not extract identifier from {filename}")
+            continue
             
             
             # e.g., undistorted_GX010152_36_378.jpg_gamma
@@ -1231,6 +1249,16 @@ def process_images_body(image_paths, prediction_txt_path, ground_truth_paths_tex
         sample["keypoints_truth"] = fo.Keypoints(keypoints=keypoints_list_truth)
 
         sample.tags.append(pond_type)
+
+
+        for file in filtered_df['Label'].unique():
+            if identifier in file.split(':')[1]:
+                filename=file.split(':')[1]
+                break
+
+
+        print(f'this is the filename {filename}')
+
         add_metadata_body(sample, filename, filtered_df, metadata_df)
 
 
@@ -1261,7 +1289,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
         - sample: Adds visualization tags based on error thresholds
     """
     
-    height_mm = sample['heigtht(mm)']
+    height_mm = sample['height(mm)']  # Fixed typo
     if sample.tags[0] == 'test-left' or sample.tags[0] == 'test-right':
         focal_length = 23.64
     else:
@@ -1325,7 +1353,8 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
 
 
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'focal_RealLength(cm)'] = focal_real_length_cm
-
+    
+    print(f'{filename}  {prawn_id} ')
     
     min_true_length= min(abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_1'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_2'].values[0]),abs(filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_3'].values[0]))
 
@@ -1457,3 +1486,18 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
         if "MPE_fov<5" not in sample.tags:
             sample.tags.append("MPE_fov<5")
     
+
+def extract_identifier(filename):
+    """
+    Extract identifier pattern like 'GX010179_200_3927' from filename.
+    
+    Args:
+        filename (str): The filename to process
+        
+    Returns:
+        str: The extracted identifier or None if not found
+    """
+    # Pattern matches: GX followed by digits, underscore, digits, underscore, digits
+    pattern = r'(GX\d+_\d+_\d+)'
+    match = re.search(pattern, filename)
+    return match.group(1) if match else None
