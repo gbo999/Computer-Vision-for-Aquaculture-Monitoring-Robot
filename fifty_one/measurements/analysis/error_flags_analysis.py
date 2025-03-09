@@ -306,133 +306,132 @@ Key components:
 
 
 
-# ----- VISUALIZATION SECTION -----
+# # ----- VISUALIZATION SECTION -----
 
-# ----- 1. Matplotlib/Seaborn Bar Chart -----
+# # ----- 1. Matplotlib/Seaborn Bar Chart -----
 
-    """
-This visualization creates a conditional bar chart comparing error rates
-when flags are present vs. absent. It helps understand the impact of
-each flag on error rates.
-"""
-# Create visualization: Conditional bar chart showing percentage of high errors by flag
-    fig, ax = plt.subplots(figsize=(10, 6))  # Create figure and axes with specified size
+#     """
+# This visualization creates a conditional bar chart comparing error rates
+# when flags are present vs. absent. It helps understand the impact of
+# each flag on error rates.
+# """
+# # Create visualization: Conditional bar chart showing percentage of high errors by flag
+#     fig, ax = plt.subplots(figsize=(10, 6))  # Create figure and axes with specified size
 
-# For each flag, calculate percentage of high errors
-    flag_cols = ['flag_all_high_pixel_error', 'flag_all_high_gt_expert_error', 'flag_all_high_error_rate_image', 'flag_image_multiple_errors']
-    flag_labels = ['All High Pixel Error', 'All High GT-Expert Error', 'All High Error Rate Image', 'Multiple Errors in Image']
-    flag_true_error_pcts = []  # Will store error percentages when flag is True
-    flag_false_error_pcts = [] # Will store error percentages when flag is False
+# # For each flag, calculate percentage of high errors
+#     flag_cols = ['flag_all_high_pixel_error', 'flag_all_high_gt_expert_error', 'flag_all_high_error_rate_image', 'flag_image_multiple_errors']
+#     flag_labels = ['All High Pixel Error', 'All High GT-Expert Error', 'All High Error Rate Image', 'Multiple Errors in Image']
+#     flag_true_error_pcts = []  # Will store error percentages when flag is True
+#     flag_false_error_pcts = [] # Will store error percentages when flag is False
 
-    for flag in flag_cols:
-    # Calculate percentage of high errors when flag is True
-        if len(df[df[flag]]) > 0:
-            flag_true_error_pcts.append(df[df[flag]]['high_error'].mean() * 100)
-        else:
-            flag_true_error_pcts.append(0)
+#     for flag in flag_cols:
+#     # Calculate percentage of high errors when flag is True
+#         if len(df[df[flag]]) > 0:
+#             flag_true_error_pcts.append(df[df[flag]]['high_error'].mean() * 100)
+#         else:
+#             flag_true_error_pcts.append(0)
     
-    # Calculate percentage of high errors when flag is False
-        if len(df[~df[flag]]) > 0:
-            flag_false_error_pcts.append(df[~df[flag]]['high_error'].mean() * 100)
-        else:
-            flag_false_error_pcts.append(0)
+#     # Calculate percentage of high errors when flag is False
+#         if len(df[~df[flag]]) > 0:
+#             flag_false_error_pcts.append(df[~df[flag]]['high_error'].mean() * 100)
+#         else:
+#             flag_false_error_pcts.append(0)
 
-# Create bar chart with grouped bars
-    x = np.arange(len(flag_labels))  # Positions for the bars
-    width = 0.35  # Width of the bars
+# # Create bar chart with grouped bars
+#     x = np.arange(len(flag_labels))  # Positions for the bars
+#     width = 0.35  # Width of the bars
 
-# Create paired bars for each flag - one for when flag is present, one for when absent
-    ax.bar(x - width/2, flag_true_error_pcts, width, label='Flag Present', color='#e74c3c')
-    ax.bar(x + width/2, flag_false_error_pcts, width, label='Flag Absent', color='#2ecc71')
+# # Create paired bars for each flag - one for when flag is present, one for when absent
+#     ax.bar(x - width/2, flag_true_error_pcts, width, label='Flag Present', color='#e74c3c')
+#     ax.bar(x + width/2, flag_false_error_pcts, width, label='Flag Absent', color='#2ecc71')
 
-# Configure the axes and labels
-    ax.set_xticks(x)  # Set tick positions
-    ax.set_xticklabels(flag_labels)  # Set tick labels
-    ax.set_ylabel('Percentage of Measurements with Error >10%')  # Y-axis label
-    ax.set_title('Impact of Error Flags on High Error Rate')  # Plot title
-    ax.legend()  # Add legend for bar colors
+# # Configure the axes and labels
+#     ax.set_xticks(x)  # Set tick positions
+#     ax.set_xticklabels(flag_labels)  # Set tick labels
+#     ax.set_ylabel('Percentage of Measurements with Error >10%')  # Y-axis label
+#     ax.set_title('Impact of Error Flags on High Error Rate')  # Plot title
+#     ax.legend()  # Add legend for bar colors
 
-# Add a horizontal line for the overall error rate as reference
-    ax.axhline(y=high_error_pct, color='gray', linestyle='--', 
-           label=f'Overall Error Rate ({high_error_pct:.1f}%)')
-    ax.set_ylim(0, 100)  # Set y-axis range from 0 to 100%
+# # Add a horizontal line for the overall error rate as reference
+#     ax.axhline(y=high_error_pct, color='gray', linestyle='--', 
+#            label=f'Overall Error Rate ({high_error_pct:.1f}%)')
+#     ax.set_ylim(0, 100)  # Set y-axis range from 0 to 100%
 
-# Adjust layout and save/display the figure
-    plt.tight_layout()  # Adjust spacing to prevent clipping of labels
-    plt.savefig('error_flags_impact.png', dpi=300)  # Save as high-resolution PNG
-    plt.show()  # Display the plot
+# # Adjust layout and save/display the figure
+#     plt.tight_layout()  # Adjust spacing to prevent clipping of labels
+#     plt.savefig('error_flags_impact.png', dpi=300)  # Save as high-resolution PNG
+#     plt.show()  # Display the plot
 
-# ----- 2. Correlation Heatmap with Seaborn -----
+# # ----- 2. Correlation Heatmap with Seaborn -----
 
-    """
-This visualization creates a correlation matrix heatmap to show relationships
-between different flags and MPE. It helps identify which flags are most
-strongly associated with error.
-"""
-# Create a DataFrame for correlation analysis
-    corr_matrix = pd.DataFrame()
+#     """
+# This visualization creates a correlation matrix heatmap to show relationships
+# between different flags and MPE. It helps identify which flags are most
+# strongly associated with error.
+# """
+# # Create a DataFrame for correlation analysis
+#     corr_matrix = pd.DataFrame()
 
-# Define columns and labels for the enhanced correlation matrix
+# # Define columns and labels for the enhanced correlation matrix
+#     
+
+
+# # Add flag columns (binary variables) to correlation matrix
+#     for i, flag_col in enumerate(flag_columns):
+#         corr_matrix[flag_labels[i]] = df[flag_col].astype(float)
+
+# # Add MPE as a continuous variable
+#     corr_matrix['MPE'] = df['min_mpe']
+
+# # Calculate correlation matrix
+#     correlation_matrix = corr_matrix.corr()
+
+# # Plot the enhanced correlation heatmap
+#     plt.figure(figsize=(10, 8))  # Create figure with specified size
+# # Create heatmap with annotations, coolwarm colormap, and value range from -1 to 1
+#     sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', vmin=-1, vmax=1)
+#     plt.title('Correlation Matrix: Error Flags and MPE')  # Add title
+#     plt.tight_layout()  # Adjust spacing
+#     plt.show()  # Display the plot
+
+# # ----- 3. Flag Co-occurrence Heatmap with Seaborn -----
+
+#     """
+# This visualization creates a heatmap showing co-occurrence of flags.
+# The diagonal shows the percentage of measurements with each flag,
+# while off-diagonal cells show the percentage of measurements with one flag
+# that also have another flag.
+# """
+# # Original heatmap showing co-occurrence of flags
+#     heatmap_data = pd.DataFrame(index=flag_labels, columns=flag_labels)
+
+# # Populate the heatmap data
+#     for i, flag1 in enumerate(flag_columns):
+#         for j, flag2 in enumerate(flag_columns):
+#             if i == j:
+#             # Diagonal: Percentage of measurements with this flag
+#                 heatmap_data.iloc[i, j] = df[flag1].mean() * 100  
+#             else:
+#             # Off-diagonal: Percentage of measurements with flag1 that also have flag2
+#                 if df[flag1].sum() > 0:
+#                     heatmap_data.iloc[i, j] = df[df[flag1]][flag2].astype(float).mean() * 100
+#                 else:
+#                     heatmap_data.iloc[i, j] = 0.0
+
+# # Convert to float to ensure compatibility with heatmap
+#     heatmap_data = heatmap_data.astype(float)
+
+# # Create the heatmap
+#     plt.figure(figsize=(10, 8))  # Create figure with specified size
+# # Create heatmap with annotations, YlOrRd colormap, and percentage range from 0 to 100
+#     sns.heatmap(heatmap_data, annot=True, cmap='YlOrRd', fmt='.1f', vmin=0, vmax=100)
+#     plt.title('Flag Co-occurrence (%)')  # Add title
+#     plt.tight_layout()  # Adjust spacing
+#     plt.show()  # Display the plot
+
     flag_columns = ['flag_all_high_pixel_error', 'flag_all_high_gt_expert_error', 
-                    'flag_all_high_error_rate_image', 'flag_image_multiple_errors','high_error']
-    flag_labels = ['All High Pixel Error', 'All High GT-Expert Error', 
-               'All High Error Rate Image', 'Multiple Errors in Image','High Error']
-
-
-# Add flag columns (binary variables) to correlation matrix
-    for i, flag_col in enumerate(flag_columns):
-        corr_matrix[flag_labels[i]] = df[flag_col].astype(float)
-
-# Add MPE as a continuous variable
-    corr_matrix['MPE'] = df['min_mpe']
-
-# Calculate correlation matrix
-    correlation_matrix = corr_matrix.corr()
-
-# Plot the enhanced correlation heatmap
-    plt.figure(figsize=(10, 8))  # Create figure with specified size
-# Create heatmap with annotations, coolwarm colormap, and value range from -1 to 1
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f', vmin=-1, vmax=1)
-    plt.title('Correlation Matrix: Error Flags and MPE')  # Add title
-    plt.tight_layout()  # Adjust spacing
-    plt.show()  # Display the plot
-
-# ----- 3. Flag Co-occurrence Heatmap with Seaborn -----
-
-    """
-This visualization creates a heatmap showing co-occurrence of flags.
-The diagonal shows the percentage of measurements with each flag,
-while off-diagonal cells show the percentage of measurements with one flag
-that also have another flag.
-"""
-# Original heatmap showing co-occurrence of flags
-    heatmap_data = pd.DataFrame(index=flag_labels, columns=flag_labels)
-
-# Populate the heatmap data
-    for i, flag1 in enumerate(flag_columns):
-        for j, flag2 in enumerate(flag_columns):
-            if i == j:
-            # Diagonal: Percentage of measurements with this flag
-                heatmap_data.iloc[i, j] = df[flag1].mean() * 100  
-            else:
-            # Off-diagonal: Percentage of measurements with flag1 that also have flag2
-                if df[flag1].sum() > 0:
-                    heatmap_data.iloc[i, j] = df[df[flag1]][flag2].astype(float).mean() * 100
-                else:
-                    heatmap_data.iloc[i, j] = 0.0
-
-# Convert to float to ensure compatibility with heatmap
-    heatmap_data = heatmap_data.astype(float)
-
-# Create the heatmap
-    plt.figure(figsize=(10, 8))  # Create figure with specified size
-# Create heatmap with annotations, YlOrRd colormap, and percentage range from 0 to 100
-    sns.heatmap(heatmap_data, annot=True, cmap='YlOrRd', fmt='.1f', vmin=0, vmax=100)
-    plt.title('Flag Co-occurrence (%)')  # Add title
-    plt.tight_layout()  # Adjust spacing
-    plt.show()  # Display the plot
-
-
+                        'flag_all_high_error_rate_image', 'flag_image_multiple_errors','high_error']
+    
 
 
 # Create a new comprehensive box plot with mutually exclusive categories
@@ -454,30 +453,33 @@ that also have another flag.
 # Now determine the primary flag based on the highest percentage
     def get_primary_flag_by_pct(row):
     # Check all other flags first to find the one with highest percentage value
-        if row['pose_pct'] > 15:
+        
+        if row['flag_all_high_gt_expert_error'] & row['high_error'] :
+            return 'All GT-Expert error >10%'
+        elif (row['pose_pct']> 15) & (row['high_error']):
             return 'Pose error >15%'
 
-        if row['flag_all_high_error_rate_image'] :
+        elif row['flag_pred_gt_diff'] & row['high_error']:
+            return 'Prediction-GT pixel diff >5%'
+
+        elif row['flag_all_high_pixel_error'] & row['high_error']:
+            return 'All High Pixel Error'
+  
+        elif row['flag_pred_gt_diff'] & row['high_error']:
+            return 'Prediction-GT pixel diff >5%'
+
+        elif row['flag_all_high_error_rate_image'] :
           print("All High error rate image")
           return 'All High error rate image'
     
-        if row['flag_all_high_gt_expert_error'] & row['high_error'] :
-            return 'All GT-Expert error >10%'
-
-        if row['flag_all_high_pixel_error'] & row['high_error']:
-            return 'All High Pixel Error'
-    
-  
-        if row['flag_pred_gt_diff'] & row['high_error']:
-            return 'Prediction-GT pixel diff >5%'
 
 
-    # Check for multiple errors last
-        if row['flag_image_multiple_errors'] :
+        elif row['flag_image_multiple_errors'] & row['high_error']:
             return 'Multiple Errors in Same Image'
     
     # If no flags at all
-        return 'No Flags'
+        else:
+            return 'No Flags'
 
 # Assign each measurement to exactly one category based on highest percentage
     df['assigned_category'] = df.apply(get_primary_flag_by_pct, axis=1)
@@ -516,39 +518,59 @@ that also have another flag.
     
         if len(cat_df) > 0:  # Only add if there are measurements in this category
             color = priority_colors[i] if i < len(priority_colors) else 'gray'
-        
-            exclusive_flags_fig.add_trace(go.Box(
-            y=cat_df['min_mpe'],
-            name=category,
-            boxmean=True,
-            marker_color=color,
-            boxpoints='all',
-            jitter=0.3,
-            pointpos=-1.5,
-            width=0.6,
-            quartilemethod="linear",
-            hovertemplate=
-                f"<b>{category}</b><br>" +
-                "<b>ID:</b> %{customdata[0]}<br>" +
-                "<b>Image:</b> %{customdata[1]}<br>" +
-                  "<b>Pond Type:</b> %{customdata[9]}<br>" +
-                "<b>Error:</b> %{y:.1f}%<br>" +
-                "<b>GT Diff:</b> %{customdata[2]:.1f}px (%{customdata[4]:.1f}%)<br>" +
-                "<b>Pred-GT Diff:</b> %{customdata[5]:.1f}px (%{customdata[6]:.1f}%)<br>" +
-                "<b>Pred Diff:</b> %{customdata[7]:.1f}px (%{customdata[8]:.1f}%)<br>" +
-                "<b>Flag Count:</b> %{customdata[3]}<br>" +
-                "<b>best pixels</b> %{customdata[10]:.1f}px<br>" +
-                "<b>pred pixels</b> %{customdata[11]:.1f}px<br>" +
-                "<b>pixel diff 1</b> %{customdata[12]:.1f}%<br>" +
-                "<b>pixel diff 2</b> %{customdata[13]:.1f}%<br>" +
-                "<b>pixel diff 3</b> %{customdata[14]:.1f}%<br>" +
-                "<b>gt expert diff 1</b> %{customdata[15]:.1f}%<br>" +
-                "<b>gt expert diff 2</b> %{customdata[16]:.1f}%<br>" +
-                "<b>gt expert diff 3</b> %{customdata[17]:.1f}%<br>" ,
-            customdata=cat_df[['PrawnID', 'Label', 'min_gt_diff', 'flag_count', 
-                              'gt_diff_pct', 'pred_pixel_gt_diff', 'pred_gt_diff_pct',
-                            'min_error_pixels', 'min_mape_pixels','Pond_Type','best_length_pixels','pred_Distance_pixels','pixel_diff_pct_1','pixel_diff_pct_2','pixel_diff_pct_3','gt_expert_diff_pct_1','gt_expert_diff_pct_2','gt_expert_diff_pct_3']].values
-        ))
+            
+            # Create separate traces for each pond type
+            for pond_type in cat_df['Pond_Type'].unique():
+                pond_df = cat_df[cat_df['Pond_Type'] == pond_type]
+                
+                # Define marker symbol based on pond type
+                symbol = ('circle' if pond_type == 'square' else 
+                         'square' if pond_type == 'circle_female' else 
+                         'diamond' if pond_type == 'circle_male' else 
+                         'cross')
+                
+                exclusive_flags_fig.add_trace(go.Box(
+                    y=pond_df['min_mpe'],
+                    name=category,
+                    boxmean=True,
+                    marker_color=color,
+                    boxpoints='all',
+                    jitter=0.3,
+                    pointpos=-1.5,
+                    width=0.6,
+                    quartilemethod="linear",
+                    marker=dict(
+                        symbol=symbol,
+                        size=8
+                    ),
+                    showlegend=True if pond_type == cat_df['Pond_Type'].iloc[0] else False,  # Show legend only once per category
+                    legendgroup=category,  # Group traces by category
+                    hovertemplate=
+                        f"<b>{category}</b><br>" +
+                        "<b>ID:</b> %{customdata[0]}<br>" +
+                        "<b>Image:</b> %{customdata[1]}<br>" +
+                        "<b>Pond Type:</b> %{customdata[9]}<br>" +
+                        "<b>Error:</b> %{y:.1f}%<br>" +
+                        "<b>GT Diff:</b> %{customdata[2]:.1f}px (%{customdata[4]:.1f}%)<br>" +
+                        "<b>Pred-GT Diff:</b> %{customdata[5]:.1f}px (%{customdata[6]:.1f}%)<br>" +
+                        "<b>Pred Diff:</b> %{customdata[7]:.1f}px (%{customdata[8]:.1f}%)<br>" +
+                        "<b>Flag Count:</b> %{customdata[3]}<br>" +
+                        "<b>best pixels</b> %{customdata[10]:.1f}px<br>" +
+                        "<b>pred pixels</b> %{customdata[11]:.1f}px<br>" +
+                        "<b>pixel diff 1</b> %{customdata[12]:.1f}%<br>" +
+                        "<b>pixel diff 2</b> %{customdata[13]:.1f}%<br>" +
+                        "<b>pixel diff 3</b> %{customdata[14]:.1f}%<br>" +
+                        "<b>gt expert diff 1</b> %{customdata[15]:.1f}%<br>" +
+                        "<b>gt expert diff 2</b> %{customdata[16]:.1f}%<br>" +
+                        "<b>gt expert diff 3</b> %{customdata[17]:.1f}%<br>" +
+                        "<b>pose error</b> %{customdata[18]:.1f}%<br>",
+                    customdata=pond_df[['PrawnID', 'Label', 'min_gt_diff', 'flag_count', 
+                                    'gt_diff_pct', 'pred_pixel_gt_diff', 'pred_gt_diff_pct',
+                                    'min_error_pixels', 'min_mape_pixels','Pond_Type','best_length_pixels',
+                                    'pred_Distance_pixels','pixel_diff_pct_1','pixel_diff_pct_2',
+                                    'pixel_diff_pct_3','gt_expert_diff_pct_1','gt_expert_diff_pct_2',
+                                    'gt_expert_diff_pct_3','pose_pct']].values
+                ))
 
 # Add horizontal line at 10% error
     exclusive_flags_fig.add_shape(
@@ -644,6 +666,29 @@ that also have another flag.
     total_with_flags = len(df[df['flag_count'] > 0])
     print("-" * 65)
     print(f"{'Total':<20} {total_without_flags:>15} {total_with_flags:>15} {len(df):>15}")
+
+
+    #count statistics for each flag and pond type using primary flag using the assigned category
+    for category in categories:
+        print(f"\n=== {category} Statistics ===")
+        print(f"{'Pond Type':<20} {'Count':>15}")
+        print("-" * 30)
+        
+        for pond_type in df['Pond_Type'].unique():
+            count = len(df[(df['Pond_Type'] == pond_type) & (df['assigned_category'] == category)])
+            print(f"{pond_type:<20} {count:>15}")
+
+        
+        
+        
+        
+    
+    
+
+
+
+
+
 
     return __name__
 
