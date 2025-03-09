@@ -75,31 +75,50 @@ Key components:
     'right': 'circle_female', # Rename 'right' to 'circle_female'
     'left': 'circle_male',    # Rename 'left' to 'circle_male'
 })
+    df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
 
 # ----- Error Calculation -----
+    df['annotation_length_1'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_1'] * 10
+    df['annotation_length_2'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_2'] * 10
+    df['annotation_length_3'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_3'] * 10
+
+
 
 # Calculate Mean Percentage Error (MPE) for each of the three length measurements
 # This compares each measurement against the field of view prediction length
     df['MPE_length1'] = abs(df['Length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_length2'] = abs(df['Length_2'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_length3'] = abs(df['Length_3'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
+    df['MPE_annotation_length_1'] = abs(df['annotation_length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
+    df['MPE_annotation_length_2'] = abs(df['annotation_length_2'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
+    df['MPE_annotation_length_3'] = abs(df['annotation_length_3'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['mae_length1'] = abs(df['Length_fov(mm)'] - df['Length_1'])
     df['mae_length2'] = abs(df['Length_fov(mm)'] - df['Length_2'])
     df['mae_length3'] = abs(df['Length_fov(mm)'] - df['Length_3'])
+    df['mae_annotation_length_1'] = abs(df['Length_fov(mm)'] - df['annotation_length_1'])
+    df['mae_annotation_length_2'] = abs(df['Length_fov(mm)'] - df['annotation_length_2'])
+    df['mae_annotation_length_3'] = abs(df['Length_fov(mm)'] - df['annotation_length_3'])
 # Determine the minimum MPE across all three measurements for each row
     # This represents the best-case error for each measurement
     if args.error_size == 'min':    
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].min(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].min(axis=1)
+        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].min(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].min(axis=1)
     elif args.error_size == 'median':
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].median(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].median(axis=1)
+        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].median(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].median(axis=1)
     elif args.error_size == 'mean':
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].mean(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].mean(axis=1)
+        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].mean(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].mean(axis=1)
     elif args.error_size == 'max':
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].max(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].max(axis=1)
+        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].max(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].max(axis=1)
+
+    #mean scale
+
+    #make annotation_length
+
+
+
 
 # ----- Best Length Determination -----
 
@@ -454,23 +473,29 @@ Key components:
     def get_primary_flag_by_pct(row):
     # Check all other flags first to find the one with highest percentage value
         
-        if row['flag_all_high_gt_expert_error'] & row['high_error'] :
-            return 'All GT-Expert error >10%'
-        elif (row['pose_pct']> 15) & (row['high_error']):
-            return 'Pose error >15%'
-
-        elif row['flag_pred_gt_diff'] & row['high_error']:
-            return 'Prediction-GT pixel diff >5%'
-
-        elif row['flag_all_high_pixel_error'] & row['high_error']:
-            return 'All High Pixel Error'
-  
-        elif row['flag_pred_gt_diff'] & row['high_error']:
-            return 'Prediction-GT pixel diff >5%'
-
+        if row['flag_pred_gt_diff'] & row['high_error']:
+            return 'Prediction-GT pixel diff >3%'
+        
         elif row['flag_all_high_error_rate_image'] :
           print("All High error rate image")
           return 'All High error rate image'
+        
+        
+        elif (row['pose_pct']> 15) & (row['high_error']):
+            return 'Pose error >15%'
+        
+        elif row['flag_all_high_pixel_error'] & row['high_error']:
+            return 'All High Pixel Error'
+        
+
+        elif row['flag_all_high_gt_expert_error'] & row['high_error'] :
+            return 'All GT-Expert error >10%'
+        
+
+  
+        
+
+        
     
 
 
@@ -621,15 +646,15 @@ Key components:
 
     """
 
-    mae_flags = df[df['flag_count'] == 0]['mae'].mean()
-    mape_flags = df[df['flag_count'] == 0]['min_mpe'].mean()
-    mae_by_pond_type = df[df['flag_count'] == 0].groupby('Pond_Type')['mae'].mean()
-    mape_by_pond_type = df[df['flag_count'] == 0].groupby('Pond_Type')['min_mpe'].mean()
+    mae_flags = df[df['assigned_category'] == 'No Flags']['mae'].mean()
+    mape_flags = df[df['assigned_category'] == 'No Flags']['min_mpe'].mean()
+    mae_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mae'].mean()
+    mape_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['min_mpe'].mean()
     
-    mae_with_flags = df[df['flag_count'] > 0]['mae'].mean()
-    mape_with_flags = df[df['flag_count'] > 0]['min_mpe'].mean()
-    mae_by_pond_type_with_flags = df[df['flag_count'] > 0].groupby('Pond_Type')['mae'].mean()
-    mape_by_pond_type_with_flags = df[df['flag_count'] > 0].groupby('Pond_Type')['min_mpe'].mean()
+    mae_with_flags = df[df['assigned_category'] != 'No Flags']['mae'].mean()
+    mape_with_flags = df[df['assigned_category'] != 'No Flags']['min_mpe'].mean()
+    mae_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mae'].mean()
+    mape_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['min_mpe'].mean()
 
     # Print overall statistics table
     print("\n=== Overall Statistics ===")
@@ -657,13 +682,13 @@ Key components:
     print(f"{'Pond Type':<20} {'Without Flags':>15} {'With Flags':>15} {'Total':>15}")
     print("-" * 65)
     for pond_type in df['Pond_Type'].unique():
-        without_flags = len(df[(df['Pond_Type'] == pond_type) & (df['flag_count'] == 0)])
-        with_flags = len(df[(df['Pond_Type'] == pond_type) & (df['flag_count'] > 0)])
+        without_flags = len(df[(df['Pond_Type'] == pond_type) & (df['assigned_category'] == 'No Flags')])
+        with_flags = len(df[(df['Pond_Type'] == pond_type) & (df['assigned_category'] != 'No Flags')])
         total = without_flags + with_flags
         print(f"{pond_type:<20} {without_flags:>15} {with_flags:>15} {total:>15}")
 
-    total_without_flags = len(df[df['flag_count'] == 0])
-    total_with_flags = len(df[df['flag_count'] > 0])
+    total_without_flags = len(df[df['assigned_category'] == 'No Flags'])
+    total_with_flags = len(df[df['assigned_category'] != 'No Flags'])
     print("-" * 65)
     print(f"{'Total':<20} {total_without_flags:>15} {total_with_flags:>15} {len(df):>15}")
 
