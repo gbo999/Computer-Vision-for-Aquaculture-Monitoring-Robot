@@ -64,7 +64,7 @@ def process_measurements(measurement_type, port, weights_type):
     
     # Load data and create dataset
     filtered_df, metadata_df = load_data_fn(filtered_data_path, metadata_path)
-    dataset = create_dataset_fn()
+    dataset = create_dataset_fn(measurement_type,weights_type)
     
     # Get paths for processing
     paths = get_paths(weights_type)
@@ -135,8 +135,20 @@ def process_measurements(measurement_type, port, weights_type):
     filtered_df.to_excel(output_file, index=False)
     print(f"Results saved to {output_file}")
 
+    dataset.persistent = True
+    dataset.save()
+
+    dataset.export(
+        export_dir=f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}",
+        dataset_type=fo.types.FiftyOneDataset,
+        export_media="copy"
+    )
+
     # Launch FiftyOne UI for visualization
     session = fo.launch_app(dataset, port=port)
+
+
+    
     return session
 
 def main():

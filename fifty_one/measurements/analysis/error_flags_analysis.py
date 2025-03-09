@@ -192,6 +192,15 @@ Key components:
     (df['pixel_diff_pct_3'] > pixel_pct_threshold)
 )
 
+#flag all smaller than 10%
+    df['flag_all_small_pixel_error'] = (
+    (df['pixel_diff_pct_1'] < pixel_pct_threshold) & 
+    (df['pixel_diff_pct_2'] < pixel_pct_threshold) & 
+    (df['pixel_diff_pct_3'] < pixel_pct_threshold)
+)
+
+
+
 # Calculate average pixel percentage error across all three measurements
     df['avg_pixel_error_pct'] = (df['pixel_diff_pct_1'] + df['pixel_diff_pct_2'] + df['pixel_diff_pct_3']) / 3
 
@@ -446,7 +455,7 @@ that also have another flag.
         if row['pose_pct'] > 15:
             return 'Pose error >15%'
 
-        if row['flag_all_high_error_rate_image']:
+        if row['flag_all_high_error_rate_image'] & row['flag_all_small_pixel_error']:
           print("All High error rate image")
           return 'All High error rate image'
     

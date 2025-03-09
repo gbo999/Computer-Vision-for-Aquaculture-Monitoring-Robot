@@ -105,8 +105,8 @@ def load_data_body(filtered_data_path, metadata_path):
     return filtered_df, metadata_df
 
 
-def create_dataset():
-    dataset = fo.Dataset("prawn_combined_dataset", overwrite=True, persistent=True)
+def create_dataset(measurement_type,weights_type):
+    dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
         labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
         edges=[
@@ -118,8 +118,8 @@ def create_dataset():
     return dataset
 
 
-def create_dataset_body():
-    dataset = fo.Dataset("prawn_combined_dataset_body", overwrite=True, persistent=True)
+def create_dataset_body(measurement_type,weights_type):
+    dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
         labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
         edges=[
