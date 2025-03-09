@@ -138,17 +138,18 @@ def process_measurements(measurement_type, port, weights_type):
     dataset.persistent = True
     dataset.save()
 
-    dataset.export(
-        export_dir=f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}",
-        dataset_type=fo.types.FiftyOneDataset,
-        export_media="copy"
-    )
+    if not os.path.exists(f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}"):
+        dataset.export(
+            export_dir=f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}",
+            dataset_type=fo.types.FiftyOneDataset,
+            export_media=True
+        )
 
     # Launch FiftyOne UI for visualization
     session = fo.launch_app(dataset, port=port)
 
 
-    
+
     return session
 
 def main():

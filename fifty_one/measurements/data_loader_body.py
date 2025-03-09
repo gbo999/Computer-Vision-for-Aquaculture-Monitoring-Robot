@@ -1,6 +1,6 @@
 from MEC import welzl
-from utils import calculate_euclidean_distance
-from utils import calculate_real_width, calculate_bbox_area
+from fifty_one.measurements.analysis.utils import calculate_euclidean_distance
+from fifty_one.measurements.analysis.utils import calculate_real_width, calculate_bbox_area
 import os
 import ast
 from tqdm import tqdm

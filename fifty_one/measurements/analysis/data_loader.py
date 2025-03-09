@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import ast
 from tqdm import tqdm
-from fifty_one.measurements.analysis.utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt, calculate_bbox_area
+from utils import parse_pose_estimation, calculate_euclidean_distance, calculate_real_width, extract_identifier_from_gt, calculate_bbox_area
 import math
 import re
 
@@ -106,6 +106,12 @@ def load_data_body(filtered_data_path, metadata_path):
 
 
 def create_dataset(measurement_type,weights_type):
+
+    #dataset exists
+    dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
+    if dataset:
+        return dataset
+    
     dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
         labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
@@ -119,6 +125,11 @@ def create_dataset(measurement_type,weights_type):
 
 
 def create_dataset_body(measurement_type,weights_type):
+    #dataset exists
+    dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
+    if dataset:
+        return dataset
+    
     dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
     dataset.default_skeleton = fo.KeypointSkeleton(
         labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order

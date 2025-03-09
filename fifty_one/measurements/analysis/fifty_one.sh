@@ -79,7 +79,7 @@ echo
 
 
 # Build the command
-CMD="python $PYTHON_SCRIPT --type $TYPE --weights_type $WEIGHTS_TYPE --error_size $ERROR_SIZE"
+CMD="python $PYTHON_SCRIPT --type $TYPE --weights_type $WEIGHTS_TYPE"
 
 # Show the command to be executed
 echo -e "\nThe following command will be executed:"

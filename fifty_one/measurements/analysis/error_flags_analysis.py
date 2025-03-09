@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.graph_objects as go
+import fiftyone as fo
+
 
 def calculate_mape(estimated_lengths, true_lengths):
     """
@@ -38,12 +40,6 @@ def main():
 
 
 
-
-
-
-
-
-
     """
 Error Flags Analysis Script
 --------------------------
@@ -63,7 +59,7 @@ Key components:
 # ----- Data Loading and Preprocessing -----
 
 # Load the dataset from Excel file
-    data_path = f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/updated_filtered_data_with_lengths_{args.type}-{args.weights_type}.xlsx'
+    data_path = f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/updated_filtered_data_with_lengths_{args.type}-{args.weights_type}.xlsx'
 
 
 
@@ -87,17 +83,23 @@ Key components:
     df['MPE_length1'] = abs(df['Length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_length2'] = abs(df['Length_2'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_length3'] = abs(df['Length_3'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
-
+    df['mae_length1'] = abs(df['Length_fov(mm)'] - df['Length_1'])
+    df['mae_length2'] = abs(df['Length_fov(mm)'] - df['Length_2'])
+    df['mae_length3'] = abs(df['Length_fov(mm)'] - df['Length_3'])
 # Determine the minimum MPE across all three measurements for each row
     # This represents the best-case error for each measurement
     if args.error_size == 'min':    
         df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].min(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].min(axis=1)
     elif args.error_size == 'median':
         df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].median(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].median(axis=1)
     elif args.error_size == 'mean':
         df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].mean(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].mean(axis=1)
     elif args.error_size == 'max':
         df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].max(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].max(axis=1)
 
 # ----- Best Length Determination -----
 
@@ -455,23 +457,23 @@ that also have another flag.
         if row['pose_pct'] > 15:
             return 'Pose error >15%'
 
-        if row['flag_all_high_error_rate_image'] & row['flag_all_small_pixel_error']:
+        if row['flag_all_high_error_rate_image'] :
           print("All High error rate image")
           return 'All High error rate image'
     
-        if row['flag_all_high_gt_expert_error']:
+        if row['flag_all_high_gt_expert_error'] & row['high_error'] :
             return 'All GT-Expert error >10%'
 
-        if row['flag_all_high_pixel_error']:
+        if row['flag_all_high_pixel_error'] & row['high_error']:
             return 'All High Pixel Error'
     
   
-        if row['flag_pred_gt_diff']:
+        if row['flag_pred_gt_diff'] & row['high_error']:
             return 'Prediction-GT pixel diff >5%'
 
 
     # Check for multiple errors last
-        if row['flag_image_multiple_errors']:
+        if row['flag_image_multiple_errors'] :
             return 'Multiple Errors in Same Image'
     
     # If no flags at all
@@ -575,6 +577,74 @@ that also have another flag.
         trace.name = f"{category} (n={count})"
 
     exclusive_flags_fig.show()
+
+    """
+    statistics:
+    -----------
+    mae: mean absolute error without flags
+    mae by pond type: mean absolute error by pond type without flags
+    mape: mean absolute percentage error without flags
+    mape by pond type: mean absolute percentage error by pond type without flags
+    mpe: mean percentage error without flags
+    mpe by pond type: mean percentage error by pond type without flags
+    rmse: root mean square error without flags
+    rmse by pond type: root mean square error by pond type without flags
+    r2: r-squared without flags
+
+    mae_flags: mean absolute error with flags
+    mape_flags: mean absolute percentage error with flags
+    mpe_flags: mean percentage error with flags
+    rmse_flags: root mean square error with flags
+    r2_flags: r-squared with flags
+
+    """
+
+    mae_flags = df[df['flag_count'] == 0]['mae'].mean()
+    mape_flags = df[df['flag_count'] == 0]['min_mpe'].mean()
+    mae_by_pond_type = df[df['flag_count'] == 0].groupby('Pond_Type')['mae'].mean()
+    mape_by_pond_type = df[df['flag_count'] == 0].groupby('Pond_Type')['min_mpe'].mean()
+    
+    mae_with_flags = df[df['flag_count'] > 0]['mae'].mean()
+    mape_with_flags = df[df['flag_count'] > 0]['min_mpe'].mean()
+    mae_by_pond_type_with_flags = df[df['flag_count'] > 0].groupby('Pond_Type')['mae'].mean()
+    mape_by_pond_type_with_flags = df[df['flag_count'] > 0].groupby('Pond_Type')['min_mpe'].mean()
+
+    # Print overall statistics table
+    print("\n=== Overall Statistics ===")
+    print(f"{'Metric':<30} {'Without Flags':>15} {'With Flags':>15}")
+    print("-" * 60)
+    print(f"{'MAE (Mean Absolute Error)':<30} {mae_flags:>15.2f} {mae_with_flags:>15.2f}")
+    print(f"{'MAPE (Mean Absolute % Error)':<30} {mape_flags:>15.2f} {mape_with_flags:>15.2f}")
+
+    # Print MAE by pond type table
+    print("\n=== MAE by Pond Type ===")
+    print(f"{'Pond Type':<20} {'Without Flags':>15} {'With Flags':>15}")
+    print("-" * 50)
+    for pond_type in mae_by_pond_type.index:
+        print(f"{pond_type:<20} {mae_by_pond_type[pond_type]:>15.2f} {mae_by_pond_type_with_flags[pond_type]:>15.2f}")
+
+    # Print MAPE by pond type table
+    print("\n=== MAPE by Pond Type ===")
+    print(f"{'Pond Type':<20} {'Without Flags':>15} {'With Flags':>15}")
+    print("-" * 50)
+    for pond_type in mape_by_pond_type.index:
+        print(f"{pond_type:<20} {mape_by_pond_type[pond_type]:>15.2f} {mape_by_pond_type_with_flags[pond_type]:>15.2f}")
+
+    # Print sample counts
+    print("\n=== Sample Counts ===")
+    print(f"{'Pond Type':<20} {'Without Flags':>15} {'With Flags':>15} {'Total':>15}")
+    print("-" * 65)
+    for pond_type in df['Pond_Type'].unique():
+        without_flags = len(df[(df['Pond_Type'] == pond_type) & (df['flag_count'] == 0)])
+        with_flags = len(df[(df['Pond_Type'] == pond_type) & (df['flag_count'] > 0)])
+        total = without_flags + with_flags
+        print(f"{pond_type:<20} {without_flags:>15} {with_flags:>15} {total:>15}")
+
+    total_without_flags = len(df[df['flag_count'] == 0])
+    total_with_flags = len(df[df['flag_count'] > 0])
+    print("-" * 65)
+    print(f"{'Total':<20} {total_without_flags:>15} {total_with_flags:>15} {len(df):>15}")
+
     return __name__
 
 
