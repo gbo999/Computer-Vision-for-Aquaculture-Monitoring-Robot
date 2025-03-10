@@ -646,22 +646,41 @@ Key components:
 
     """
 
-    mae_flags = df[df['assigned_category'] == 'No Flags']['mae'].mean()
-    mape_flags = df[df['assigned_category'] == 'No Flags']['min_mpe'].mean()
-    mae_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mae'].mean()
-    mape_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['min_mpe'].mean()
+    mae_flags = df[df['assigned_category'] == 'No Flags']['mae'].median()
+    mape_flags = df[df['assigned_category'] == 'No Flags']['min_mpe'].median()
+    mae_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mae'].median()
+    mape_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['min_mpe'].median()
     
-    mae_with_flags = df[df['assigned_category'] != 'No Flags']['mae'].mean()
-    mape_with_flags = df[df['assigned_category'] != 'No Flags']['min_mpe'].mean()
-    mae_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mae'].mean()
-    mape_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['min_mpe'].mean()
+    mae_with_flags = df[df['assigned_category'] != 'No Flags']['mae'].median()
+    mape_with_flags = df[df['assigned_category'] != 'No Flags']['min_mpe'].median()
+    mae_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mae'].median()
+    mape_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['min_mpe'].median()
 
-    # Print overall statistics table
+    # Print MAE and MPE by category
+    print("\n=== MAE and MPE by Category ===")
+    print(f"{'Category':<30} {'MAE Without Category':>25} {'MAE With Only Category':>25} {'MPE Without Category':>25} {'MPE With Only Category':>25}")
+    print("-" * 130)
+    for category in categories:
+        # Calculate MAE and MPE without the current category
+        mae_without_category = df[df['assigned_category'] != category]['mae'].median()
+        mape_without_category = df[df['assigned_category'] != category]['min_mpe'].median()
+        
+        # Calculate MAE and MPE with only the current category
+        mae_with_only_category = df[df['assigned_category'] == category]['mae'].median()
+        mape_with_only_category = df[df['assigned_category'] == category]['min_mpe'].median()
+        
+        print(f"{category:<30} {mae_without_category:>25.2f} {mae_with_only_category:>25.2f} {mape_without_category:>25.2f} {mape_with_only_category:>25.2f}")
+
+    # Existing overall statistics table
     print("\n=== Overall Statistics ===")
     print(f"{'Metric':<30} {'Without Flags':>15} {'With Flags':>15}")
     print("-" * 60)
     print(f"{'MAE (Mean Absolute Error)':<30} {mae_flags:>15.2f} {mae_with_flags:>15.2f}")
     print(f"{'MAPE (Mean Absolute % Error)':<30} {mape_flags:>15.2f} {mape_with_flags:>15.2f}")
+
+
+
+
 
     # Print MAE by pond type table
     print("\n=== MAE by Pond Type ===")

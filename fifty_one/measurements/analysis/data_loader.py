@@ -107,39 +107,70 @@ def load_data_body(filtered_data_path, metadata_path):
 
 def create_dataset(measurement_type,weights_type):
 
-    #dataset exists
-    dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
-    if dataset:
-        return dataset
-    
-    dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
-    dataset.default_skeleton = fo.KeypointSkeleton(
-        labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
-        edges=[
-            [0, 1],  # start_carapace to eyes
-            [1, 2],  # eyes to rostrum
-            [0, 3]   # start_carapace to tail
-        ]
-    )
-    return dataset
+    if not os.path.exists(f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}"):
+        print(f"Dataset {measurement_type}_{weights_type} does not exist")
+        dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
+        dataset.default_skeleton = fo.KeypointSkeleton(
+                labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
+                edges=[
+                    [0, 1],  # start_carapace to eyes
+                    [1, 2],  # eyes to rostrum
+                    [0, 3]   # start_carapace to tail
+                ]
+            )
+        return dataset,False
 
+    else:
+        try:
+            dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
+            if dataset:
+                print(f"Dataset {measurement_type}_{weights_type} exists")
+                return dataset,True
+        except:
+            print(f"Dataset {measurement_type}_{weights_type} does not exist")
+            dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
+            dataset.default_skeleton = fo.KeypointSkeleton(
+                    labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
+                    edges=[
+                        [0, 1],  # start_carapace to eyes
+                        [1, 2],  # eyes to rostrum
+                        [0, 3]   # start_carapace to tail
+                    ]
+                )
+            return dataset,False
+            
 
 def create_dataset_body(measurement_type,weights_type):
     #dataset exists
-    dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
-    if dataset:
-        return dataset
-    
-    dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
-    dataset.default_skeleton = fo.KeypointSkeleton(
-        labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
-        edges=[
-            [0, 1],  # start_carapace to eyes
-            [1, 2],  # eyes to rostrum
-            [0, 3]   # start_carapace to tail
-        ]
-    )
-    return dataset
+    if not os.path.exists(f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}"):
+        print(f"Dataset {measurement_type}_{weights_type} does not exist")
+        dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
+        dataset.default_skeleton = fo.KeypointSkeleton(
+                labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
+                edges=[
+                    [0, 1],  # start_carapace to eyes
+                    [1, 2],  # eyes to rostrum
+                    [0, 3]   # start_carapace to tail
+                ]
+            )
+        return dataset,False
+
+    try:
+        dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
+        if dataset:
+            print(f"Dataset {measurement_type}_{weights_type} exists")
+            return dataset,True
+    except:
+        dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
+        dataset.default_skeleton = fo.KeypointSkeleton(
+            labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
+            edges=[
+                [0, 1],  # start_carapace to eyes
+                [1, 2],  # eyes to rostrum
+                [0, 3]   # start_carapace to tail
+            ]
+        )
+        return dataset,False
 
 def process_poses(poses, is_ground_truth=False):
     """
@@ -1134,11 +1165,15 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
        
         # prediction_txt_path = os.path.join(prediction_folder_path, f"{identifier}.txt")
 
+
+        prediction_txt_path = None  
         for pred_file in os.listdir(prediction_folder_path):
             if identifier in pred_file:
                 prediction_txt_path = os.path.join(prediction_folder_path, pred_file)
                 break
-
+        if prediction_txt_path is None:
+            print(f"No prediction file found for {identifier}")
+            continue
 
 
         for gt_file in ground_truth_paths_text:

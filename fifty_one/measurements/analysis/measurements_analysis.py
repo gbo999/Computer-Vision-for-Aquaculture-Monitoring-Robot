@@ -7,6 +7,7 @@ import pandas as pd
 import sys
 from importlib import reload
 from data_loader import load_data, create_dataset, process_images, load_data_body, create_dataset_body
+import socket
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Prawn measurement validation using FiftyOne')
@@ -14,7 +15,7 @@ def parse_args():
                       help='Type of measurement to analyze')
     parser.add_argument('--weights_type', choices=['car', 'kalkar', 'all'], default='all',
                       help='Version of the prediction to use')
-    parser.add_argument('--port', type=int, default=5153,
+    parser.add_argument('--port', type=int, default=5159,
                       help='Port for FiftyOne visualization')
     return parser.parse_args()
 
@@ -64,7 +65,14 @@ def process_measurements(measurement_type, port, weights_type):
     
     # Load data and create dataset
     filtered_df, metadata_df = load_data_fn(filtered_data_path, metadata_path)
-    dataset = create_dataset_fn(measurement_type,weights_type)
+
+    # check if the dataset exists
+    dataset,dataset_exists = create_dataset_fn(measurement_type,weights_type)
+    if dataset_exists:
+        print("Dataset already exists")
+        session = fo.launch_app(dataset, port=port)
+        session.wait()
+        return session
     
     # Get paths for processing
     paths = get_paths(weights_type)
@@ -151,9 +159,17 @@ def process_measurements(measurement_type, port, weights_type):
 
 
     return session
-
+def is_port_available(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) != 0
 def main():
     args = parse_args()
+    if is_port_available(args.port):
+        print(f"Port {args.port} is available")
+    else:
+        print(f"Port {args.port} is not available")
+        args.port += 1
+
     session = process_measurements(args.type, args.port, args.weights_type)
     
     # Keep the session alive until user interrupts
