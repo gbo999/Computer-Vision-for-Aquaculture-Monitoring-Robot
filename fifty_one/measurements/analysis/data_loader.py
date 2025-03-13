@@ -49,7 +49,7 @@ class ObjectLengthMeasurer:
         """
         Normalize the angle to [0°, 90°].
         """
-        if angle < -45:
+        if angle < 0:
             angle += 90
         return abs(angle)
 

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.graph_objects as go
 import fiftyone as fo
-
+import os
 
 def calculate_mape(estimated_lengths, true_lengths):
     """
@@ -75,43 +75,172 @@ Key components:
     'right': 'circle_female', # Rename 'right' to 'circle_female'
     'left': 'circle_male',    # Rename 'left' to 'circle_male'
 })
-    df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
+    
+
+    df['choice'] = f'{args.type}_{args.weights_type}_{args.error_size}'
+
+    df['median_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].median(axis=1)
+
+    df['Length_fov(mm)'] = df['Length_fov(mm)']
 
 # ----- Error Calculation -----
     df['annotation_length_1'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_1'] * 10
     df['annotation_length_2'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_2'] * 10
     df['annotation_length_3'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_3'] * 10
-
-
-
-# Calculate Mean Percentage Error (MPE) for each of the three length measurements
-# This compares each measurement against the field of view prediction length
     df['MPE_length1'] = abs(df['Length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_length2'] = abs(df['Length_2'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_length3'] = abs(df['Length_3'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_annotation_length_1'] = abs(df['annotation_length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_annotation_length_2'] = abs(df['annotation_length_2'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_annotation_length_3'] = abs(df['annotation_length_3'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
-    df['mae_length1'] = abs(df['Length_fov(mm)'] - df['Length_1'])
-    df['mae_length2'] = abs(df['Length_fov(mm)'] - df['Length_2'])
-    df['mae_length3'] = abs(df['Length_fov(mm)'] - df['Length_3'])
+
+    df['mae_length1'] = abs(df['Length_1']-df['Length_fov(mm)'])
+    df['mae_length2'] = abs(df['Length_2']-df['Length_fov(mm)'])
+    df['mae_length3'] = abs(df['Length_3']-df['Length_fov(mm)'])
+
+
+    df['mae_with_sign_1'] =  df['Length_1']- df['Length_fov(mm)'] 
+    df['mae_with_sign_2'] = df['Length_2']- df['Length_fov(mm)']
+    df['mae_with_sign_3'] = df['Length_3']- df['Length_fov(mm)']   
+
+    df['mpe_with_sign_1'] = (df['Length_1'] - df['Length_fov(mm)']) / df['Length_1'] * 100
+    df['mpe_with_sign_2'] = (df['Length_2'] - df['Length_fov(mm)']) / df['Length_2'] * 100
+    df['mpe_with_sign_3'] = (df['Length_3'] - df['Length_fov(mm)']) / df['Length_3'] * 100
+
+
+    df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].min(axis=1)
+    df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].min(axis=1)
+
+
+
+
     df['mae_annotation_length_1'] = abs(df['Length_fov(mm)'] - df['annotation_length_1'])
     df['mae_annotation_length_2'] = abs(df['Length_fov(mm)'] - df['annotation_length_2'])
     df['mae_annotation_length_3'] = abs(df['Length_fov(mm)'] - df['annotation_length_3'])
-# Determine the minimum MPE across all three measurements for each row
-    # This represents the best-case error for each measurement
-    if args.error_size == 'min':    
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].min(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].min(axis=1)
+    
+    df['mpe_with_annotation'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].min(axis=1)
+    df['mae_with_annotation'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].min(axis=1)
+    
+    
+    if  args.error_size == 'min':    
+
+   
+    # Determine the minimum MPE across all three measurements for each row
+    # This represents the best-case error for each measuremen
+        #with annotation
+        df[f'mpe_with_annotation'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].min(axis=1)
+        df['mae_with_annotation'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].min(axis=1)
+
+        #without annotation
+        df['mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].min(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].min(axis=1)
+
+        
+        df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].median(axis=1)
+        df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].median(axis=1)
+        
+        df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].min(axis=1)
+        df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].min(axis=1)
+        
+        df['accounting_length'] = df.apply(
+            lambda row: row['Length_1'] if row['mpe_with_sign_1'] == row['mpe'] else
+                        (row['Length_2'] if row['mpe_with_sign_2'] == row['mpe'] else row['mpe_with_sign_3']),
+            axis=1
+)   
+        df['mpe'] = df[['mpe_with_sign']]
+        df['mae'] = df[['mae_with_sign']]
+
+
     elif args.error_size == 'median':
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].median(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].median(axis=1)
+
+        df['median_annotation_length'] = df['Length_ground_truth_annotation_pixels'] / df['median_scale'] * 10
+
+        df['MPE_median_annotation_length'] = abs(df['median_annotation_length'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
+        df['mae_median_annotation_length'] = abs(df['median_annotation_length'] - df['Length_fov(mm)'])
+        df['mpe_with_annotation'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_median_annotation_length']].median(axis=1)
+        df['mae_with_annotation'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_median_annotation_length']].median(axis=1)
+
+        #without annotation
+        
+        
+        
+        df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].median(axis=1)
+        df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].median(axis=1)
+        
+        
+        
+        df['mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].median(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].median(axis=1)
+
+        df['mpe'] =df[['mpe_with_sign']]
+        df['mae'] =df[['mae_with_sign']]
+        
+    
+        df['accounting_length'] = df.apply(
+            lambda row: row['Length_1'] if row['mpe_with_sign_1'] == row['mpe_with_sign'] else
+                        (row['Length_2'] if row['mpe_with_sign_2'] == row['mpe_with_sign'] else row['Length_3']),
+            axis=1
+)
+
+        df['accounting_length_pixels'] = df.apply(
+            lambda row: row['Length_1_pixels'] if row['mpe_with_sign_1'] == row['mpe_with_sign'] else   
+                        (row['Length_2_pixels'] if row['mpe_with_sign_2'] == row['mpe_with_sign'] else row['Length_3_pixels']),
+            axis=1
+)
+        
+
+        df['accounting_scale'] = df.apply(
+            lambda row: row['Scale_1'] if row['mpe_with_sign_1'] == row['mpe_with_sign'] else
+                        (row['Scale_2'] if row['mpe_with_sign_2'] == row['mpe_with_sign'] else row['Scale_3']),
+            axis=1
+)
+
     elif args.error_size == 'mean':
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].mean(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].mean(axis=1)
+        df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
+        df['mean_annotation_length'] = df['Length_ground_truth_annotation_pixels'] / df['mean_scale'] * 10
+        df['MPE_mean_annotation_length'] = abs(df['mean_annotation_length'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
+        df['mae_mean_annotation_length'] = abs(df['mean_annotation_length'] - df['Length_fov(mm)'])
+        df['mpe_with_annotation'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_mean_annotation_length']].mean(axis=1)
+        df['mae_with_annotation'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_mean_annotation_length']].mean(axis=1)
+
+        #without annotation
+        df['mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].mean(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].mean(axis=1)
+
+
+        
+        df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].mean(axis=1)
+        df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].mean(axis=1)
+        
+        df['mpe'] = df[['mpe_with_sign']]
+        df['mae'] = df[['mae_with_sign']]   
+
+
+
     elif args.error_size == 'max':
-        df['min_mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].max(axis=1)
-        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].max(axis=1)
+
+        
+        #without annotation
+        df['mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].max(axis=1)
+        df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].max(axis=1)
+        
+        df['mpe_with_annotation'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].max(axis=1)
+        df['mae_with_annotation'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].max(axis=1)
+
+        df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].max(axis=1)
+        df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].max(axis=1)
+
+        df['accounting_length'] = df.apply(
+            lambda row: row['Length_1'] if row['mpe_with_sign_1'] == row['mpe'] else
+                        (row['Length_2'] if row['mpe_with_sign_2'] == row['mpe'] else row['mpe_with_sign_3']),
+            axis=1
+)
+        
+        df['mpe'] = df[['mpe_with_sign']]
+        df['mae'] = df[['mae_with_sign']]
+
+
+
 
     #mean scale
 
@@ -123,7 +252,7 @@ Key components:
 # ----- Best Length Determination -----
 
 # Create a mask identifying which length measurement gave the minimum MPE
-    min_mpe_mask = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].eq(df['min_mpe'], axis=0)
+    min_mpe_mask = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].eq(df['mpe'], axis=0)
 
 # Map column names to their corresponding indices for reference
     column_to_index = {
@@ -150,15 +279,32 @@ Key components:
 
 # Calculate prediction scale (pixels per mm)
     df['pred_scale'] = df['pred_Distance_pixels'] / df['Length_fov(mm)'] * 10
-
+    print(f"pred_scale: {df['pred_scale']}")
 # Normalize expert measurements to pixels for comparison with predictions
 # This converts the best expert measurement to the same pixel scale as predictions
     df['expert_normalized_pixels'] = df.apply(
     lambda row: row['best_length_pixels'] * row['pred_scale'] / row[f'Scale_{min_mpe_index[row.name]}'],
     axis=1
 )
-    
+    # df['flag_scale_error'] =(abs(df['pred_scale'] - df['Scale_1'])/df['Scale_1']*100 > 10) & (abs(df['pred_scale'] - df['Scale_2'])/df['Scale_2']*100 > 10 )& (abs(df['pred_scale'] - df['Scale_3'])/df['Scale_3']*100 > 10)
+   
+   
+   
+        #avg scale error
+    df['scale_error_1'] = (df['pred_scale'] - df['Scale_1'])/df['Scale_1']*100
+    df['scale_error_2'] = (df['pred_scale'] - df['Scale_2'])/df['Scale_2']*100
+    df['scale_error_3'] = (df['pred_scale'] - df['Scale_3'])/df['Scale_3']*100
 
+    df['avg_scale_error'] = df[['scale_error_1', 'scale_error_2', 'scale_error_3']].mean(axis=1)
+    df['flag_avg_scale_error'] = abs(df['avg_scale_error'])  > 15
+   
+   
+   
+   
+   
+   
+   
+    # df['flag_scale_error'] = abs(df['pred_scale'] - df['accounting_scale'])/df['accounting_scale']*100 > 10
 # Calculate minimum error in pixels (absolute difference between expert and prediction)
     df['min_error_pixels'] = abs(df['expert_normalized_pixels'] - df['pred_Distance_pixels'])
 
@@ -168,7 +314,8 @@ Key components:
 # ----- Flag High Errors -----
 
 # Create a flag for measurements with errors > 10%
-    df['high_error'] = df['min_mpe'] > 10
+    df['high_error'] = abs(df['mpe']) >10  
+
 
 # Calculate and display the percentage of measurements with high errors
     high_error_pct = df['high_error'].mean() * 100
@@ -180,7 +327,7 @@ Key components:
     df['pred_pixels_diff'] = abs(df['pred_Distance_pixels'] - df['expert_normalized_pixels'])
 
 # Calculate absolute pixel differences between ground truth annotation and prediction
-    df['pred_pixel_gt_diff'] = abs(df['Length_ground_truth_annotation_pixels'] - df['pred_Distance_pixels'])
+    df['pred_pixel_gt_diff'] = (df['Length_ground_truth_annotation_pixels'] - df['pred_Distance_pixels'])
 
 # Calculate absolute pixel differences for each expert measurement
     df['pixel_diff_1'] = abs(df['pred_Distance_pixels'] - df['Length_1_pixels']) 
@@ -195,9 +342,10 @@ Key components:
 # ----- Flagging Pixel Errors -----
 
 # Define threshold for high pixel percentage error
-    pixel_pct_threshold = 10  # 10% threshold
+    pixel_pct_threshold = 15  # 10% threshold
 
-# Flag when all three measurements exceed the threshold
+    # df['flag_accounting_pixel_error'] = abs(df['pred_Distance_pixels'] - df['accounting_length_pixels'])/df['Length_ground_truth_annotation_pixels']*100 > pixel_pct_threshold
+    # Flag when all three measurements exceed the threshold
 # This indicates consistent high error across all expert measurements
     df['flag_all_high_pixel_error'] = (
     (df['pixel_diff_pct_1'] > pixel_pct_threshold) & 
@@ -219,37 +367,55 @@ Key components:
     (df['pixel_diff_pct_2'] < pixel_pct_threshold) & 
     (df['pixel_diff_pct_3'] < pixel_pct_threshold)
 )
-
-
+    df['pixel_pct'] = df[['pixel_diff_pct_1', 'pixel_diff_pct_2', 'pixel_diff_pct_3']].median(axis=1)
+    if args.error_size == 'median':
+        df['pixel_pct'] = df[['pixel_diff_pct_1', 'pixel_diff_pct_2', 'pixel_diff_pct_3']].median(axis=1)
+    elif args.error_size == 'mean':
+        df['pixel_pct'] = df[['pixel_diff_pct_1', 'pixel_diff_pct_2', 'pixel_diff_pct_3']].mean(axis=1)
+    elif args.error_size == 'min':
+        df['pixel_pct'] = df[['pixel_diff_pct_1', 'pixel_diff_pct_2', 'pixel_diff_pct_3']].min(axis=1)
+    elif args.error_size == 'max':
+        df['pixel_pct'] = df[['pixel_diff_pct_1', 'pixel_diff_pct_2', 'pixel_diff_pct_3']].max(axis=1)
 
 # Calculate average pixel percentage error across all three measurements
     df['avg_pixel_error_pct'] = (df['pixel_diff_pct_1'] + df['pixel_diff_pct_2'] + df['pixel_diff_pct_3']) / 3
 
 # Flag high average pixel error
-    df['flag_high_avg_pixel_error'] = df['avg_pixel_error_pct'] > pixel_pct_threshold
+    df['flag_high_avg_pixel_error'] = abs(df['avg_pixel_error_pct'])  > pixel_pct_threshold
 
 # ----- GT-Expert Pixel Differences -----
 
 # Calculate absolute pixel differences between ground truth and each expert measurement
-    df['gt_expert_diff_1'] = abs(df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels'])
-    df['gt_expert_diff_2'] = abs(df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels'])
-    df['gt_expert_diff_3'] = abs(df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels'])
+    df['gt_expert_diff_1'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels'])
+    df['gt_expert_diff_2'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels'])
+    df['gt_expert_diff_3'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels'])
 
 # Calculate percentage differences relative to expert measurements
     df['gt_expert_diff_pct_1'] = df['gt_expert_diff_1'] / df['Length_1_pixels'] * 100
     df['gt_expert_diff_pct_2'] = df['gt_expert_diff_2'] / df['Length_2_pixels'] * 100
     df['gt_expert_diff_pct_3'] = df['gt_expert_diff_3'] / df['Length_3_pixels'] * 100
 
+    # df['flage_gt_expert_accounting_length_pixels'] = abs(df['Length_ground_truth_annotation_pixels'] - df['accounting_length_pixels'])/df['Length_ground_truth_annotation_pixels']*100 > 10
+
+
+
 # ----- Flagging GT-Expert Errors -----
 
 # Define threshold for high GT-Expert pixel percentage error
-    gt_expert_pct_threshold = 10  # 10% threshold
+    gt_expert_pct_threshold = 15  # 10% threshold
 
 # Flag when all three GT-Expert measurements exceed the threshold
     df['flag_all_high_gt_expert_error'] = (
     (df['gt_expert_diff_pct_1'] > gt_expert_pct_threshold) & 
     (df['gt_expert_diff_pct_2'] > gt_expert_pct_threshold) & 
     (df['gt_expert_diff_pct_3'] > gt_expert_pct_threshold)
+)
+    
+    #all smaller than 10%
+    df['flag_all_small_gt_expert_error'] = (
+    (df['gt_expert_diff_pct_1'] < gt_expert_pct_threshold) & 
+    (df['gt_expert_diff_pct_2'] < gt_expert_pct_threshold) & 
+    (df['gt_expert_diff_pct_3'] < gt_expert_pct_threshold)
 )
 
 # Flag when any GT-Expert measurement exceeds the threshold
@@ -265,7 +431,7 @@ Key components:
 ) / 3
 
 # Flag high average GT-Expert pixel error
-    df['flag_high_avg_gt_expert_error'] = df['avg_gt_expert_error_pct'] > gt_expert_pct_threshold
+    df['flag_high_avg_gt_expert_error'] = abs(df['avg_gt_expert_error_pct']) > gt_expert_pct_threshold
 
 # ----- Potential Error Source Flags -----
 
@@ -273,20 +439,19 @@ Key components:
 # 1. High pixel difference between ground truth and expert (normalized)
 
 # 2. High pixel difference between prediction and expert (percentage)
-    df['flag_high_pred_diff'] = df['min_mape_pixels'] > 3
 
 # 3. Low pose evaluation score (if available)
 # Check which pose evaluation column exists in the dataset
     if 'pose_eval' in df.columns:
-        df['flag_low_pose_eval'] = df['pose_eval'] < 0.85
+        df['flag_low_pose_eval'] = df['pose_eval'] < 0.75
     elif 'pose_eval_iou' in df.columns:
-        df['flag_low_pose_eval'] = df['pose_eval_iou'] < 0.85
+        df['flag_low_pose_eval'] = df['pose_eval_iou'] < 0.75
     else:
         df['flag_low_pose_eval'] = False
         print("Warning: No pose evaluation column found!")
 
 # 4. High pixel difference between prediction and ground truth annotation
-    df['flag_pred_gt_diff'] = df['pred_pixel_gt_diff']/df['Length_ground_truth_annotation_pixels']*100 > 5
+    df['flag_pred_gt_diff'] = abs(df['pred_pixel_gt_diff']/df['Length_ground_truth_annotation_pixels']*100) > 15
 
 # ----- Flag Count and Multiple Error Images -----
 
@@ -300,7 +465,7 @@ Key components:
     total_measurements_by_image = df.groupby('Label').size()
 
 # Count high error measurements per image
-    high_error_df = df[df['min_mpe'] > 10]  # Filter for high errors
+    high_error_df = df[abs(df['mpe']) >15]  # Filter for high errors
     high_error_counts_by_image = high_error_df.groupby('Label').size()
 
 # Reindex both Series to ensure they have the same index
@@ -400,7 +565,7 @@ Key components:
 #         corr_matrix[flag_labels[i]] = df[flag_col].astype(float)
 
 # # Add MPE as a continuous variable
-#     corr_matrix['MPE'] = df['min_mpe']
+#     corr_matrix['MPE'] = df['mpe']
 
 # # Calculate correlation matrix
 #     correlation_matrix = corr_matrix.corr()
@@ -459,7 +624,7 @@ Key components:
 # Define priorities based on percentage thresholds
 # New approach: Add columns with the actual percentage values for each flag
 
-    df['pred_gt_diff_pct'] = df['pred_pixel_gt_diff'] / df['pred_Distance_pixels'] * 100
+    df['pred_gt_diff_pct'] = (df['pred_pixel_gt_diff'] / df['pred_Distance_pixels'] * 100)
 
 # Set the pose value to a comparable scale (0-100)
     if 'pose_eval' in df.columns:
@@ -471,56 +636,70 @@ Key components:
 
 # Now determine the primary flag based on the highest percentage
     def get_primary_flag_by_pct(row):
-    # Check all other flags first to find the one with highest percentage value
-        
-        if row['flag_pred_gt_diff'] & row['high_error']:
-            return 'Prediction-GT pixel diff >3%'
-        
-        elif row['flag_all_high_error_rate_image'] :
-          print("All High error rate image")
-          return 'All High error rate image'
-        
-        
-        elif (row['pose_pct']> 15) & (row['high_error']):
-            return 'Pose error >15%'
-        
-        elif row['flag_all_high_pixel_error'] & row['high_error']:
-            return 'All High Pixel Error'
-        
-
-        elif row['flag_all_high_gt_expert_error'] & row['high_error'] :
-            return 'All GT-Expert error >10%'
-        
-
-  
-        
-
-        
-    
-
-
-        elif row['flag_image_multiple_errors'] & row['high_error']:
-            return 'Multiple Errors in Same Image'
-    
-    # If no flags at all
-        else:
+        # First check if we have any errors at all
+        if not row['high_error']:
             return 'No Flags'
+        elif row['flag_all_high_error_rate_image'] and row['flag_avg_scale_error']:
+            return 'All High error rate image and Scale error >15%'
+        elif row['flag_image_multiple_errors'] and row['flag_avg_scale_error']:
+            return 'Multiple Errors in Same Image and Scale error >15%'
+        
+        # Now we know high_error is True, so no need to check it again
+        elif row['flag_pred_gt_diff'] and row['flag_high_avg_gt_expert_error']:
+            return 'Prediction-GT pixel diff over 15% and GT-Expert pixel diff over >15%'
+        
+        elif row['flag_pred_gt_diff'] and not row['flag_high_avg_pixel_error']:
+            return 'Prediction-GT pixel diff over 10% and pred pixel error <15%'
+        elif row['flag_avg_scale_error']:
+            return 'Scale error >15%'
+        
+        
+        elif row['flag_pred_gt_diff']:
+            return 'Prediction-GT pixel diff over 15%'
+        # elif row['flag_high_avg_gt_expert_error'] and row['flag_avg_scale_error']:
+        #     return 'All GT-Expert error >10% and Scale error >10%'
+        elif row['flag_high_avg_gt_expert_error'] and row['flag_high_avg_pixel_error']:
+            return 'GT-Expert pixel diff over >15%'
+
+       
+        
+        
+    
+        elif row['flag_high_avg_pixel_error']:
+            return 'pred pixel error >15%'        
+        
+
+        elif row['pose_pct'] > 25:
+            return 'Pose error >25%'
+        
+       
+        else:   
+            return 'Unclassified Error'  # More descriptive than 'strange'
 
 # Assign each measurement to exactly one category based on highest percentage
     df['assigned_category'] = df.apply(get_primary_flag_by_pct, axis=1)
 
 # Create a category for measurements with no flags
-    df.loc[df['assigned_category'].isna(), 'assigned_category'] = 'No Flags'
+    # df.loc[df['assigned_category'].isna(), 'assigned_category'] = 'No Flags'
 
 # The order for visualization still needs to be defined
     priority_names = [
-    'Pose error >15%',
-    'All GT-Expert error >10%',
-    'All High Pixel Error',
-    'Prediction-GT pixel diff >3%',
-    'All High error rate image',
-    'Multiple Errors in Same Image',
+    'Prediction-GT pixel diff over 15%',
+    'Prediction-GT pixel diff over 15% and pred pixel error <15%',
+        'GT-Expert pixel diff over >15%',
+        'All GT-Expert error >15% and Scale error >15%',
+        'Prediction-GT pixel diff over 15% and GT-Expert pixel diff over >15%',
+        'pred pixel error >15%',
+        'Scale error >15%',
+        'Pose error >25%',
+        'All High error rate image and Scale error >15%',
+        'Multiple Errors in Same Image and Scale error >15%',
+        'Unclassified Error'
 ]
+    
+
+
+
 
 # Print some statistics about our prioritized assignments
     print("\nAssignments based on percentage values:")
@@ -529,7 +708,7 @@ Key components:
         print(f"{category}: {count} measurements")
 
 # Store colors for visualization
-    priority_colors = ['#9b59b6', '#2ecc71', '#f39c12', '#3498db', '#e74c3c']
+    priority_colors = ['#9b59b6', '#2ecc71', '#f39c12', '#3498db', '#e74c3c', '#c0392b', '#8e44ad', '#27ae60', '#f1c40f', '#e67e22', '#34495e']
     df['flag_count'] = 0
     for flag in flag_columns:
         df['flag_count'] += df[flag].astype(int) 
@@ -555,7 +734,7 @@ Key components:
                          'cross')
                 
                 exclusive_flags_fig.add_trace(go.Box(
-                    y=pond_df['min_mpe'],
+                    y=pond_df['mpe'],
                     name=category,
                     boxmean=True,
                     marker_color=color,
@@ -588,13 +767,15 @@ Key components:
                         "<b>gt expert diff 1</b> %{customdata[15]:.1f}%<br>" +
                         "<b>gt expert diff 2</b> %{customdata[16]:.1f}%<br>" +
                         "<b>gt expert diff 3</b> %{customdata[17]:.1f}%<br>" +
-                        "<b>pose error</b> %{customdata[18]:.1f}%<br>",
+                        "<b>pose error</b> %{customdata[18]:.1f}%<br>" +
+                        "<b>avg scale error</b> %{customdata[19]:.1f}%<br>" +
+                        "<b>avg gt expert error</b> %{customdata[20]:.1f}%<br>",
                     customdata=pond_df[['PrawnID', 'Label', 'min_gt_diff', 'flag_count', 
                                     'gt_diff_pct', 'pred_pixel_gt_diff', 'pred_gt_diff_pct',
                                     'min_error_pixels', 'min_mape_pixels','Pond_Type','best_length_pixels',
                                     'pred_Distance_pixels','pixel_diff_pct_1','pixel_diff_pct_2',
                                     'pixel_diff_pct_3','gt_expert_diff_pct_1','gt_expert_diff_pct_2',
-                                    'gt_expert_diff_pct_3','pose_pct']].values
+                                    'gt_expert_diff_pct_3','pose_pct','avg_scale_error','avg_gt_expert_error_pct']].values
                 ))
 
 # Add horizontal line at 10% error
@@ -605,14 +786,24 @@ Key components:
     line=dict(color='red', dash='dash')
 )
 
+
+    exclusive_flags_fig.add_shape(
+    type='line',
+    x0=-0.5, x1=len(categories) - 0.5,
+        y0=-10, y1=-10,
+    line=dict(color='red', dash='dash')
+)
+
+
+
 # Update layout
     exclusive_flags_fig.update_layout(
     title='Error Distribution by Exclusive Flag Categories (Prioritizing Multiple Errors in Image)',
     yaxis_title='Min MPE (%)',
-    height=600, width=1000,
+    height=800, width=2000,
     boxmode='group',
     yaxis=dict(
-        range=[0, max(50, df['min_mpe'].max() * 1.1)]
+        range=[-50, max(50, df['mpe'].max() * 1.1)]
     ),
     margin=dict(l=50, r=50, t=80, b=120)
 )
@@ -623,7 +814,22 @@ Key components:
         count = len(df[df['assigned_category'] == category])
         trace.name = f"{category} (n={count})"
 
-    exclusive_flags_fig.show()
+
+    os.makedirs('graphs', exist_ok=True)
+    exclusive_flags_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/exclusive_flags_fig_{args.type}_{args.weights_type}_{args.error_size}.html')
+
+
+    #create the same but for the 3 pond types in the same html file 
+    
+   
+
+
+
+
+
+
+
+
 
     """
     statistics:
@@ -646,38 +852,114 @@ Key components:
 
     """
 
-    mae_flags = df[df['assigned_category'] == 'No Flags']['mae'].median()
-    mape_flags = df[df['assigned_category'] == 'No Flags']['min_mpe'].median()
-    mae_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mae'].median()
-    mape_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['min_mpe'].median()
+    mae_flags = df[df['assigned_category'] == 'No Flags']['mae'].mean()
+    mape_flags = df[df['assigned_category'] == 'No Flags']['mpe'].mean()
+    mae_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mae'].mean()
+    mape_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mpe'].mean()
     
-    mae_with_flags = df[df['assigned_category'] != 'No Flags']['mae'].median()
-    mape_with_flags = df[df['assigned_category'] != 'No Flags']['min_mpe'].median()
-    mae_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mae'].median()
-    mape_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['min_mpe'].median()
+
+    std_mae_flags = df[df['assigned_category'] == 'No Flags']['mae'].std()
+    std_mape_flags = df[df['assigned_category'] == 'No Flags']['mpe'].std()
+
+    std_mae_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mae'].std()
+    std_mape_by_pond_type = df[df['assigned_category'] == 'No Flags'].groupby('Pond_Type')['mpe'].std()
+
+
+
+    mae_with_flags = df[df['assigned_category'] != 'No Flags']['mae'].mean()
+    mape_with_flags = df[df['assigned_category'] != 'No Flags']['mpe'].mean()
+    mae_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mae'].mean()
+    mape_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mpe'].mean()
+
+    std_mae_with_flags = df[df['assigned_category'] != 'No Flags']['mae'].std()
+    std_mape_with_flags = df[df['assigned_category'] != 'No Flags']['mpe'].std()
+
+    std_mae_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mae'].std()
+    std_mape_by_pond_type_with_flags = df[df['assigned_category'] != 'No Flags'].groupby('Pond_Type')['mpe'].std()
+
+
 
     # Print MAE and MPE by category
     print("\n=== MAE and MPE by Category ===")
     print(f"{'Category':<30} {'MAE Without Category':>25} {'MAE With Only Category':>25} {'MPE Without Category':>25} {'MPE With Only Category':>25}")
     print("-" * 130)
+
+
+    
     for category in categories:
         # Calculate MAE and MPE without the current category
-        mae_without_category = df[df['assigned_category'] != category]['mae'].median()
-        mape_without_category = df[df['assigned_category'] != category]['min_mpe'].median()
-        
+        mae_without_category = df[df['assigned_category'] != category]['mae'].mean()
+        mape_without_category = df[df['assigned_category'] != category]['mpe'].mean()
+
+
         # Calculate MAE and MPE with only the current category
-        mae_with_only_category = df[df['assigned_category'] == category]['mae'].median()
-        mape_with_only_category = df[df['assigned_category'] == category]['min_mpe'].median()
+        mae_with_only_category = df[df['assigned_category'] == category]['mae'].mean()
+        mape_with_only_category = df[df['assigned_category'] == category]['mpe'].mean()
         
-        print(f"{category:<30} {mae_without_category:>25.2f} {mae_with_only_category:>25.2f} {mape_without_category:>25.2f} {mape_with_only_category:>25.2f}")
+
+        std_mae_without_category = df[df['assigned_category'] != category]['mae'].std()
+        std_mape_without_category = df[df['assigned_category'] != category]['mpe'].std()
+
+        std_mae_with_only_category = df[df['assigned_category'] == category]['mae'].std()
+        std_mape_with_only_category = df[df['assigned_category'] == category]['mpe'].std()
+
+
+        print(f"{category:<30} {mae_without_category:>25.2f}±{std_mae_without_category:.2f} {mae_with_only_category:>25.2f}±{std_mae_with_only_category:.2f} {mape_without_category:>25.2f}±{std_mape_without_category:.2f} {mape_with_only_category:>25.2f}±{std_mape_with_only_category:.2f} {std_mae_flags:>25.2f} {std_mape_flags:>25.2f} ")
+
+
+
+
+
+
+
+    mae_high_error_rate_image_and_gt_expert_error_and_high_pixel_error = df[
+        (df['flag_all_high_error_rate_image'] == 1) |
+        (df['flag_all_high_gt_expert_error'] == 1) |
+        (df['flag_all_high_pixel_error'] == 1) |
+        (df['flag_image_multiple_errors'] == 1)
+    ]['pixel_pct'].mean()
+
+    mape_high_error_rate_image_and_gt_expert_error_and_high_pixel_error = df['pixel_pct'].mean()
+
+    print(f"{'High error rate image and gt expert error and high pixel error':<30} {mae_high_error_rate_image_and_gt_expert_error_and_high_pixel_error:>25.2f} {mape_high_error_rate_image_and_gt_expert_error_and_high_pixel_error:>25.2f}")
+    
+    
+    
+
+    for category in categories:
+        for pond_type in df['Pond_Type'].unique():
+            print(f"\n=== {category} for {pond_type} ===")
+            print(f"{'Metric':<30} {'Without Category':>20} {'With Only Category':>20}")
+            print("-" * 70)
+            
+            # Calculate statistics for the current category and pond type
+            mae_without_category = df[(df['assigned_category'] != category) & (df['Pond_Type'] == pond_type)]['mae'].mean()
+            mape_without_category = df[(df['assigned_category'] != category) & (df['Pond_Type'] == pond_type)]['mpe'].mean()
+            
+            mae_with_only_category = df[(df['assigned_category'] == category) & (df['Pond_Type'] == pond_type)]['mae'].mean()
+            mape_with_only_category = df[(df['assigned_category'] == category) & (df['Pond_Type'] == pond_type)]['mpe'].mean()
+
+            std_mae_without_category = df[(df['assigned_category'] != category) & (df['Pond_Type'] == pond_type)]['mae'].std()
+            std_mape_without_category = df[(df['assigned_category'] != category) & (df['Pond_Type'] == pond_type)]['mpe'].std()
+
+            std_mae_with_only_category = df[(df['assigned_category'] == category) & (df['Pond_Type'] == pond_type)]['mae'].std()
+            std_mape_with_only_category = df[(df['assigned_category'] == category) & (df['Pond_Type'] == pond_type)]['mpe'].std()   
+
+            print(f"{category:<30} {mae_without_category:>25.2f} + {std_mae_without_category:>25.2f} {mae_with_only_category:>25.2f} + {std_mae_with_only_category:>25.2f} {mape_without_category:>25.2f} + {std_mape_without_category:>25.2f} {mape_with_only_category:>25.2f} + {std_mape_with_only_category:>25.2f}")
+
+            
+        
+
+
+
+
 
     # Existing overall statistics table
     print("\n=== Overall Statistics ===")
     print(f"{'Metric':<30} {'Without Flags':>15} {'With Flags':>15}")
     print("-" * 60)
-    print(f"{'MAE (Mean Absolute Error)':<30} {mae_flags:>15.2f} {mae_with_flags:>15.2f}")
-    print(f"{'MAPE (Mean Absolute % Error)':<30} {mape_flags:>15.2f} {mape_with_flags:>15.2f}")
-
+    print(f"{'MAE (Mean Absolute Error)':<30} {mae_flags:>15.2f}±{std_mae_flags:>25.2f} {mae_with_flags:>15.2f}±{std_mae_with_flags:>25.2f}")
+    print(f"{'MAPE (Mean Absolute % Error)':<30} {mape_flags:>15.2f}±{std_mape_flags:>25.2f} {mape_with_flags:>15.2f}±{std_mape_with_flags:>25.2f}")
 
 
 
@@ -687,14 +969,14 @@ Key components:
     print(f"{'Pond Type':<20} {'Without Flags':>15} {'With Flags':>15}")
     print("-" * 50)
     for pond_type in mae_by_pond_type.index:
-        print(f"{pond_type:<20} {mae_by_pond_type[pond_type]:>15.2f} {mae_by_pond_type_with_flags[pond_type]:>15.2f}")
+        print(f"{pond_type:<20} {mae_by_pond_type[pond_type]:>15.2f}±{std_mae_by_pond_type[pond_type]:>25.2f} {mae_by_pond_type_with_flags[pond_type]:>15.2f}±{std_mae_by_pond_type_with_flags[pond_type]:>25.2f}")
 
     # Print MAPE by pond type table
     print("\n=== MAPE by Pond Type ===")
     print(f"{'Pond Type':<20} {'Without Flags':>15} {'With Flags':>15}")
     print("-" * 50)
     for pond_type in mape_by_pond_type.index:
-        print(f"{pond_type:<20} {mape_by_pond_type[pond_type]:>15.2f} {mape_by_pond_type_with_flags[pond_type]:>15.2f}")
+        print(f"{pond_type:<20} {mape_by_pond_type[pond_type]:>15.2f}±{std_mape_by_pond_type[pond_type]:>25.2f} {mape_by_pond_type_with_flags[pond_type]:>15.2f}±{std_mape_by_pond_type_with_flags[pond_type]:>25.2f}")
 
     # Print sample counts
     print("\n=== Sample Counts ===")
@@ -702,9 +984,12 @@ Key components:
     print("-" * 65)
     for pond_type in df['Pond_Type'].unique():
         without_flags = len(df[(df['Pond_Type'] == pond_type) & (df['assigned_category'] == 'No Flags')])
+        std_without_flags = df[(df['Pond_Type'] == pond_type) & (df['assigned_category'] == 'No Flags')]['mae'].std()
         with_flags = len(df[(df['Pond_Type'] == pond_type) & (df['assigned_category'] != 'No Flags')])
+        std_with_flags = df[(df['Pond_Type'] == pond_type) & (df['assigned_category'] != 'No Flags')]['mae'].std()
         total = without_flags + with_flags
-        print(f"{pond_type:<20} {without_flags:>15} {with_flags:>15} {total:>15}")
+        std_total = df[(df['Pond_Type'] == pond_type)]['mae'].std()
+        print(f"{pond_type:<20} {without_flags:>15} + {std_without_flags:>25.2f} {with_flags:>15} + {std_with_flags:>25.2f} {total:>15} + {std_total:>25.2f}")
 
     total_without_flags = len(df[df['assigned_category'] == 'No Flags'])
     total_with_flags = len(df[df['assigned_category'] != 'No Flags'])
@@ -723,10 +1008,6 @@ Key components:
             print(f"{pond_type:<20} {count:>15}")
 
         
-        
-        
-        
-    
     
 
 
