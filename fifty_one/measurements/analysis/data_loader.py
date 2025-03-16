@@ -80,6 +80,10 @@ class ObjectLengthMeasurer:
         delta_y_low = point2_low_res[1] - point1_low_res[1]
         distance_px = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
         
+
+
+
+
         # Calculate angle in degrees
         angle_rad = math.atan2(delta_y_low, delta_x_low)
         angle_deg = math.degrees(angle_rad)
@@ -957,6 +961,96 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     
     distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
+
+
+    #distance in pixels using df['BoundingBox_1'](B_x 2996.016573,B_y 737.0050179, B_w 159.9996606, B_h 166.0006386)
+    #get the top left and bottom right of the bounding box
+
+    bbox = ast.literal_eval(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'BoundingBox_1'].values[0])
+    bbox = tuple(float(coord) for coord in bbox)
+            
+    x_min = bbox[0]
+    y_min = bbox[1]
+    width = bbox[2]
+    height = bbox[3]
+
+
+
+    top_left_1 = [x_min, y_min]
+    top_right_1 = [x_min + width, y_min]
+    bottom_left_1 = [x_min, y_min + height]
+    bottom_right_1 = [x_min + width, y_min + height]
+
+
+    bbox_2 = ast.literal_eval(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'BoundingBox_2'].values[0])
+    bbox_2 = tuple(float(coord) for coord in bbox_2)
+
+    x_min_2 = bbox_2[0]
+    y_min_2 = bbox_2[1]
+    width_2 = bbox_2[2]
+    height_2 = bbox_2[3]
+
+    top_left_2 = [x_min_2, y_min_2]
+    top_right_2 = [x_min_2 + width_2, y_min_2]
+    bottom_left_2 = [x_min_2, y_min_2 + height_2]
+    bottom_right_2 = [x_min_2 + width_2, y_min_2 + height_2]
+
+    bbox_3 = ast.literal_eval(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'BoundingBox_3'].values[0])
+    bbox_3 = tuple(float(coord) for coord in bbox_3)
+
+    x_min_3 = bbox_3[0]
+    y_min_3 = bbox_3[1]
+    width_3 = bbox_3[2]
+    height_3 = bbox_3[3]
+
+    top_left_3 = [x_min_3, y_min_3]
+    top_right_3 = [x_min_3 + width_3, y_min_3]
+    bottom_left_3 = [x_min_3, y_min_3 + height_3]
+    bottom_right_3 = [x_min_3 + width_3, y_min_3 + height_3]
+
+    distance_px_bounding_box_3 = calculate_euclidean_distance(top_left_3, bottom_right_3)
+    distance_px_bounding_box_3_top_right_bottom_left = calculate_euclidean_distance(top_right_3, bottom_left_3)
+
+    
+
+
+    
+    
+    
+    
+    
+    
+
+
+    distance_px_bounding_box_2 = calculate_euclidean_distance(top_left_2, bottom_right_2)
+    #top right to bottom left
+    distance_px_bounding_box_2_top_right_bottom_left = calculate_euclidean_distance(top_right_2, bottom_left_2)
+
+
+
+    distance_px_bounding_box_1 = calculate_euclidean_distance(top_left_1, bottom_right_1)
+    #top right to bottom left
+    distance_px_bounding_box_1_top_right_bottom_left = calculate_euclidean_distance(top_right_1, bottom_left_1)
+
+
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_1_1'] = distance_px_bounding_box_1_top_right_bottom_left
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_1_2'] = distance_px_bounding_box_1
+
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_2_1'] = distance_px_bounding_box_2_top_right_bottom_left
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_2_2'] = distance_px_bounding_box_2
+
+
+
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_3_1'] = distance_px_bounding_box_3_top_right_bottom_left
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_3_2'] = distance_px_bounding_box_3
+
+    
+
+
+
+
     ####
     keypoints_dict_ground = ground.attributes["keypoints"]
     keypoints_ground = [keypoints_dict_ground['start_carapace'], keypoints_dict_ground['eyes']]

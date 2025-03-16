@@ -49,7 +49,7 @@ class ObjectLengthMeasurer:
         """
         Normalize the angle to [0°, 90°].
         """
-        if angle < -45:
+        if angle < 0:
             angle += 90
         return abs(angle)
 
@@ -79,6 +79,9 @@ class ObjectLengthMeasurer:
         delta_x_low = point2_low_res[0] - point1_low_res[0]
         delta_y_low = point2_low_res[1] - point1_low_res[1]
         distance_px = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
+
+
+
         
         # Calculate angle in degrees
         angle_rad = math.atan2(delta_y_low, delta_x_low)

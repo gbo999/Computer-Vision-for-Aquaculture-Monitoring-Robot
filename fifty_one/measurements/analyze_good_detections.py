@@ -114,26 +114,35 @@ def analyze_good_detections():
                 
                 # Determine size
                 size = determine_size(total_length_mm)
+                print(size)
                 further_labels_dir = Path('runs/pose/predict57/further_labels_files')
                 further_labels_dir.mkdir(exist_ok=True)
                 # Store measurements in the appropriate columns
                 if size == "BIG":
-                    entry['big_total_length'] = round(total_length_mm, 1)
+                    height_mm = 660 if is_circle2 else 370
+                    total_length_mm = (total_length_pixels / diagonal_image_size) * (2 * height_mm * math.tan(math.radians(84.6/2)))
+                    entry['big_total_length'] = round(total_length_mm, 1)# entry['big_total_length'] = round(total_length_mm, 1)
                     entry['big_carapace_length'] = round(carapace_length_mm, 1)
                     entry['big_eye_x'] = round(eye_x, 1)
                     entry['big_eye_y'] = round(eye_y, 1)
-                    
+                    entry['Big_pixels_total_length'] = round(total_length_pixels, 1)
+                    entry['Big_pixels_carapace_length'] = round(carapace_length_pixels, 1)
                     #add the full detection to the further label file
                     image_name = Path(entry['image_name']).stem
                     label_file = further_labels_dir / f"{image_name}.txt"
+
                     with open(label_file, 'a') as f:
                         f.write(detection)
                 elif size == "SMALL":
+                    height_mm = 670 if is_circle2 else 380
+                    total_length_mm = (total_length_pixels / diagonal_image_size) * (2 * height_mm * math.tan(math.radians(84.6/2)))
                     entry['small_total_length'] = round(total_length_mm, 1)
                     entry['small_carapace_length'] = round(carapace_length_mm, 1)
                     entry['small_eye_x'] = round(eye_x, 1)
                     entry['small_eye_y'] = round(eye_y, 1)
-
+                    entry['Small_pixels_total_length'] = round(total_length_pixels, 1)
+                    entry['Small_pixels_carapace_length'] = round(carapace_length_pixels, 1)
+                    
                     #add the full detection to the further label file
                     image_name = Path(entry['image_name']).stem
                     label_file = further_labels_dir / f"{image_name}.txt"
@@ -154,7 +163,7 @@ def analyze_good_detections():
     
     # Create DataFrame and save to CSV
     analysis_df = pd.DataFrame(analysis_data)
-    output_file = 'runs/pose/predict57/length_analysis.csv'
+    output_file = 'runs/pose/predict57/length_analysis_less.csv'
     analysis_df.to_csv(output_file, index=False)
     print(f"Analysis saved to {output_file}")
     

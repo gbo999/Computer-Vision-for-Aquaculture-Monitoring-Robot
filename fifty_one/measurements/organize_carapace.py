@@ -1,6 +1,7 @@
 import os
 from PIL import Image
 import shutil
+import cv2
 
 def organize_carapace_images(source_base_path, target_base_path, target_size=(640, 360)):
     """
@@ -30,14 +31,14 @@ def organize_carapace_images(source_base_path, target_base_path, target_size=(64
                 # Open, resize, and save image
                 with Image.open(source_path) as img:
                     # Resize image maintaining aspect ratio
-                    resized_img = img.resize(target_size, Image.Resampling.LANCZOS)
-                    resized_img.save(target_path)
+                    resized_img = cv2.resize(img, target_size, interpolation=cv2.INTER_LANCZOS4)
+                    cv2.imwrite(target_path, resized_img)
                     print(f"Processed: {filename} -> {target_folder}")
 
 if __name__ == "__main__":
     # Source and target paths
     source_path = "/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/measurements/carapace"
-    target_path = os.path.join(os.path.dirname(source_path), "carapace_resized")
+    target_path = os.path.join(os.path.dirname(source_path), "carapace_resized_lanczos")
     
     # Create and process images
     organize_carapace_images(source_path, target_path)

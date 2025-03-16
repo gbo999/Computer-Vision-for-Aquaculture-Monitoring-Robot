@@ -8,6 +8,8 @@ runs/
 # Output and processed images
 processed_images/
 
+fifty_one/measurements/output_images/
+
 # C extensions
 *.so
 

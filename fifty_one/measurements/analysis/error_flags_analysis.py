@@ -6,6 +6,7 @@ import seaborn as sns
 import plotly.graph_objects as go
 import fiftyone as fo
 import os
+import ast
 
 def calculate_mape(estimated_lengths, true_lengths):
     """
@@ -79,17 +80,31 @@ Key components:
 
     df['choice'] = f'{args.type}_{args.weights_type}_{args.error_size}'
 
-    df['median_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].median(axis=1)
+    df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
+    print('========mean scale========')
+    print(df['mean_scale'])
+
+    df['pred_scale'] = df['pred_Distance_pixels'] / df['Length_fov(mm)'] * 10
+    print('========pred scale========')
+    print(df['pred_scale'])
 
     df['Length_fov(mm)'] = df['Length_fov(mm)']
+
+
+    #if pose <0.75 remove
+    df = df[df['pose_eval_iou'] >= 0.75]
+
+
+    #lngth fov bigger than 5
+    df = df[df['Length_fov(mm)'] >= 5]
 
 # ----- Error Calculation -----
     df['annotation_length_1'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_1'] * 10
     df['annotation_length_2'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_2'] * 10
     df['annotation_length_3'] = df['Length_ground_truth_annotation_pixels'] / df['Scale_3'] * 10
-    df['MPE_length1'] = abs(df['Length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
-    df['MPE_length2'] = abs(df['Length_2'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
-    df['MPE_length3'] = abs(df['Length_3'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
+    df['MPE_length1'] = abs(df['Length_1'] - df['Length_fov(mm)']) / df['Length_1'] * 100
+    df['MPE_length2'] = abs(df['Length_2'] - df['Length_fov(mm)']) / df['Length_2'] * 100
+    df['MPE_length3'] = abs(df['Length_3'] - df['Length_fov(mm)']) / df['Length_3'] * 100
     df['MPE_annotation_length_1'] = abs(df['annotation_length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_annotation_length_2'] = abs(df['annotation_length_2'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
     df['MPE_annotation_length_3'] = abs(df['annotation_length_3'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
@@ -121,11 +136,13 @@ Key components:
     df['mpe_with_annotation'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].min(axis=1)
     df['mae_with_annotation'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].min(axis=1)
     
+    df['avg_length'] = df[['Length_1', 'Length_2', 'Length_3']].mean(axis=1)
     
     if  args.error_size == 'min':    
-
+    #     df['mae_annotation_length'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation_length_1', 'mae_annotation_length_2', 'mae_annotation_length_3']].min(axis=1)
+    #     df['mpe_annotation_length'] = df[['mpe_length1', 'mpe_length2', 'mpe_length3', 'mpe_annotation_length_1', 'mpe_annotation_length_2', 'mpe_annotation_length_3']].min(axis=1)
    
-    # Determine the minimum MPE across all three measurements for each row
+    # # Determine the minimum MPE across all three measurements for each row
     # This represents the best-case error for each measuremen
         #with annotation
         df[f'mpe_with_annotation'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'MPE_annotation_length_1', 'MPE_annotation_length_2', 'MPE_annotation_length_3']].min(axis=1)
@@ -147,8 +164,29 @@ Key components:
                         (row['Length_2'] if row['mpe_with_sign_2'] == row['mpe'] else row['mpe_with_sign_3']),
             axis=1
 )   
-        df['mpe'] = df[['mpe_with_sign']]
-        df['mae'] = df[['mae_with_sign']]
+        
+        df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
+        
+
+        #min annotation length 
+        df['mean_annotation_length'] = df['Length_ground_truth_annotation_pixels'] / df['mean_scale'] * 10
+    #mpe annotation length
+        df['mpe_annotation'] = abs (df['mean_annotation_length'] - df['Length_fov(mm)'])/df['mean_annotation_length']*100
+
+        df['mpe_annotation_length'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'mpe_annotation']].min(axis=1)
+
+
+
+
+        df['mae_annotation'] = abs(df['mean_annotation_length'] - df['Length_fov(mm)'])
+
+
+        df['mpe_annotation_length'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'mpe_annotation']].min(axis=1)
+
+        df['mae_annotation_length'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation']].min(axis=1)
+
+
+
 
 
     elif args.error_size == 'median':
@@ -212,10 +250,18 @@ Key components:
         df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].mean(axis=1)
         df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].mean(axis=1)
         
-        df['mpe'] = df[['mpe_with_sign']]
-        df['mae'] = df[['mae_with_sign']]   
+          
+#annotation length based mean scale 
+        df['mean_annotation_length'] = df['Length_ground_truth_annotation_pixels'] / df['mean_scale'] * 10
+    #mpe annotation length
+        df['mpe_annotation'] = abs(df['mean_annotation_length'] - df['Length_fov(mm)'])/df['Length_fov(mm)']*100
+
+        df['mae_annotation'] = abs(df['mean_annotation_length'] - df['Length_fov(mm)'])
 
 
+        df['mpe_annotation_length'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3', 'mpe_annotation']].mean(axis=1)
+
+        df['mae_annotation_length'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation']].mean(axis=1)
 
     elif args.error_size == 'max':
 
@@ -278,8 +324,7 @@ Key components:
 # ----- Pixel Error Calculations -----
 
 # Calculate prediction scale (pixels per mm)
-    df['pred_scale'] = df['pred_Distance_pixels'] / df['Length_fov(mm)'] * 10
-    print(f"pred_scale: {df['pred_scale']}")
+  
 # Normalize expert measurements to pixels for comparison with predictions
 # This converts the best expert measurement to the same pixel scale as predictions
     df['expert_normalized_pixels'] = df.apply(
@@ -288,7 +333,11 @@ Key components:
 )
     # df['flag_scale_error'] =(abs(df['pred_scale'] - df['Scale_1'])/df['Scale_1']*100 > 10) & (abs(df['pred_scale'] - df['Scale_2'])/df['Scale_2']*100 > 10 )& (abs(df['pred_scale'] - df['Scale_3'])/df['Scale_3']*100 > 10)
    
-   
+   #create table pred scale near scale_1, scale_2, scale_3 table
+
+
+
+
    
         #avg scale error
     df['scale_error_1'] = (df['pred_scale'] - df['Scale_1'])/df['Scale_1']*100
@@ -296,10 +345,10 @@ Key components:
     df['scale_error_3'] = (df['pred_scale'] - df['Scale_3'])/df['Scale_3']*100
 
     df['avg_scale_error'] = df[['scale_error_1', 'scale_error_2', 'scale_error_3']].mean(axis=1)
-    df['flag_avg_scale_error'] = abs(df['avg_scale_error'])  > 15
+    df['flag_avg_scale_error'] = abs(df['avg_scale_error'])  > 10
    
-   
-   
+
+    
    
    
    
@@ -327,7 +376,7 @@ Key components:
     df['pred_pixels_diff'] = abs(df['pred_Distance_pixels'] - df['expert_normalized_pixels'])
 
 # Calculate absolute pixel differences between ground truth annotation and prediction
-    df['pred_pixel_gt_diff'] = (df['Length_ground_truth_annotation_pixels'] - df['pred_Distance_pixels'])
+    df['pred_pixel_gt_diff'] = abs(df['Length_ground_truth_annotation_pixels'] - df['pred_Distance_pixels'])
 
 # Calculate absolute pixel differences for each expert measurement
     df['pixel_diff_1'] = abs(df['pred_Distance_pixels'] - df['Length_1_pixels']) 
@@ -342,7 +391,7 @@ Key components:
 # ----- Flagging Pixel Errors -----
 
 # Define threshold for high pixel percentage error
-    pixel_pct_threshold = 15  # 10% threshold
+    pixel_pct_threshold = 10  # 10% threshold
 
     # df['flag_accounting_pixel_error'] = abs(df['pred_Distance_pixels'] - df['accounting_length_pixels'])/df['Length_ground_truth_annotation_pixels']*100 > pixel_pct_threshold
     # Flag when all three measurements exceed the threshold
@@ -386,9 +435,9 @@ Key components:
 # ----- GT-Expert Pixel Differences -----
 
 # Calculate absolute pixel differences between ground truth and each expert measurement
-    df['gt_expert_diff_1'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels'])
-    df['gt_expert_diff_2'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels'])
-    df['gt_expert_diff_3'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels'])
+    df['gt_expert_diff_1'] =abs  (df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels'])
+    df['gt_expert_diff_2'] =abs (df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels'])
+    df['gt_expert_diff_3'] =abs (df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels'])
 
 # Calculate percentage differences relative to expert measurements
     df['gt_expert_diff_pct_1'] = df['gt_expert_diff_1'] / df['Length_1_pixels'] * 100
@@ -402,7 +451,7 @@ Key components:
 # ----- Flagging GT-Expert Errors -----
 
 # Define threshold for high GT-Expert pixel percentage error
-    gt_expert_pct_threshold = 15  # 10% threshold
+    gt_expert_pct_threshold = 10  # 10% threshold
 
 # Flag when all three GT-Expert measurements exceed the threshold
     df['flag_all_high_gt_expert_error'] = (
@@ -443,15 +492,15 @@ Key components:
 # 3. Low pose evaluation score (if available)
 # Check which pose evaluation column exists in the dataset
     if 'pose_eval' in df.columns:
-        df['flag_low_pose_eval'] = df['pose_eval'] < 0.75
+        df['flag_low_pose_eval'] = df['pose_eval'] < 0.85
     elif 'pose_eval_iou' in df.columns:
-        df['flag_low_pose_eval'] = df['pose_eval_iou'] < 0.75
+        df['flag_low_pose_eval'] = df['pose_eval_iou'] < 0.85
     else:
         df['flag_low_pose_eval'] = False
         print("Warning: No pose evaluation column found!")
 
 # 4. High pixel difference between prediction and ground truth annotation
-    df['flag_pred_gt_diff'] = abs(df['pred_pixel_gt_diff']/df['Length_ground_truth_annotation_pixels']*100) > 15
+    df['flag_pred_gt_diff'] = abs(df['pred_pixel_gt_diff']/df['Length_ground_truth_annotation_pixels']*100) > 10
 
 # ----- Flag Count and Multiple Error Images -----
 
@@ -465,7 +514,7 @@ Key components:
     total_measurements_by_image = df.groupby('Label').size()
 
 # Count high error measurements per image
-    high_error_df = df[abs(df['mpe']) >15]  # Filter for high errors
+    high_error_df = df[abs(df['mpe']) >10]  # Filter for high errors
     high_error_counts_by_image = high_error_df.groupby('Label').size()
 
 # Reindex both Series to ensure they have the same index
@@ -639,39 +688,25 @@ Key components:
         # First check if we have any errors at all
         if not row['high_error']:
             return 'No Flags'
-        elif row['flag_all_high_error_rate_image'] and row['flag_avg_scale_error']:
-            return 'All High error rate image and Scale error >15%'
-        elif row['flag_image_multiple_errors'] and row['flag_avg_scale_error']:
-            return 'Multiple Errors in Same Image and Scale error >15%'
+    
+        # Now we know high_error is True, so no need to check it agai
         
-        # Now we know high_error is True, so no need to check it again
-        elif row['flag_pred_gt_diff'] and row['flag_high_avg_gt_expert_error']:
-            return 'Prediction-GT pixel diff over 15% and GT-Expert pixel diff over >15%'
+        elif row['flag_high_avg_pixel_error'] and not row['flag_high_avg_gt_expert_error']:
+            return 'pred pixel error >10%'        
         
-        elif row['flag_pred_gt_diff'] and not row['flag_high_avg_pixel_error']:
-            return 'Prediction-GT pixel diff over 10% and pred pixel error <15%'
-        elif row['flag_avg_scale_error']:
-            return 'Scale error >15%'
+        
+        elif row['flag_high_avg_gt_expert_error'] :
+            return 'GT-Expert pixel diff over >10%'
         
         
         elif row['flag_pred_gt_diff']:
-            return 'Prediction-GT pixel diff over 15%'
+            return 'Prediction-GT pixel diff over 10%'
         # elif row['flag_high_avg_gt_expert_error'] and row['flag_avg_scale_error']:
         #     return 'All GT-Expert error >10% and Scale error >10%'
-        elif row['flag_high_avg_gt_expert_error'] and row['flag_high_avg_pixel_error']:
-            return 'GT-Expert pixel diff over >15%'
 
-       
-        
-        
-    
-        elif row['flag_high_avg_pixel_error']:
-            return 'pred pixel error >15%'        
-        
+        elif row['flag_avg_scale_error']:
+                    return 'Scale error >10%'
 
-        elif row['pose_pct'] > 25:
-            return 'Pose error >25%'
-        
        
         else:   
             return 'Unclassified Error'  # More descriptive than 'strange'
@@ -684,16 +719,11 @@ Key components:
 
 # The order for visualization still needs to be defined
     priority_names = [
-    'Prediction-GT pixel diff over 15%',
-    'Prediction-GT pixel diff over 15% and pred pixel error <15%',
-        'GT-Expert pixel diff over >15%',
-        'All GT-Expert error >15% and Scale error >15%',
-        'Prediction-GT pixel diff over 15% and GT-Expert pixel diff over >15%',
-        'pred pixel error >15%',
-        'Scale error >15%',
-        'Pose error >25%',
-        'All High error rate image and Scale error >15%',
-        'Multiple Errors in Same Image and Scale error >15%',
+    'Prediction-GT pixel diff over 10%',
+        'GT-Expert pixel diff over >10%',
+        'pred pixel error >10%',
+        'Scale error >10%',
+        'Pose error >15%',
         'Unclassified Error'
 ]
     
@@ -769,13 +799,17 @@ Key components:
                         "<b>gt expert diff 3</b> %{customdata[17]:.1f}%<br>" +
                         "<b>pose error</b> %{customdata[18]:.1f}%<br>" +
                         "<b>avg scale error</b> %{customdata[19]:.1f}%<br>" +
-                        "<b>avg gt expert error</b> %{customdata[20]:.1f}%<br>",
+                        "<b>avg gt expert error</b> %{customdata[20]:.1f}%<br>" +
+                        "<b>Length_fov(mm)</b> %{customdata[21]:.1f}<br>" +
+                        "<b>avg length</b> %{customdata[22]:.1f}<br>" +
+                        "<b>avg pixel error</b> %{customdata[23]:.1f}%<br>" +
+                        "<b>mean annotation length</b> %{customdata[24]:.1f}<br>",
                     customdata=pond_df[['PrawnID', 'Label', 'min_gt_diff', 'flag_count', 
                                     'gt_diff_pct', 'pred_pixel_gt_diff', 'pred_gt_diff_pct',
                                     'min_error_pixels', 'min_mape_pixels','Pond_Type','best_length_pixels',
                                     'pred_Distance_pixels','pixel_diff_pct_1','pixel_diff_pct_2',
                                     'pixel_diff_pct_3','gt_expert_diff_pct_1','gt_expert_diff_pct_2',
-                                    'gt_expert_diff_pct_3','pose_pct','avg_scale_error','avg_gt_expert_error_pct']].values
+                                    'gt_expert_diff_pct_3','pose_pct','avg_scale_error','avg_gt_expert_error_pct','Length_fov(mm)','avg_length','avg_pixel_error_pct','mean_annotation_length']].values
                 ))
 
 # Add horizontal line at 10% error
@@ -821,7 +855,39 @@ Key components:
 
     #create the same but for the 3 pond types in the same html file 
     
-   
+   #create a new figure with annotation length
+    annotation_length_fig = go.Figure()
+
+    #add a box plot for each pond type
+    for pond_type in df['Pond_Type'].unique():
+        pond_df = df[df['Pond_Type'] == pond_type]
+        annotation_length_fig.add_trace(go.Box(y=pond_df['mpe_annotation_length'], name=pond_type))
+
+    #add a horizontal line at 10%
+    annotation_length_fig.add_shape(
+    type='line',
+    x0=-0.5, x1=len(categories) - 0.5,
+        y0=10, y1=10,
+    line=dict(color='red', dash='dash')
+)   
+
+    #update layout
+    annotation_length_fig.update_layout(
+    title='Annotation Length Distribution',
+    yaxis_title='Annotation Length (%)',
+    height=800, width=2000,
+)
+
+    #add counts to the box plot names
+    for i, trace in enumerate(annotation_length_fig.data):
+        category = trace.name
+        count = len(df[df['Pond_Type'] == category])
+        trace.name = f"{category} (n={count})"  
+
+    os.makedirs('graphs', exist_ok=True)
+    annotation_length_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/annotation_length_fig_{args.type}_{args.weights_type}_{args.error_size}.html')
+
+
 
 
 
@@ -1008,13 +1074,446 @@ Key components:
             print(f"{pond_type:<20} {count:>15}")
 
         
+    #how much beneath 5% , how much between 5% and 10% , how much between 10% and 15% , how much above 15% 
+
+    #count how many are beneath 5%
+    count_beneath_5 = len(df[abs(df['mpe']) < 5])
+    print(f"{'Beneath 5%':<20} {count_beneath_5:>15}")
+
+    #count how many are between 5% and 10%
+    count_between_5_and_10 = len(df[(abs(df['mpe']) >= 5) & (abs(df['mpe']) <= 10)])
+    print(f"{'Between 5% and 10%':<20} {count_between_5_and_10:>15}")
+
+    #count how many are between 10% and 15%
+    count_between_10_and_15 = len(df[(abs(df['mpe']) >= 10) & (abs(df['mpe']) <= 15)])
+    print(f"{'Between 10% and 15%':<20} {count_between_10_and_15:>15}")
+
+    #count how many between 15% and 20%
+    count_between_15_and_20 = len(df[(abs(df['mpe']) >= 15) & (abs(df['mpe']) <= 20)])
+    print(f"{'Between 15% and 20%':<20} {count_between_15_and_20:>15}")
+
+    #count how many above 20%
+    count_above_20 = len(df[abs(df['mpe']) > 20])
+    print(f"{'Above 20%':<20} {count_above_20:>15}")
+
+    #overall mpe
+    #abs mpe
+    df['mpe'] = abs(df['mpe'])
+    overall_mpe = df['mpe'].mean()
+    print(f"{'Overall mpe':<20} {overall_mpe:>15}")
+
+
+    #abs mpe annotation length
+    df['mpe_annotation_length'] = abs(df['mpe_annotation_length'])
+
+    #count how many are beneath 5% annotation length
+    count_beneath_5_annotation_length = len(df[df['mpe_annotation_length'] < 5])
+    print(f"{'Beneath 5% annotation length':<20} {count_beneath_5_annotation_length:>15}")
+
+    #count how many are between 5% and 10% annotation length
+    count_between_5_and_10_annotation_length = len(df[(df['mpe_annotation_length'] >= 5) & (df['mpe_annotation_length'] <= 10)])
+    print(f"{'Between 5% and 10% annotation length':<20} {count_between_5_and_10_annotation_length:>15}")
+
+    #count how many are between 10% and 15% annotation length
+    count_between_10_and_15_annotation_length = len(df[(df['mpe_annotation_length'] >= 10) & (df['mpe_annotation_length'] <= 15)])
+    print(f"{'Between 10% and 15% annotation length':<20} {count_between_10_and_15_annotation_length:>15}")
+
+    #count how many are between 15% and 20% annotation length
+    count_between_15_and_20_annotation_length = len(df[(df['mpe_annotation_length'] >= 15) & (df['mpe_annotation_length'] <= 20)])
+    print(f"{'Between 15% and 20% annotation length':<20} {count_between_15_and_20_annotation_length:>15}")
+
+    #count how many are above 20% annotation length
+    count_above_20_annotation_length = len(df[df['mpe_annotation_length'] > 20])
+    print(f"{'Above 20% annotation length':<20} {count_above_20_annotation_length:>15}")    
+
+    #overall mpe annotation length
+    overall_mpe_annotation_length = df['mpe_annotation_length'].mean()
+    print(f"{'Overall mpe annotation length':<20} {overall_mpe_annotation_length:>15}")
+
+    overall_mae = df['mae'].mean()
+    print(f"{'Overall mae':<20} {overall_mae:>15}")
+
+    overall_mae_annotation_length = df['mae_annotation_length'].mean()
+    print(f"{'Overall mae annotation length':<20} {overall_mae_annotation_length:>15}")
+
+
+    #mean length
+    overall_mean_length = df['Length_fov(mm)'].mean()
+    print(f"{'Overall mean length':<20} {overall_mean_length:>15}")
+
+    #mean annotation length
+    overall_mean_annotation_length = df['mean_annotation_length'].mean()
+    print(f"{'Overall mean annotation length':<20} {overall_mean_annotation_length:>15}")
+
+    #expert 1 length
+    overall_expert_1_length = df['Length_1'].mean()
+    print(f"{'Overall expert 1 length':<20} {overall_expert_1_length:>15}")
+
+    #expert 2 length
+    overall_expert_2_length = df['Length_2'].mean()
+    print(f"{'Overall expert 2 length':<20} {overall_expert_2_length:>15}")
+
+    #expert 3 length
+    overall_expert_3_length = df['Length_3'].mean()
+    print(f"{'Overall expert 3 length':<20} {overall_expert_3_length:>15}")
+
+   
+    #length describe
+    print(df['Length_fov(mm)'].describe())
+
+    #annotation length describe
+    print(df['mean_annotation_length'].describe())  
+
+
+    #length 1 describe
+    print(df['Length_1'].describe())
+
+    #length 2 describe
+    print(df['Length_2'].describe())
+
+    #length 3 describe
+    print(df['Length_3'].describe())
+
+    #length 1 describe
+    print(df['Length_1'].describe())
+
+
+
+    print('mpe_annotation')
+    df['mpe_annotation'] =abs(df['Length_fov(mm)']-df['mean_annotation_length'])/df['mean_annotation_length']*10
+    df
+    
+    print(df['mpe_annotation'].describe())
+
+    #mpe annotation median
+    #mpe annotation median
+    print('mpe_annotation median')  
+    print(df['mpe_annotation'].median())
+    #mae annotation
+    df['mae_annotation'] = (df['mean_annotation_length'] - df['Length_fov(mm)'])
+
+    print(df['mae_annotation'].describe())
+
+    #print mpe sign 
+
+
+    df['mae_with_sign_1'] =  df['Length_1']- df['Length_fov(mm)'] 
+    df['mae_with_sign_2'] = df['Length_2']- df['Length_fov(mm)']
+    df['mae_with_sign_3'] = df['Length_3']- df['Length_fov(mm)'] 
+
+   #mpe with sign
+    df['mpe_with_sign_1'] = (df['Length_1'] - df['Length_fov(mm)'])/df['Length_1']*100
+    df['mpe_with_sign_2'] = (df['Length_2'] - df['Length_fov(mm)'])/df['Length_2']*100
+    df['mpe_with_sign_3'] = (df['Length_3'] - df['Length_fov(mm)'])/df['Length_3']*100
+
+    print(df['mpe_with_sign_1'].describe())
+    print(df['mpe_with_sign_2'].describe())
+    print(df['mpe_with_sign_3'].describe())
+
+
+    #annotation length with sign
+
+    df['mean_annotation_length_1'] = df['mean_annotation_length']-df['Length_1']
+    df['mean_annotation_length_2'] = df['mean_annotation_length']-df['Length_2']
+    df['mean_annotation_length_3'] = df['mean_annotation_length']-df['Length_3']
+
+    print(df['mean_annotation_length_1'].describe())
+    print(df['mean_annotation_length_2'].describe())
+    print(df['mean_annotation_length_3'].describe())
+   
+
+    #mpe with sign annotation length
+    df['mpe_with_sign_annotation_length_1'] = (df['mean_annotation_length'] - df['Length_1'])/df['Length_1']*100
+    df['mpe_with_sign_annotation_length_2'] = (df['mean_annotation_length'] - df['Length_2'])/df['Length_2']*100
+    df['mpe_with_sign_annotation_length_3'] = (df['mean_annotation_length'] - df['Length_3'])/df['Length_3']*100
+
+    print(df['mpe_with_sign_annotation_length_1'].describe())
+    print(df['mpe_with_sign_annotation_length_2'].describe())
+    print(df['mpe_with_sign_annotation_length_3'].describe())
+   
+   
+   
+   
+   #compare scales pred_scale and scale_1
+    df['pred_scale_1'] = df['pred_scale'] - df['Scale_1']
+    df['pred_scale_2'] = df['pred_scale'] - df['Scale_2']
+    df['pred_scale_3'] = df['pred_scale'] - df['Scale_3']
+
+    print(df['pred_scale_1'].describe())
+    print(df['pred_scale_2'].describe())
+    print(df['pred_scale_3'].describe())
+
+
+
+
+    #mpe with sign scale
+
+
+
+    print ('========mpe with sign scale========')    
+
+    df['mpe_with_sign_scale_1'] = (df['pred_scale'] - df['Scale_1'])/df['Scale_1']*100
+    df['mpe_with_sign_scale_2'] = (df['pred_scale'] - df['Scale_2'])/df['Scale_2']*100
+    df['mpe_with_sign_scale_3'] = (df['pred_scale'] - df['Scale_3'])/df['Scale_3']*100
+
+    print(df['mpe_with_sign_scale_1'].describe())
+    print(df['mpe_with_sign_scale_2'].describe())
+    print(df['mpe_with_sign_scale_3'].describe())
+
+    
+   
+   
+
+
+
+
+
+    # #need to check how the scale related to height
+    # df['pred_scale_height'] = df['pred_scale']*df['Height_fov(mm)']
+
     
 
 
 
 
 
+    # #pixel difference 
+    # df['pixel_difference_1'] = df['Length_1_pixels'] - df['pred_Distance_pixels']
+    # df['pixel_difference_2'] = df['Length_2_pixels'] - df['pred_Distance_pixels']
+    # df['pixel_difference_3'] = df['Length_3_pixels'] - df['pred_Distance_pixels']
 
+    # #mpe with sign pixel difference
+    # df['mpe_with_sign_pixel_difference_1'] = (df['Length_1_pixels'] - df['pred_Distance_pixels'])/df['Length_1_pixels']*100
+    # df['mpe_with_sign_pixel_difference_2'] = (df['Length_2_pixels'] - df['pred_Distance_pixels'])/df['Length_2_pixels']*100
+    # df['mpe_with_sign_pixel_difference_3'] = (df['Length_3_pixels'] - df['pred_Distance_pixels'])/df['Length_3_pixels']*100
+
+    # print(df['mpe_with_sign_pixel_difference_1'].describe())
+    # print(df['mpe_with_sign_pixel_difference_2'].describe())
+    # print(df['mpe_with_sign_pixel_difference_3'].describe())
+
+
+
+    #annotation pixels
+    df['annotation_pixels_1'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels'])/df['Length_1_pixels']*100
+    df['annotation_pixels_2'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels'])/df['Length_2_pixels']*100
+    df['annotation_pixels_3'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels']) /df['Length_3_pixels']*100
+
+    print(df['annotation_pixels_1'].describe())
+    print(df['annotation_pixels_2'].describe())
+    print(df['annotation_pixels_3'].describe())
+
+
+
+
+    #find how many bigger than positive 10%
+    count_bigger_than_positive_10 = len(df[df['annotation_pixels_1'] > 10])
+    print(f"{'Bigger than positive 10%':<20} {count_bigger_than_positive_10:>15} out of {len(df):>15}")
+
+
+
+
+
+
+    #find how many bigger than negative 10%
+    count_bigger_than_negative_10 = len(df[df['annotation_pixels_1'] < -10])
+    print(f"{'Bigger than negative 10%':<20} {count_bigger_than_negative_10:>15} out of {len(df):>15}")
+
+
+
+
+    #mae annotaiton pixels with pred_distance
+    df['mae_annotation_pixels_1'] = df['pred_Distance_pixels']-df['Length_ground_truth_annotation_pixels'] 
+    
+
+
+    #create a plotly graph of the annotation pixels difference with points with hover text as label and prawn id
+
+    import plotly.express as px
+
+    fig = px.scatter(df, y='mpe_annotation',x='mae_annotation_pixels_1', hover_data=['Label', 'PrawnID'])
+    #save as html
+    fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/annotation_pixels_difference_{args.type}_{args.weights_type}.html')
+
+
+    # the error rate     
+
+    #print mpe annotation with sign
+    print('mpe annotation with sign')
+    print(df['mpe_annotation'].describe())
+
+
+    df['annotation_pixels_1'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels'])/df['Length_1_pixels']*100
+    df['annotation_pixels_2'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels'])/df['Length_2_pixels']*100
+    df['annotation_pixels_3'] = (df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels']) /df['Length_3_pixels']*100
+
+
+    print(df['annotation_pixels_1'].describe())
+
+    print(df['annotation_pixels_2'].describe())
+
+    print(df['annotation_pixels_3'].describe())
+
+    # box_x_min =[]
+    # box_y_min =[]
+    # COLOR=[]
+    # for index, row in df.iterrows():
+
+    #     bbox_3 = ast.literal_eval(row['BoundingBox_3'])
+    #     bbox_3 = tuple(float(coord) for coord in bbox_3)
+
+    #     x_min_3 = bbox_3[0]
+    #     y_min_3 = bbox_3[1]
+    #     width_3 = bbox_3[2]
+    #     height_3 = bbox_3[3]
+
+    #     top_left_3 = [x_min_3, y_min_3]
+    #     top_right_3 = [x_min_3 + width_3, y_min_3]
+    #     bottom_left_3 = [x_min_3, y_min_3 + height_3]
+    #     bottom_right_3 = [x_min_3 + width_3, y_min_3 + height_3]   
+
+    #     box_x_min.append(x_min_3)
+    #     box_y_min.append(2988-y_min_3)
+    #     COLOR.append(row['annotation_pixels_1'])
+
+    #     #graph showing coordinates and color of error rate
+    # fig = px.scatter(df, x= box_x_min, y=box_y_min, color=COLOR,range_color=[-70,70], hover_data=['Label', 'PrawnID'])
+    # fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/annotation_pixels_difference_{args.type}_{args.weights_type}.html')
+
+
+
+
+
+    # #annotation pixels
+    # df['annotation_pixels_1'] = df['Length_ground_truth_annotation_pixels'] - df['Length_1_pixels']
+    # df['annotation_pixels_2'] = df['Length_ground_truth_annotation_pixels'] - df['Length_2_pixels']
+    # df['annotation_pixels_3'] = df['Length_ground_truth_annotation_pixels'] - df['Length_3_pixels']
+
+   
+    # print(df['annotation_pixels_1'].describe())
+    # print(df['annotation_pixels_2'].describe())
+    # print(df['annotation_pixels_3'].describe())
+
+
+
+
+
+    # #mpe with sign pixel difference
+    # df['mpe_with_sign_pixel_difference_1'] = (df['Length_1_pixels'] - df['Length_fov(mm)'])/df['Length_1_pixels']*100
+    # df['mpe_with_sign_pixel_difference_2'] = (df['Length_2_pixels'] - df['Length_fov(mm)'])/df['Length_2_pixels']*100
+    # df['mpe_with_sign_pixel_difference_3'] = (df['Length_3_pixels'] - df['Length_fov(mm)'])/df['Length_3_pixels']*100
+
+    # print(df['mpe_with_sign_pixel_difference_1'].describe())
+    # print(df['mpe_with_sign_pixel_difference_2'].describe())
+    # print(df['mpe_with_sign_pixel_difference_3'].describe())    
+
+    # #BY POND TYPE
+    # for pond_type in df['Pond_Type'].unique():
+    #     print(f"\n=== {pond_type} Statistics ===")
+    #     print(df[df['Pond_Type'] == pond_type]['mpe_with_sign_pixel_difference_1'].describe())
+    #     print(df[df['Pond_Type'] == pond_type]['mpe_with_sign_pixel_difference_2'].describe())
+    #     print(df[df['Pond_Type'] == pond_type]['mpe_with_sign_pixel_difference_3'].describe())
+
+
+
+
+   
+    # #by pond type
+    # for pond_type in df['Pond_Type'].unique():
+    #     print(f"\n=== {pond_type} Statistics ===")
+    #     print(df[df['Pond_Type'] == pond_type]['Length_fov(mm)'].describe())
+    #     print(df[df['Pond_Type'] == pond_type]['mean_annotation_length'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['Length_1'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['Length_2'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['Length_3'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['mae'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['mae_annotation_length'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['mpe'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['mpe_annotation_length'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['mpe_annotation'].describe())
+
+    #     print(df[df['Pond_Type'] == pond_type]['mpe_annotation_length'].describe())
+
+
+        
+        
+        #mean scale
+
+     #overall mpe annotation mpe
+
+    print('========mpe annotation========')
+
+    print(df['mpe_annotation'].describe())
+    
+    #overall mpe and mae
+
+    print('========mpe and mae========')
+
+    print(df['mpe'].describe())
+
+    print(df['mae'].describe())
+
+
+
+    for pond_type in df['Pond_Type'].unique():
+        
+    #overall pond type
+        print(f"\n=== {pond_type} Statistics ===")
+    
+    
+    
+        print(df[df['Pond_Type'] == pond_type]['mpe_annotation'].describe())
+       
+
+        #overall mae 
+        print(df[df['Pond_Type'] == pond_type]['mae'].describe())
+
+        #overall mpe
+        print(df[df['Pond_Type'] == pond_type]['mpe'].describe())
+
+    
+        
+        
+        
+        
+    #treat pred scale as the scale for length_1 pixels
+    df['Length_1_pixels_pred_scale'] = df['Length_1_pixels']/df['pred_scale']*10
+    df['Length_2_pixels_pred_scale'] = df['Length_2_pixels']/df['pred_scale']*10
+    df['Length_3_pixels_pred_scale'] = df['Length_3_pixels']/df['pred_scale']*10
+
+    print('========Length_1_pixels_pred_scale========')
+    print(df['Length_1_pixels_pred_scale'].describe())
+    print('========Length_2_pixels_pred_scale========')
+    print(df['Length_2_pixels_pred_scale'].describe())
+    print('========Length_3_pixels_pred_scale========')
+    print(df['Length_3_pixels_pred_scale'].describe())
+    
+    #mpe with lenghtfov and pred scale
+    df['mpe_with_lengthfov_and_pred_scale_1'] = abs(df['Length_fov(mm)'] - df['Length_1_pixels_pred_scale'])/df['Length_1_pixels_pred_scale']*100
+    df['mpe_with_lengthfov_and_pred_scale_2'] = abs(df['Length_fov(mm)'] - df['Length_2_pixels_pred_scale'])/df['Length_2_pixels_pred_scale']*100
+    df['mpe_with_lengthfov_and_pred_scale_3'] = abs(df['Length_fov(mm)'] - df['Length_3_pixels_pred_scale'])/df['Length_3_pixels_pred_scale']*100
+
+    print(df['mpe_with_lengthfov_and_pred_scale_1'].describe())
+    print(df['mpe_with_lengthfov_and_pred_scale_2'].describe())
+    print(df['mpe_with_lengthfov_and_pred_scale_3'].describe())
+
+    for pond_type in df['Pond_Type'].unique():
+        print(f"\n=== {pond_type} Statistics ===")
+        print(df[df['Pond_Type'] == pond_type]['mpe_with_lengthfov_and_pred_scale_1'].describe())
+        print(df[df['Pond_Type'] == pond_type]['mpe_with_lengthfov_and_pred_scale_2'].describe())
+        print(df[df['Pond_Type'] == pond_type]['mpe_with_lengthfov_and_pred_scale_3'].describe())
+
+
+
+
+    #count how many are between 10% and 15% annotation length
     return __name__
 
 
