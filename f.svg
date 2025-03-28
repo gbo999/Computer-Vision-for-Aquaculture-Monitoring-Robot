@@ -1,0 +1,45 @@
+<svg width="600" height="300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Input Layer -->
+  <circle cx="50" cy="150" r="20" fill="#87CEFA" stroke="#000" />
+  <text x="30" y="180" font-size="14" fill="#000">Input</text>
+
+  <!-- Convolutional Layers -->
+  <circle cx="150" cy="100" r="20" fill="#90EE90" stroke="#000" />
+  <circle cx="150" cy="150" r="20" fill="#90EE90" stroke="#000" />
+  <circle cx="150" cy="200" r="20" fill="#90EE90" stroke="#000" />
+
+  <text x="120" y="50" font-size="14" fill="#000">Conv Layers</text>
+
+  <!-- Fully Connected Layers -->
+  <circle cx="250" cy="120" r="20" fill="#FFD700" stroke="#000" />
+  <circle cx="250" cy="180" r="20" fill="#FFD700" stroke="#000" />
+
+  <text x="220" y="90" font-size="14" fill="#000">FC Layers</text>
+
+  <!-- Output Layer -->
+  <circle cx="350" cy="150" r="20" fill="#FF6347" stroke="#000" />
+  <text x="330" y="180" font-size="14" fill="#000">Output</text>
+
+  <!-- Arrows -->
+  <line x1="70" y1="150" x2="130" y2="100" stroke="#000" stroke-width="2" />
+  <line x1="70" y1="150" x2="130" y2="150" stroke="#000" stroke-width="2" />
+  <line x1="70" y1="150" x2="130" y2="200" stroke="#000" stroke-width="2" />
+
+  <line x1="170" y1="100" x2="230" y2="120" stroke="#000" stroke-width="2" />
+  <line x1="170" y1="150" x2="230" y2="120" stroke="#000" stroke-width="2" />
+  <line x1="170" y1="150" x2="230" y2="180" stroke="#000" stroke-width="2" />
+  <line x1="170" y1="200" x2="230" y2="180" stroke="#000" stroke-width="2" />
+
+  <line x1="270" y1="120" x2="330" y2="150" stroke="#000" stroke-width="2" />
+  <line x1="270" y1="180" x2="330" y2="150" stroke="#000" stroke-width="2" />
+
+  <!-- Legend -->
+  <rect x="450" y="60" width="20" height="20" fill="#90EE90" stroke="#000" />
+  <text x="480" y="75" font-size="14" fill="#000">Trainable Conv Layers</text>
+
+  <rect x="450" y="90" width="20" height="20" fill="#FFD700" stroke="#000" />
+  <text x="480" y="105" font-size="14" fill="#000">Trainable FC Layers</text>
+
+  <rect x="450" y="120" width="20" height="20" fill="#FF6347" stroke="#000" />
+  <text x="480" y="135" font-size="14" fill="#000">Output Layer</text>
+</svg>

@@ -8,7 +8,7 @@ import sys
 from importlib import reload
 from data_loader import load_data, create_dataset, process_images, load_data_body, create_dataset_body
 import socket
-
+import random
 def parse_args():
     parser = argparse.ArgumentParser(description='Prawn measurement validation using FiftyOne')
     parser.add_argument('--type', choices=['carapace', 'body'],default='body',
@@ -164,6 +164,10 @@ def is_port_available(port):
         return s.connect_ex(('localhost', port)) != 0
 def main():
     args = parse_args()
+    # make random port
+    args.port = random.randint(5150, 5190)
+
+
     if is_port_available(args.port):
         print(f"Port {args.port} is available")
     else:
