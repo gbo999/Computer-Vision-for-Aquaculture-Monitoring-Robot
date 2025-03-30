@@ -7,7 +7,7 @@ expected_big_total = 180  # 18cm in mm
 expected_small_total = 145  # 14.5cm in mm
 
 # Load the CSV file
-df = pd.read_csv('runs/pose/predict57/length_analysis.csv')
+df = pd.read_csv('runs/pose/predict80/length_analysis_new.csv')
 
 # Create a new column for pond type
 df['pond_type'] = df['image_name'].apply(lambda x: 'Circle' if '10191' in x else 'Square')

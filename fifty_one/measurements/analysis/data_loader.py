@@ -957,8 +957,10 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
     
     
-    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
-    
+    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 83.6, 52.8, height_mm)
+
+    # object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+
     distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
 
@@ -1057,7 +1059,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     keypoint1_scaled_ground = [keypoints_ground[0][0] * 5312, keypoints_ground[0][1] * 2988]
     keypoint2_scaled_ground = [keypoints_ground[1][0] * 5312, keypoints_ground[1][1] * 2988]
 
-    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 83.6, 52.8, height_mm)
 
     distance_mm_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     

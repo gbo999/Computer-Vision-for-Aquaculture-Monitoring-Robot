@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import fiftyone as fo
 import os
 import ast
+import plotly.express as px
 
 def calculate_mape(estimated_lengths, true_lengths):
     """
@@ -91,6 +92,15 @@ Key components:
     df['Length_fov(mm)'] = df['Length_fov(mm)']
 
 
+
+
+    #uncertainty std / sqrt(3) 
+    df['uncertainty'] = df['Std_Length'] / np.sqrt(3)
+    print('========uncertainty========')
+    #describe uncertainty
+    print(df['uncertainty'].describe())
+
+
     #if pose <0.75 remove
     df = df[df['pose_eval_iou'] >= 0.75]
 
@@ -147,10 +157,10 @@ Key components:
     # Absolute difference between closest measurement and predicted value
     df['Diff_Closest_Pred'] = (df['Closest_To_Prediction'] - df['Length_fov(mm)']).abs()
 
-    # Justification based on whether it's within 1 standard deviation
-    df['Justified'] = df['Diff_Closest_Pred'] <= df['Std_Length']
-    print('========Justified========')
-    print(df['Justified'].value_counts())
+    # # Justification based on whether it's within 1 standard deviation
+    # df['Justified'] = df['Diff_Closest_Pred'] <= df['Std_Length']
+    # print('========Justified========')
+    # print(df['Justified'].value_counts())
 
 
     df['MPE_annotation_length_1'] = abs(df['annotation_length_1'] - df['Length_fov(mm)']) / df['Length_fov(mm)'] * 100
@@ -293,12 +303,25 @@ Key components:
         #without annotation
         df['mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].mean(axis=1)
         df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].mean(axis=1)
- #if row justitfiend take the min mpe as the mpe
-        df['mpe'] = df.apply(lambda row: min(row['MPE_length1'], row['MPE_length2'], row['MPE_length3']) if row['Justified'] else row['mpe'], axis=1)
-        df['mae'] = df.apply(lambda row: min(row['mae_length1'], row['mae_length2'], row['mae_length3']) if row['Justified'] else row['mae'], axis=1)
 
-        #flag justified
-        df['flag_justified'] = df['Justified']
+
+        #remove outliers statistically
+        df = df[df['mpe'] < df['mpe'].std() * 3]
+        df = df[df['mae'] < df['mae'].std() * 3]
+
+
+         #show histogram of mpe
+        plt.hist(df['mae'], bins=100)
+        plt.show()
+
+
+
+ #if row justitfiend take the min mpe as the mpe
+        # df['mpe'] = df.apply(lambda row: min(row['MPE_length1'], row['MPE_length2'], row['MPE_length3']) if row['Justified'] else row['mpe'], axis=1)
+        # df['mae'] = df.apply(lambda row: min(row['mae_length1'], row['mae_length2'], row['mae_length3']) if row['Justified'] else row['mae'], axis=1)
+
+        # #flag justified
+        # df['flag_justified'] = df['Justified']
 
         #in pond circlefemale less than 35
 
@@ -443,7 +466,7 @@ Key components:
 
 
     if args.type=='carapace':
-        df['high_error'] = abs(df['mae']) >5  
+        df['high_error'] = abs(df['mae']) >3  
     else:
         df['high_error'] = abs(df['mae']) >10
 
@@ -620,7 +643,7 @@ Key components:
 
 # Count high error measurements per image
     if args.type=='carapace':
-        high_error_df = df[abs(df['mae']) >5]
+        high_error_df = df[abs(df['mae']) >3]
     else:
         high_error_df = df[abs(df['mae']) >10]
       # Filter for high errors
@@ -673,8 +696,8 @@ Key components:
     def get_primary_flag_by_pct(row):
         # First check if we have any errors at all
 
-        if row['flag_justified']:
-            return 'Justified'
+        # if row['flag_justified']:
+        #     return 'Justified'
         if not row['high_error']:
             return 'No Flags'
     
@@ -848,44 +871,230 @@ Key components:
         os.makedirs(f'graphs/{args.type}', exist_ok=True)
         pond_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
 
+
+        # Create scatter plot with error bands
+        scatter_fig = go.Figure()
+
+        # Add diagonal reference line (y=x)
+        scatter_fig.add_trace(go.Scatter(
+            x=[min(pond_df['Length_fov(mm)']), max(pond_df['Length_fov(mm)'])],
+            y=[min(pond_df['Length_fov(mm)']), max(pond_df['Length_fov(mm)'])],
+            mode='lines',
+            name='Perfect prediction (y=x)',
+            line=dict(color='black', dash='dash')
+        ))
+
+        # Add ±3mm error bands
+        scatter_fig.add_trace(go.Scatter(
+            x=[min(pond_df['Length_fov(mm)']), max(pond_df['Length_fov(mm)'])],
+            y=[min(pond_df['Length_fov(mm)']) + 3, max(pond_df['Length_fov(mm)']) + 3],
+            mode='lines',
+            name='+3mm',
+            line=dict(color='red', dash='dot')
+        ))
+
+        scatter_fig.add_trace(go.Scatter(
+            x=[min(pond_df['Length_fov(mm)']), max(pond_df['Length_fov(mm)'])],
+            y=[min(pond_df['Length_fov(mm)']) - 3, max(pond_df['Length_fov(mm)']) - 3],
+            mode='lines',
+            name='-3mm',
+            line=dict(color='red', dash='dot')
+        ))
+
+        # Add scatter plot
+        scatter_fig.add_trace(go.Scatter(
+            x=pond_df['Length_fov(mm)'],
+            y=pond_df['mean_length'],
+            mode='markers',
+            name='Data Points',
+            hovertemplate=
+                "<b>ID:</b> %{customdata[0]}<br>" +
+                "<b>Image:</b> %{customdata[1]}<br>" +
+                "<b>Predicted Length:</b> %{x:.1f}mm<br>" +
+                "<b>Mean Expert Length:</b> %{y:.1f}mm<br>" +
+                "<b>Absolute Difference:</b> %{customdata[2]:.1f}mm<br>",
+            customdata=np.column_stack((
+                pond_df['PrawnID'],
+                pond_df['Label'],
+                abs(pond_df['mean_length'] - pond_df['Length_fov(mm)'])
+            ))
+        ))
+
+        # Update layout
+        scatter_fig.update_layout(
+            title=f'Predicted vs Mean Expert Length for {pond_type}',
+            xaxis_title='Predicted Length (mm)',
+            yaxis_title='Mean Expert Length (mm)',
+            height=800,
+            width=800,
+            showlegend=True,
+            xaxis=dict(
+                range=[min(pond_df['Length_fov(mm)']), max(pond_df['Length_fov(mm)'])],
+                scaleanchor='y',
+                scaleratio=1,
+            ),
+            yaxis=dict(
+                range=[min(pond_df['Length_fov(mm)']), max(pond_df['Length_fov(mm)'])],
+            )
+        )
+
+        # Save the scatter plot
+        scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+
+        # Create pixel-to-pixel scatter plot
+        pixel_scatter_fig = go.Figure()
+        
+        # Calculate mean expert pixels
+        pond_df['mean_expert_pixels'] = pond_df[['Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].mean(axis=1)
+        
+        # Calculate linear regression for pixels
+        # slope_px, intercept_px, r_value_px, p_value_px, std_err_px = stats.linregress(pond_df['pred_Distance_pixels'], pond_df['mean_expert_pixels'])
+        # r_squared_px = r_value_px**2
+        
+        # Find min and max for pixel values with padding
+        min_val_px = min(pond_df['pred_Distance_pixels'].min(), pond_df['mean_expert_pixels'].min()) * 0.8
+        max_val_px = max(pond_df['pred_Distance_pixels'].max(), pond_df['mean_expert_pixels'].max()) * 1.2
+        
+        # Add diagonal reference line (y=x)
+        pixel_scatter_fig.add_trace(go.Scatter(
+            x=[min_val_px, max_val_px],
+            y=[min_val_px, max_val_px],
+            mode='lines',
+            name='Perfect prediction (y=x)',
+            line=dict(color='black', dash='dash')
+        ))
+        
+        # Add scatter plot for pixels
+        pixel_scatter_fig.add_trace(go.Scatter(
+            x=pond_df['pred_Distance_pixels'],
+            y=pond_df['mean_expert_pixels'],
+            mode='markers',
+            name='Data Points',
+            hovertemplate=
+                "<b>ID:</b> %{customdata[0]}<br>" +
+                "<b>Image:</b> %{customdata[1]}<br>" +
+                "<b>Predicted Pixels:</b> %{x:.1f}px<br>" +
+                "<b>Mean Expert Pixels:</b> %{y:.1f}px<br>" +
+                "<b>Expert 1 Pixels:</b> %{customdata[2]:.1f}px<br>" +
+                "<b>Expert 2 Pixels:</b> %{customdata[3]:.1f}px<br>" +
+                "<b>Expert 3 Pixels:</b> %{customdata[4]:.1f}px<br>",
+            customdata=pond_df[['PrawnID', 'Label', 'Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].values
+        ))
+        
+        # Update layout for pixel scatter plot
+        pixel_scatter_fig.update_layout(
+            title=f'Predicted vs Mean Expert Pixels for {pond_type}',
+            xaxis_title='Predicted Length (pixels)',
+            yaxis_title='Mean Expert Length (pixels)',
+            height=800,
+            width=800,
+            showlegend=True,
+            xaxis=dict(
+                range=[min_val_px, max_val_px],
+                scaleanchor='y',
+                scaleratio=1,
+            ),
+            yaxis=dict(
+                range=[min_val_px, max_val_px]
+            )
+        )
+        
+        # Save the pixel scatter plot
+        pixel_scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/scatter_pixels_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+
+
+
+    #scatter plot of expert mean and anonotation length 
+    scatter_fig = go.Figure()
+    pond_df['mean_expert_pixels'] = pond_df[['Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].mean(axis=1)
+    #anotation
+    #ground trtuh annotation length
+
+    # Add diagonal reference line (y=x)
+    scatter_fig.add_trace(go.Scatter(
+        x=pond_df['mean_expert_pixels'],
+        y=pond_df['Length_ground_truth_annotation_pixels'],
+        mode='markers',
+        name='Data Points',
+        hovertemplate=
+            "<b>ID:</b> %{customdata[0]}<br>" +
+            "<b>Image:</b> %{customdata[1]}<br>" +
+            "<b>Mean Expert Pixels:</b> %{x:.1f}px<br>" +
+            "<b>Ground Truth Annotation Length:</b> %{y:.1f}px<br>" +
+            "<b>Absolute Difference:</b> %{customdata[2]:.1f}px<br>",
+        customdata=np.column_stack((
+            pond_df['PrawnID'],
+            pond_df['Label'],
+            abs(pond_df['mean_expert_pixels'] - pond_df['Length_ground_truth_annotation_pixels'])
+        ))
+    ))
+    #add line of x=y
+    scatter_fig.add_trace(go.Scatter(
+        x=[min(pond_df['mean_expert_pixels']), max(pond_df['mean_expert_pixels'])],
+        y=[min(pond_df['Length_ground_truth_annotation_pixels']), max(pond_df['Length_ground_truth_annotation_pixels'])],
+        mode='lines',
+        name='Perfect prediction (y=x)',
+        line=dict(color='black', dash='dash')
+    ))
+    # Update layout
+    scatter_fig.update_layout(
+        title='Mean Expert Pixels vs Ground Truth Annotation Length',
+        xaxis_title='Mean Expert Pixels',
+        yaxis_title='Ground Truth Annotation Length (pixels)',
+        height=800,
+        width=800,
+        showlegend=True,
+        xaxis=dict(
+            range=[min(pond_df['mean_expert_pixels']), max(pond_df['mean_expert_pixels'])],
+            scaleanchor='y',
+            scaleratio=1,
+        ),
+        yaxis=dict( 
+            range=[min(pond_df['Length_ground_truth_annotation_pixels']), max(pond_df['Length_ground_truth_annotation_pixels'])],
+        )
+    )
+
+    # Save the scatter plot
+    scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/scatter_expert_mean_annotation_length_{args.type}_{args.weights_type}_{args.error_size}.html')
+    
     #create the same but for the 3 pond types in the same html file 
     
    #create a new figure with annotation length
-    annotation_length_fig = go.Figure()
+#     annotation_length_fig = go.Figure()
 
-    #add a box plot for each pond type
-    for pond_type in df['Pond_Type'].unique():
-        pond_df = df[df['Pond_Type'] == pond_type]
-        annotation_length_fig.add_trace(go.Box(y=pond_df['mpe_annotation_length'], name=pond_type))
+#     #add a box plot for each pond type
+#     for pond_type in df['Pond_Type'].unique():
+#         pond_df = df[df['Pond_Type'] == pond_type]
+#         annotation_length_fig.add_trace(go.Box(y=pond_df['mpe_annotation_length'], name=pond_type))
 
-    #add a horizontal line at 10%
+#     #add a horizontal line at 10%
 
-    if args.type=='carapace':
-        y0=15
-    else:
-        y0=5
-    annotation_length_fig.add_shape(
-    type='line',
-    x0=-0.5, x1=len(categories) - 0.5,
-        y0=y0, y1=y0,
-    line=dict(color='red', dash='dash')
-)   
+#     if args.type=='carapace':
+#         y0=15
+#     else:
+#         y0=5
+#     annotation_length_fig.add_shape(
+#     type='line',
+#     x0=-0.5, x1=len(categories) - 0.5,
+#         y0=y0, y1=y0,
+#     line=dict(color='red', dash='dash')
+# )   
 
-    #update layout
-    annotation_length_fig.update_layout(
-    title='Annotation Length Distribution',
-    yaxis_title='Annotation Length (%)',
-    height=800, width=2000,
-)
+#     #update layout
+#     annotation_length_fig.update_layout(
+#     title='Annotation Length Distribution',
+#     yaxis_title='Annotation Length (%)',
+#     height=800, width=2000,
+# )
 
-    #add counts to the box plot names
-    for i, trace in enumerate(annotation_length_fig.data):
-        category = trace.name
-        count = len(df[df['Pond_Type'] == category])
-        trace.name = f"{category} (n={count})"  
+#     #add counts to the box plot names
+#     for i, trace in enumerate(annotation_length_fig.data):
+#         category = trace.name
+#         count = len(df[df['Pond_Type'] == category])
+#         trace.name = f"{category} (n={count})"  
 
-    os.makedirs('graphs', exist_ok=True)
-    annotation_length_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/annotation_length_fig_{args.type}_{args.weights_type}_{args.error_size}.html')
+#     os.makedirs('graphs', exist_ok=True)
+#     annotation_length_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/annotation_length_fig_{args.type}_{args.weights_type}_{args.error_size}.html')
 
 
 
@@ -1376,7 +1585,34 @@ Key components:
     #     COLOR.append(row['annotation_pixels_1'])
 
     #     #graph showing coordinates and color of error rate
-    # fig = px.scatter(df, x= box_x_min, y=box_y_min, color=COLOR,range_color=[-70,70], hover_data=['Label', 'PrawnID'])
+    # fig = px.scatter(
+    #     df, 
+    #     x=box_x_min, 
+    #     y=box_y_min, 
+    #     color=COLOR,
+    #     range_color=[-70,70], 
+    #     hover_data=['Label', 'PrawnID'],
+    #     width=1200,  # Set a reasonable display width
+    #     height=800   # Set a reasonable display height
+    # )
+
+    # # Update layout to show full image dimensions
+    # fig.update_layout(
+    #     xaxis=dict(
+    #         range=[0, 5312],  # Set x-axis range to image width
+    #         title="Image Width (pixels)"
+    #     ),
+    #     yaxis=dict(
+    #         range=[0, 2988],  # Set y-axis range to image height
+    #         title="Image Height (pixels)"
+    #     ),
+    #     title="Error Distribution Across Image Space"
+    # )
+
+    # # Add a colorbar title
+    # fig.update_coloraxes(colorbar_title="Error (%)")
+
+    # # Save the plot
     # fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/annotation_pixels_difference_{args.type}_{args.weights_type}.html')
 
 

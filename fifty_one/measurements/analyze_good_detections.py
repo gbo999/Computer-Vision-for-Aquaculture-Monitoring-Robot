@@ -3,6 +3,82 @@ import numpy as np
 import os
 import math
 from pathlib import Path
+# from data_loader import ObjectLengthMeasurer
+from tqdm import tqdm
+
+
+class ObjectLengthMeasurer:
+    def __init__(self, image_width, image_height, horizontal_fov, vertical_fov, distance_mm):
+        self.image_width = image_width
+        self.image_height = image_height
+        self.horizontal_fov = horizontal_fov
+        self.vertical_fov = vertical_fov
+        self.distance_mm = distance_mm
+        self.scale_x, self.scale_y = self.calculate_scaling_factors()
+        # self.to_scale_x = image_width / 640  # Assuming low-res width is 640
+        # self.to_scale_y = image_height / 360  # Assuming low-res height is 360
+
+    def calculate_scaling_factors(self):
+        """
+        Calculate the scaling factors (mm per pixel) based on the camera's FOV and distance.
+        """
+        fov_x_rad = math.radians(self.horizontal_fov)
+        fov_y_rad = math.radians(self.vertical_fov)
+        scale_x = (2 * self.distance_mm * math.tan(fov_x_rad / 2)) / self.image_width
+        scale_y = (2 * self.distance_mm * math.tan(fov_y_rad / 2)) / self.image_height
+        return scale_x, scale_y
+
+    def normalize_angle(self, angle):
+        """
+        Normalize the angle to [0°, 90°].
+        """
+        theta_norm = min(abs(angle % 180), 180 - abs(angle % 180))
+
+        return  theta_norm
+
+    def compute_length(self, predicted_length, angle_deg):
+        """
+        Compute the real-world length in millimeters using combined scaling factors.
+        """
+        angle_rad = math.radians(angle_deg)
+        combined_scale = math.sqrt((self.scale_x * math.cos(angle_rad)) ** 2 + 
+                                   (self.scale_y * math.sin(angle_rad)) ** 2)
+        length_mm = predicted_length * combined_scale
+        return length_mm
+
+    def compute_length_two_points(self, point1_low_res, point2_low_res):
+        """
+        Compute the real-world distance between two points in the low-resolution image.
+        
+        Parameters:
+        - point1_low_res: Tuple (x1, y1) coordinates of the first point in low-res pixels.
+        - point2_low_res: Tuple (x2, y2) coordinates of the second point in low-res pixels.
+        
+        Returns:
+        - distance_mm: Real-world distance between the two points in millimeters.
+        - angle_deg: Angle of the line connecting the two points relative to the horizontal axis in degrees.
+        """
+        # Calculate pixel distance in low-res image
+        delta_x_low = point2_low_res[0] - point1_low_res[0]
+        delta_y_low = point2_low_res[1] - point1_low_res[1]
+        distance_px = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
+
+
+
+        
+        # Calculate angle in degrees
+        angle_rad = math.atan2(delta_y_low, delta_x_low)
+        angle_deg = math.degrees(angle_rad)
+        normalized_angle = self.normalize_angle(angle_deg)
+        
+        # Scale the pixel distance from low-res to high-res
+        # distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
+        
+        # Compute real-world distance
+        distance_mm = self.compute_length(distance_px, normalized_angle)
+        
+        return distance_mm, normalized_angle, distance_px
+
 
 def calculate_euclidean_distance(point1, point2):
     """Calculate Euclidean distance between two points"""
@@ -38,26 +114,37 @@ def analyze_good_detections():
     
     # Prepare data collection
     analysis_data = []
-    labels_dir = Path('runs/pose/predict57/filtered_labels')
+    labels_dir = Path('runs/pose/predict80/labels')
     
     # Image dimensions for calculations
     calc_width = 5312  # Original image width
     calc_height = 2988  # Original image height
     
-    # Process each good image
-    for _, row in good_images.iterrows():
-        image_name = row['image_name']
-        base_name = image_name.replace('viz_', '').replace('viz_segmented_', '')
+
+    #in predict 80 the labels are in the labels folder
+    labels_dir = Path('runs/pose/predict80/labels')
+
+    # # Process each good image
+    # for _, row in good_images.iterrows():
+    #     image_name = row['image_name']
+    #     base_name = image_name.replace('viz_', '').replace('viz_segmented_', '')
         
         # Find corresponding label file - add "segmented_" prefix
-        label_file = labels_dir / f"segmented_{base_name.replace('.jpg', '.txt')}"
-        if not label_file.exists():
-            print(f"Warning: Label file not found for {image_name}")
-            continue
+
+    for label_file in tqdm(labels_dir.glob('*.txt')):
+        image_name = label_file.stem
+
+
+        # base_name = image_name.replace('', '')
+
+        # label_file = labels_dir / f"segmented_{base_name.replace('.jpg', '.txt')}"
+        # if not label_file.exists():
+        #     print(f"Warning: Label file not found for {image_name}")
+        #     continue
         
         # Initialize entry with all required fields
         entry = {
-            'image_name': base_name,
+            'image_name': image_name,
             'big_total_length': '',
             'big_carapace_length': '',
             'big_eye_x': '',
@@ -69,7 +156,7 @@ def analyze_good_detections():
         }
         
         # Determine height_mm based on image name (following same logic as visualize_filtered.py)
-        is_circle2 = "GX010191" in base_name
+        is_circle2 = "GX010191" in image_name
         height_mm = 700 if is_circle2 else 410
         
         # Read and process the label file
@@ -108,19 +195,28 @@ def analyze_good_detections():
                 eye_y = keypoints_calc[0][1]
                 
                 # Convert to mm using original image dimensions and field of view
-                diagonal_image_size = math.sqrt(calc_width ** 2 + calc_height ** 2)
-                total_length_mm = (total_length_pixels / diagonal_image_size) * (2 * height_mm * math.tan(math.radians(84.6/2)))
-                carapace_length_mm = (carapace_length_pixels / diagonal_image_size) * (2 * height_mm * math.tan(math.radians(84.6/2)))
-                
+
+                object_length_measurer = ObjectLengthMeasurer(5312, 2988,83.6,52.8 , height_mm)
+    
+                total_length_mm, angle_deg, total_length_pixels = object_length_measurer.compute_length_two_points(keypoints_calc[3], keypoints_calc[2])
+
+                carapace_length_mm, angle_deg_carapace, carapace_length_pixels = object_length_measurer.compute_length_two_points(keypoints_calc[0], keypoints_calc[1])
+
+
+                                
                 # Determine size
                 size = determine_size(total_length_mm)
                 print(size)
-                further_labels_dir = Path('runs/pose/predict57/further_labels_files')
-                further_labels_dir.mkdir(exist_ok=True)
+
+                labels_dir = Path('runs/pose/predict80/labels')
                 # Store measurements in the appropriate columns
                 if size == "BIG":
                     height_mm = 660 if is_circle2 else 370
-                    total_length_mm = (total_length_pixels / diagonal_image_size) * (2 * height_mm * math.tan(math.radians(84.6/2)))
+                    object_length_measurer = ObjectLengthMeasurer(5312, 2988,83.6,52.8 , height_mm)
+                    total_length_mm, angle_deg, total_length_pixels = object_length_measurer.compute_length_two_points(keypoints_calc[3], keypoints_calc[2])
+
+                    carapace_length_mm, angle_deg_carapace, carapace_length_pixels = object_length_measurer.compute_length_two_points(keypoints_calc[0], keypoints_calc[1])
+
                     entry['big_total_length'] = round(total_length_mm, 1)# entry['big_total_length'] = round(total_length_mm, 1)
                     entry['big_carapace_length'] = round(carapace_length_mm, 1)
                     entry['big_eye_x'] = round(eye_x, 1)
@@ -129,13 +225,17 @@ def analyze_good_detections():
                     entry['Big_pixels_carapace_length'] = round(carapace_length_pixels, 1)
                     #add the full detection to the further label file
                     image_name = Path(entry['image_name']).stem
-                    label_file = further_labels_dir / f"{image_name}.txt"
+                    label_file = labels_dir / f"{image_name}.txt"
 
                     with open(label_file, 'a') as f:
                         f.write(detection)
                 elif size == "SMALL":
                     height_mm = 670 if is_circle2 else 380
-                    total_length_mm = (total_length_pixels / diagonal_image_size) * (2 * height_mm * math.tan(math.radians(84.6/2)))
+                    object_length_measurer = ObjectLengthMeasurer(5312, 2988,83.6,52.8 , height_mm)
+                    total_length_mm, angle_deg, total_length_pixels = object_length_measurer.compute_length_two_points(keypoints_calc[3], keypoints_calc[2])
+
+                    carapace_length_mm, angle_deg_carapace, carapace_length_pixels = object_length_measurer.compute_length_two_points(keypoints_calc[0], keypoints_calc[1])
+
                     entry['small_total_length'] = round(total_length_mm, 1)
                     entry['small_carapace_length'] = round(carapace_length_mm, 1)
                     entry['small_eye_x'] = round(eye_x, 1)
@@ -145,7 +245,7 @@ def analyze_good_detections():
                     
                     #add the full detection to the further label file
                     image_name = Path(entry['image_name']).stem
-                    label_file = further_labels_dir / f"{image_name}.txt"
+                    label_file = labels_dir / f"{image_name}.txt"
                     with open(label_file, 'a') as f:
                         f.write(detection)
                     
@@ -163,7 +263,7 @@ def analyze_good_detections():
     
     # Create DataFrame and save to CSV
     analysis_df = pd.DataFrame(analysis_data)
-    output_file = 'runs/pose/predict57/length_analysis_less.csv'
+    output_file = 'runs/pose/predict80/length_analysis_new.csv'
     analysis_df.to_csv(output_file, index=False)
     print(f"Analysis saved to {output_file}")
     

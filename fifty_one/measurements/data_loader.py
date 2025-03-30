@@ -1321,7 +1321,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
     focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
     
     
-    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+    object_length_measurer = ObjectLengthMeasurer(5312, 2988,83.6,52.8 , height_mm)
     
     distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
