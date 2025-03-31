@@ -128,7 +128,7 @@ def analyze_good_detections():
     
     # Prepare data collection
     analysis_data = []
-    labels_dir = Path('runs/pose/predict81/labels')
+    labels_dir = Path('runs/pose/predict83/labels')
     
     # Image dimensions for calculations
     calc_width = 5312  # Original image width
@@ -240,7 +240,7 @@ def analyze_good_detections():
             
             # Save progress after each file
             analysis_df = pd.DataFrame(analysis_data)
-            output_file = 'runs/pose/predict81/length_analysis_new.csv'
+            output_file = 'runs/pose/predict83/length_analysis_new.csv'
             analysis_df.to_csv(output_file, index=False)
 
         except Exception as e:
