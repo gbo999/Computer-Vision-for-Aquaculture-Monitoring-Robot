@@ -46,12 +46,10 @@ class ObjectLengthMeasurer:
         return scale_x, scale_y
 
     def normalize_angle(self, angle):
-        """
-        Normalize the angle to [0°, 90°].
-        """
-        if angle < 0:
-            angle += 90
-        return abs(angle)
+        
+      theta_norm = min(abs(angle % 180), 180 - abs(angle % 180))
+
+      return  theta_norm
 
     def compute_length(self, predicted_length, angle_deg):
         """
@@ -61,7 +59,7 @@ class ObjectLengthMeasurer:
         combined_scale = math.sqrt((self.scale_x * math.cos(angle_rad)) ** 2 + 
                                    (self.scale_y * math.sin(angle_rad)) ** 2)
         length_mm = predicted_length * combined_scale
-        return length_mm
+        return length_mm,combined_scale
 
     def compute_length_two_points(self, point1_low_res, point2_low_res):
         """
@@ -93,9 +91,9 @@ class ObjectLengthMeasurer:
         # distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
         
         # Compute real-world distance
-        distance_mm = self.compute_length(distance_px, normalized_angle)
+        distance_mm,combined_scale = self.compute_length(distance_px, normalized_angle)
         
-        return distance_mm, normalized_angle, distance_px
+        return distance_mm, combined_scale, normalized_angle, distance_px
 
 def load_data(filtered_data_path, metadata_path):
     filtered_df = pd.read_csv(filtered_data_path)
@@ -957,11 +955,11 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
     
     
-    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 83.6, 52.8, height_mm)
+    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 76.2, 46, height_mm)
 
     # object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
 
-    distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    distance_mm,combined_scale, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
 
 
@@ -1034,7 +1032,7 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     #top right to bottom left
     distance_px_bounding_box_1_top_right_bottom_left = calculate_euclidean_distance(top_right_1, bottom_left_1)
 
-
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale'] = combined_scale
 
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_1_1'] = distance_px_bounding_box_1_top_right_bottom_left
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_1_2'] = distance_px_bounding_box_1
@@ -1059,16 +1057,16 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     keypoint1_scaled_ground = [keypoints_ground[0][0] * 5312, keypoints_ground[0][1] * 2988]
     keypoint2_scaled_ground = [keypoints_ground[1][0] * 5312, keypoints_ground[1][1] * 2988]
 
-    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 83.6, 52.8, height_mm)
+    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 76.2, 46, height_mm)
 
-    distance_mm_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
+    distance_mm_ground,combined_scale_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     
     #distance_mm_ground to table
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation_pixels'] = distance_px_ground
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'pred_Distance_pixels'] = distance_px
 
-    
+    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale_ground'] = combined_scale_ground
     
     # fov=75.2
     # FOV_width=2*height_mm*math.tan(math.radians(fov/2))
@@ -1462,7 +1460,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
     
     object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
     
-    distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    distance_mm,combined_scale, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
     ####
     keypoints_dict_ground = ground.attributes["keypoints"]
@@ -1472,7 +1470,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
 
     object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
 
-    distance_mm_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
+    distance_mm_ground,combined_scale_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     
     #distance_mm_ground to table
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
@@ -1480,7 +1478,9 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
     
     #distnace in pixels to table
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'pred_Distance_pixels'] = distance_px
-    
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale'] = combined_scale
+
+    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale_ground'] = combined_scale_ground
     # fov=75.2
     # FOV_width=2*height_mm*math.tan(math.radians(fov/2))
     # length_fov=FOV_width*euclidean_distance_pixels/5312

@@ -29,12 +29,13 @@ def get_paths(weights_type):
 
 
     if weights_type == 'car':
-        predict_version = 'predict52'
+        predict_version = 'predict88'
     elif weights_type == 'kalkar':
-        predict_version = 'predict53'
+        predict_version = 'predict90'
     else:
-        predict_version = 'predict54'
-
+        # predict_version = 'predict54'
+        # predict_version = 'predict85'
+        predict_version = 'predict89'
     prediction_base = f"/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/runs/pose/{predict_version}/labels"
     ground_truth_base = "/Users/gilbenor/Downloads/Giant freshwater prawn carapace keypoint detection.v91i.yolov8/all/labels"
     
@@ -61,7 +62,7 @@ def process_measurements(measurement_type, port, weights_type):
         load_data_fn = load_data_body
         create_dataset_fn = create_dataset_body
 
-    metadata_path = "/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/test images.xlsx"
+    metadata_path = "/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/data/test images.xlsx"
     
     # Load data and create dataset
     filtered_df, metadata_df = load_data_fn(filtered_data_path, metadata_path)
@@ -152,9 +153,10 @@ def process_measurements(measurement_type, port, weights_type):
             dataset_type=fo.types.FiftyOneDataset,
             export_media=True
         )
+    print(f'port: {port}')
+    # Launch FiftyOne UI for visualization 503 - Tunnel Unavailable
 
-    # Launch FiftyOne UI for visualization
-    session = fo.launch_app(dataset, port=port)
+    session = fo.launch_app(dataset, port=port,remote=True)
 
 
 

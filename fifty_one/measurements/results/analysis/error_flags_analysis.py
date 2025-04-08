@@ -8,6 +8,7 @@ import fiftyone as fo
 import os
 import ast
 import plotly.express as px
+from sklearn.metrics import r2_score
 
 def calculate_mape(estimated_lengths, true_lengths):
     """
@@ -210,6 +211,10 @@ Key components:
         df['mpe'] = df[['MPE_length1', 'MPE_length2', 'MPE_length3']].min(axis=1)
         df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].min(axis=1)
 
+
+        #remove outliers statistically
+        df = df[df['mpe'] < df['mpe'].std() * 3]
+        df = df[df['mae'] < df['mae'].std() * 3]
         
         df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].median(axis=1)
         df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].median(axis=1)
@@ -243,6 +248,21 @@ Key components:
 
         df['mae_annotation_length'] = df[['mae_length1', 'mae_length2', 'mae_length3', 'mae_annotation']].min(axis=1)
 
+ #show smoothed histogram of mae
+        plt.figure(figsize=(10, 6))
+        sns.kdeplot(data=df['mae'], fill=True)
+        plt.xlabel('Mean Absolute Error (mm)')
+        plt.ylabel('Density')
+        plt.title('Smoothed Distribution of Mean Absolute Error')
+        plt.show()
+
+        #show smoothed histogram of mpe
+        plt.figure(figsize=(10, 6))
+        sns.kdeplot(data=df['mpe'], fill=True)
+        plt.xlabel('Mean Percentage Error (%)')
+        plt.ylabel('Density')
+        plt.title('Smoothed Distribution of Mean Percentage Error')
+        plt.show()
 
 
 
@@ -305,16 +325,30 @@ Key components:
         df['mae'] = df[['mae_length1', 'mae_length2', 'mae_length3']].mean(axis=1)
 
 
-        #remove outliers statistically
+       #df only outliers
+
+        #remove outliers statistically 
         df = df[df['mpe'] < df['mpe'].std() * 3]
         df = df[df['mae'] < df['mae'].std() * 3]
 
 
-         #show histogram of mpe
-        plt.hist(df['mae'], bins=100)
+
+
+         #show smoothed histogram of mae
+        plt.figure(figsize=(10, 6))
+        sns.kdeplot(data=df['mae'], fill=True)
+        plt.xlabel('Mean Absolute Error (mm)')
+        plt.ylabel('Density')
+        plt.title('Smoothed Distribution of Mean Absolute Error')
         plt.show()
 
-
+        #show smoothed histogram of mpe
+        plt.figure(figsize=(10, 6))
+        sns.kdeplot(data=df['mpe'], fill=True)
+        plt.xlabel('Mean Percentage Error (%)')
+        plt.ylabel('Density')
+        plt.title('Smoothed Distribution of Mean Percentage Error')
+        plt.show()
 
  #if row justitfiend take the min mpe as the mpe
         # df['mpe'] = df.apply(lambda row: min(row['MPE_length1'], row['MPE_length2'], row['MPE_length3']) if row['Justified'] else row['mpe'], axis=1)
@@ -420,13 +454,32 @@ Key components:
    #create table pred scale near scale_1, scale_2, scale_3 table
 
 
+    
+    #scale normalize
+    df['scale_normalized_1'] = 1/(df['Scale_1']/10)
+    df['scale_normalized_2'] = 1/(df['Scale_2']/10)
+    df['scale_normalized_3'] = 1/(df['Scale_3']/10)
 
 
+    print(f'combined scale: {df["combined_scale"].describe()}')
+    print(f'scale_normalized_1: {df["scale_normalized_1"].describe()}')
+    print(f'scale_normalized_2: {df["scale_normalized_2"].describe()}')
+    print(f'scale_normalized_3: {df["scale_normalized_3"].describe()}')
    
         #avg scale error
-    df['scale_error_1'] = abs (df['pred_scale'] - df['Scale_1'])/df['Scale_1']*100
-    df['scale_error_2'] = abs(df['pred_scale'] - df['Scale_2'])/df['Scale_2']*100
-    df['scale_error_3'] = abs(df['pred_scale'] - df['Scale_3'])/df['Scale_3']*100
+    df['scale_error_1'] = abs (df['combined_scale'] - df['scale_normalized_1'])/df['scale_normalized_1']*100
+    df['scale_error_2'] = abs(df['combined_scale'] - df['scale_normalized_2'])/df['scale_normalized_2']*100
+    df['scale_error_3'] = abs(df['combined_scale'] - df['scale_normalized_3'])/df['scale_normalized_3']*100
+
+
+
+     #scale diff
+    df['scale_diff_1'] = abs(df['combined_scale'] - df['scale_normalized_1'])
+    df['scale_diff_2'] = abs(df['combined_scale'] - df['scale_normalized_2'])
+    df['scale_diff_3'] = abs(df['combined_scale'] - df['scale_normalized_3'])
+
+    #avg scale diff
+    df['avg_scale_diff'] = df[['scale_diff_1', 'scale_diff_2', 'scale_diff_3']].mean(axis=1)
 
     df['avg_scale_error'] = df[['scale_error_1', 'scale_error_2', 'scale_error_3']].mean(axis=1)
     if args.type=='carapace':
@@ -501,6 +554,9 @@ Key components:
     df['pixel_diff_pct_2'] = df['pixel_diff_2'] / df['Length_2_pixels'] * 100
     df['pixel_diff_pct_3'] = df['pixel_diff_3'] / df['Length_3_pixels'] * 100
 
+
+    #avg pixel diff
+    df['avg_pixel_diff'] = df[['pixel_diff_1', 'pixel_diff_2', 'pixel_diff_3']].mean(axis=1)
 # ----- Flagging Pixel Errors -----
 
 # Define threshold for high pixel percentage error
@@ -869,7 +925,7 @@ Key components:
             trace.name = f"{category} (n={count})"
 
         os.makedirs(f'graphs/{args.type}', exist_ok=True)
-        pond_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        pond_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
 
 
         # Create scatter plot with error bands
@@ -939,7 +995,7 @@ Key components:
         )
 
         # Save the scatter plot
-        scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
 
         # Create pixel-to-pixel scatter plot
         pixel_scatter_fig = go.Figure()
@@ -1000,7 +1056,7 @@ Key components:
         )
         
         # Save the pixel scatter plot
-        pixel_scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/scatter_pixels_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        pixel_scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixels_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
 
 
 
@@ -1055,24 +1111,345 @@ Key components:
     )
 
     # Save the scatter plot
-    scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/analysis/graphs/{args.type}/scatter_expert_mean_annotation_length_{args.type}_{args.weights_type}_{args.error_size}.html')
+    scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_expert_mean_annotation_length_{args.type}_{args.weights_type}_{args.error_size}.html')
     
-    #create the same but for the 3 pond types in the same html file 
+
+
+    #create a 3d scatter plot of avg scale error, avg pixel error, mpe
+    # Create 3D scatter plot for each pond type
+    for pond_type in df['Pond_Type'].unique():
+        pond_df = df[df['Pond_Type'] == pond_type]
+        
+        # Calculate correlation coefficients
+        corr_scale_mpe = pond_df['avg_scale_error'].corr(pond_df['mpe'])
+        corr_pixel_mpe = pond_df['avg_pixel_error_pct'].corr(pond_df['mpe'])
+        corr_scale_pixel = pond_df['avg_scale_error'].corr(pond_df['avg_pixel_error_pct'])
+
+
+        pond_df['combined_multiple'] = pond_df['avg_scale_error'] * pond_df['avg_pixel_error_pct']
+
+        corr_combined_multiple = pond_df['combined_multiple'].corr(pond_df['mpe']) 
+        
+        fig = go.Figure(data=[go.Scatter3d(
+            x=pond_df['avg_scale_error'],
+            y=pond_df['avg_pixel_error_pct'], 
+            z=pond_df['mpe'],
+            mode='markers',
+            marker=dict(
+                size=5,
+                color=pond_df['combined_multiple'],  # Color points by MPE
+                colorscale='Viridis',
+                showscale=True
+            ),
+            name='Data Points',
+            hovertemplate=
+                "<b>ID:</b> %{customdata[0]}<br>" +
+                "<b>Image:</b> %{customdata[1]}<br>" +
+                "<b>Avg Scale Error:</b> %{x:.1f}%<br>" +
+                "<b>Avg Pixel Error:</b> %{y:.1f}%<br>" +
+                "<b>MPE:</b> %{z:.1f}%<br>",
+            customdata=pond_df[['PrawnID', 'Label']].values
+        )])
+
+        # Update layout with correlation information
+        fig.update_layout(
+            title=f'3D Scatter Plot with Correlations for {pond_type}<br>' +
+                  f'Scale-MPE Correlation: {corr_scale_mpe:.2f}<br>' +
+                  f'Pixel-MPE Correlation: {corr_pixel_mpe:.2f}<br>' +
+                  f'Scale-Pixel Correlation: {corr_scale_pixel:.2f}<br>' +
+                  f'Combined Multiple-MPE Correlation: {corr_combined_multiple:.2f}',
+            scene=dict(
+                xaxis_title='Avg Scale Error (%)',
+                yaxis_title='Avg Pixel Error (%)', 
+                zaxis_title='MPE (%)'
+            ),
+            height=800,
+            width=1000
+        )
+
+        # Save the 3D scatter plot for this pond type
+        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/3d_scatter_avg_scale_error_avg_pixel_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
     
-   #create a new figure with annotation length
-#     annotation_length_fig = go.Figure()
+        #create a 2d scatter plot of pixel error mpe
+        fig = go.Figure()
+        # Calculate R-squared
+        slope, intercept = np.polyfit(pond_df['avg_pixel_error_pct'], pond_df['mpe'], 1)
+        r_squared = r2_score(pond_df['mpe'], slope * pond_df['avg_pixel_error_pct'] + intercept)
+        
+        # Add scatter plot
+        fig.add_trace(go.Scatter(
+            x=pond_df['avg_pixel_error_pct'],
+            y=pond_df['mpe'],
+            mode='markers',
+            name=f'Data Points (R² = {r_squared:.3f})',
+            hovertemplate=
+                "<b>ID:</b> %{customdata[0]}<br>" +
+                "<b>Image:</b> %{customdata[1]}<br>" +
+                "<b>Pixel Error:</b> %{x:.1f}%<br>" +
+                "<b>MPE:</b> %{y:.1f}%<br>",
+            customdata=pond_df[['PrawnID', 'Label']].values
+        ))
+        # Add regression line
+        fig.add_trace(go.Scatter(
+            x=pond_df['avg_pixel_error_pct'],
+            y=slope * pond_df['avg_pixel_error_pct'] + intercept,
+            mode='lines',
+            name='Regression Line',
+            line=dict(color='red', dash='dash')
+        ))
+        # Update layout
+        fig.update_layout(
+            title='Pixel Error vs MPE',
+            xaxis_title='Pixel Error (%)',
+            yaxis_title='MPE (%)',
+            height=800,
+            width=1000
+        )
+        # Save the scatter plot
+        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixel_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        
+        
 
-#     #add a box plot for each pond type
-#     for pond_type in df['Pond_Type'].unique():
-#         pond_df = df[df['Pond_Type'] == pond_type]
-#         annotation_length_fig.add_trace(go.Box(y=pond_df['mpe_annotation_length'], name=pond_type))
+        #create a 2d scatter plot of scale error mpe
+        fig = go.Figure()
+        # Calculate R-squared
+        slope, intercept = np.polyfit(pond_df['avg_scale_error'], pond_df['mpe'], 1)
+        r_squared = r2_score(pond_df['mpe'], slope * pond_df['avg_scale_error'] + intercept)
+        
+        # Add scatter plot
+        fig.add_trace(go.Scatter(
+            x=pond_df['avg_scale_error'],
+            y=pond_df['mpe'],
+            mode='markers',
+            name=f'Data Points (R² = {r_squared:.3f})',
+            hovertemplate=
+                "<b>ID:</b> %{customdata[0]}<br>" +
+                "<b>Image:</b> %{customdata[1]}<br>" +
+                "<b>Scale Error:</b> %{x:.1f}%<br>" +
+                "<b>MPE:</b> %{y:.1f}%<br>",
+            customdata=pond_df[['PrawnID', 'Label']].values
+        ))
+        # Add regression line
+        fig.add_trace(go.Scatter(
+            x=pond_df['avg_scale_error'],
+            y=slope * pond_df['avg_scale_error'] + intercept,
+            mode='lines',
+            name='Regression Line',
+            line=dict(color='red', dash='dash')
+        ))
+        # Update layout
+        fig.update_layout(
+            title='Scale Error vs MPE',
+            xaxis_title='Scale Error (%)',
+            yaxis_title='MPE (%)',
+            height=800,
+            width=1000
+        )
+        # Save the scatter plot
+        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_scale_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        
+        
+        
+        #scatter plot of pixel+scael mpe
+        pond_df['added_multiple'] = pond_df['avg_scale_error'] + pond_df['avg_pixel_error_pct']
 
-#     #add a horizontal line at 10%
+        # Calculate R-squared
+        slope, intercept = np.polyfit(pond_df['added_multiple'], pond_df['mpe'], 1)
+        r_squared = r2_score(pond_df['mpe'], slope * pond_df['added_multiple'] + intercept)
+        
+        # Add scatter plot
+        fig.add_trace(go.Scatter(
+            x=pond_df['added_multiple'],
+            y=pond_df['mpe'],
+            mode='markers',
+            name=f'Data Points (R² = {r_squared:.3f})',
+            hovertemplate=
+                "<b>ID:</b> %{customdata[0]}<br>" +
+                "<b>Image:</b> %{customdata[1]}<br>" +
+                "<b>Added Multiple:</b> %{x:.1f}<br>" +
+                "<b>MPE:</b> %{y:.1f}%<br>",
+            customdata=pond_df[['PrawnID', 'Label']].values
+        ))
+        # Add regression line
+        fig.add_trace(go.Scatter(
+            x=pond_df['added_multiple'],
+            y=slope * pond_df['added_multiple'] + intercept,
+            mode='lines',
+            name='Regression Line',
+            line=dict(color='red', dash='dash')
+        ))
+        # Update layout
+        fig.update_layout(
+            title='Pixel+Scale Error vs MPE',
+            xaxis_title='Pixel+Scale Error (%)',
+            yaxis_title='MPE (%)',
+            height=800,
+            width=1000
+        )
+        # Save the scatter plot
+        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixel_scale_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        
+        
+    #measument uncertainty distribution across dataset
+    #plot the distribution of the measurement uncertainty
 
-#     if args.type=='carapace':
-#         y0=15
-#     else:
-#         y0=5
+
+
+
+
+
+
+    for pond_type in df['Pond_Type'].unique():
+        df_pond_type = df[df['Pond_Type'] == pond_type]
+
+        #std of length_1, length_2, length_3
+        df_pond_type.loc[:, 'std'] = df_pond_type[['Length_1','Length_2','Length_3']].std(axis=1)
+        df_pond_type.loc[:, 'max'] = df_pond_type[['Length_1','Length_2','Length_3']].max(axis=1)
+        df_pond_type.loc[:, 'min'] = df_pond_type[['Length_1','Length_2','Length_3']].min(axis=1)
+        df_pond_type.loc[:, 'mean'] = df_pond_type[['Length_1','Length_2','Length_3']].mean(axis=1)
+
+        #plot the distribution of the measurement uncertainty
+        ranges = df_pond_type['max'] - df_pond_type['min']
+        means = df_pond_type['mean']
+
+    # Ensure x and y arrays have the same length
+        x_values = range(1, len(means) + 1)
+        plt.errorbar(x_values, means, yerr=ranges/2, fmt='o', ecolor='orange', capsize=3)
+        plt.xlabel("Prawn Index")
+        plt.ylabel("Measurement")
+        plt.title(f"Measurement Uncertainty (Mean ± Half Range) for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+    #the mean of ranges sns kde plot
+        sns.kdeplot(ranges, fill=True)
+        plt.xlabel("Range")
+        plt.ylabel("Frequency")
+        plt.title(f"Range Distribution for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+
+        df_pond_type.loc[:, 'std_pixels'] = df_pond_type[['Length_1_pixels','Length_2_pixels','Length_3_pixels']].std(axis=1)
+        df_pond_type.loc[:, 'max_pixels'] = df_pond_type[['Length_1_pixels','Length_2_pixels','Length_3_pixels']].max(axis=1)
+        df_pond_type.loc[:, 'min_pixels'] = df_pond_type[['Length_1_pixels','Length_2_pixels','Length_3_pixels']].min(axis=1)
+        df_pond_type.loc[:, 'mean_pixels'] = df_pond_type[['Length_1_pixels','Length_2_pixels','Length_3_pixels']].mean(axis=1)
+
+        #plot the distribution of the measurement uncertainty
+        ranges = df_pond_type['max_pixels'] - df_pond_type['min_pixels']
+        means = df_pond_type['mean_pixels']
+
+        # Ensure x and y arrays have the same length
+        x_values = range(1, len(means) + 1)
+        plt.errorbar(x_values, means, yerr=ranges/2, fmt='o', ecolor='orange', capsize=3)
+        plt.xlabel("Prawn Index")
+        plt.ylabel("Measurement")
+        plt.title(f"Pixel Measurement Uncertainty (Mean ± Half Range) for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+        #the mean of ranges sns kde plot
+        sns.kdeplot(ranges, fill=True)
+        plt.xlabel("Range")
+        plt.ylabel("Frequency")
+        plt.title(f"Pixel Range Distribution for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+      
+
+        #avg scale
+        df_pond_type.loc[:, 'mean_scale'] = df_pond_type[['scale_normalized_1', 'scale_normalized_2', 'scale_normalized_3']].mean(axis=1)
+
+
+        df_pond_type.loc[:, 'std_scale'] = df_pond_type[['scale_normalized_1','scale_normalized_2','scale_normalized_3']].std(axis=1)
+        df_pond_type.loc[:, 'max_scale'] = df_pond_type[['scale_normalized_1','scale_normalized_2','scale_normalized_3']].max(axis=1)
+        df_pond_type.loc[:, 'min_scale'] = df_pond_type[['scale_normalized_1','scale_normalized_2','scale_normalized_3']].min(axis=1)
+        df_pond_type.loc[:, 'mean_scale'] = df_pond_type[['scale_normalized_1','scale_normalized_2','scale_normalized_3']].mean(axis=1)
+
+        #plot the distribution of the measurement uncertainty
+        ranges = df_pond_type['max_scale'] - df_pond_type['min_scale']
+        means = df_pond_type['mean_scale']
+
+        # Ensure x and y arrays have the same length
+        x_values = range(1, len(means) + 1)
+        plt.errorbar(x_values, means, yerr=ranges/2, fmt='o', ecolor='orange', capsize=3)
+        plt.xlabel("Prawn Index")
+        plt.ylabel("Measurement")
+        plt.title(f"Scale Measurement Uncertainty (Mean ± Half Range) for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+        sns.kdeplot(ranges, fill=True)
+        plt.xlabel("Range")
+        plt.ylabel("Frequency")
+        plt.title(f"Scale Range Distribution for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+
+        # kde plot of scale error
+        sns.kdeplot(df_pond_type['avg_scale_diff'], fill=True)
+        plt.xlabel("Scale Error")
+        plt.ylabel("Frequency")
+        plt.title(f"Scale Error Distribution for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+        # kde plot of pixel error
+        sns.kdeplot(df_pond_type['avg_pixel_diff'], fill=True)
+        plt.xlabel("Pixel Error")
+        plt.ylabel("Frequency")
+        plt.title(f"Pixel Error Distribution for {pond_type}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.show()
+
+
+        #one 3d scatter plot of lengths, pixels, scale
+        fig = px.scatter_3d(df_pond_type, x='mean', y='mean_pixels', z='mean_scale', color='Pond_Type')
+        fig.update_layout(
+            title='3D Scatter Plot of Lengths, Pixels, and Scale',
+            scene=dict(
+                xaxis_title='Length',
+                yaxis_title='Pixels',
+                zaxis_title='Scale'
+            )
+        )
+        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/length_pixels_scale_scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        fig.show()
+
+
+
+
+
+
+
+
+
+    #     #add a box plot for each pond type
 #     annotation_length_fig.add_shape(
 #     type='line',
 #     x0=-0.5, x1=len(categories) - 0.5,
@@ -1237,6 +1614,140 @@ Key components:
     print(f"{'MAPE (Mean Absolute % Error)':<30} {mape_flags:>15.2f}±{std_mape_flags:>25.2f} {mape_with_flags:>15.2f}±{std_mape_with_flags:>25.2f}")
 
 
+
+    
+
+        #heatmap-style visualization showing how pixel and scale errors affect MPE    
+    plt.figure(figsize=(10, 8))
+
+    # KDE contour filled by MPE-weighted density
+    sns.kdeplot(
+        x=df['avg_pixel_error_pct'], 
+        y=df['avg_scale_error'], 
+        weights=df['mpe'],
+        cmap="viridis", 
+        fill=True, 
+        thresh=0.05,
+        levels=100
+    )
+
+    # Scatter points colored by MPE
+    scatter = plt.scatter(
+        df['avg_pixel_error_pct'], 
+        df['avg_scale_error'], 
+        c=df['mpe'], 
+        cmap='viridis', 
+        s=60
+    )
+
+    # Colorbar to explain MPE color intensity
+    plt.colorbar(scatter, label='MPE (%)')
+
+    # Labels and formatting
+    plt.xlabel('Avg Pixel Error (%)')
+    plt.ylabel('Avg Scale Error (%)')
+    plt.title('Combined Influence of Pixel & Scale Errors on MPE')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+
+
+# === Create Heatmap ===
+    plt.figure(figsize=(12, 9))
+    sns.kdeplot(
+        x=df['avg_pixel_error_pct'], 
+        y=df['avg_scale_error'], 
+        weights=df['mpe'],
+        cmap="viridis", 
+        fill=True, 
+        thresh=0.05,
+        levels=100
+    )
+
+    # Overlay scatter points
+    scatter = plt.scatter(
+        df['avg_pixel_error_pct'], 
+        df['avg_scale_error'], 
+        c=df['mpe'], 
+        cmap='viridis', 
+        edgecolor='black',
+        s=60
+    )
+
+    cbar = plt.colorbar(scatter, label='MPE (%)')
+    plt.xlabel('Avg Pixel Error (%)')
+    plt.ylabel('Avg Scale Error (%)')
+    plt.title('Combined Influence of Pixel & Scale Errors on MPE')
+
+    # === Annotate Key Observations & Hypotheses ===
+    plt.text(25, 22, 
+            '⬆ High Pixel & Scale Error\n→ High MPE\n→ Equation Amplifies Both',
+            fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
+
+    plt.text(8, 6, 
+            '⬅ Dense Low-Error Region\n→ Model is Robust Here',
+            fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
+
+    plt.text(28, 8, 
+            '⬆ Wide spread along pixel axis\n→ Pose Estimation Bottleneck?',
+            fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
+
+    plt.text(10, 22, 
+            '⬅ Tight spread in scale error\n→ Distance/Scale more stable',
+            fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
+
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    df['mean_pixel_length'] = df[['Length_1_pixels','Length_2_pixels','Length_3_pixels']].mean(axis=1)
+    
+    # Calculate trend line and R squared for pixel lengths
+    z1 = np.polyfit(df['mean_pixel_length'], df['pred_Distance_pixels'], 1)
+    p1 = np.poly1d(z1)
+    r_squared1 = np.corrcoef(df['mean_pixel_length'], df['pred_Distance_pixels'])[0,1]**2
+    
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=df, x='mean_pixel_length', y='pred_Distance_pixels')
+    plt.plot(df['mean_pixel_length'], p1(df['mean_pixel_length']), "r--", alpha=0.8)
+    plt.xlabel('Mean Expert Pixel Length (mm)')
+    plt.ylabel('Pixel Length (mm)')
+    plt.title(f'Mean Expert Pixel Length vs Pixel Length (R² = {r_squared1:.3f})')
+    plt.show()
+
+    df['mean_length'] = df[['Length_1','Length_2','Length_3']].mean(axis=1)
+    
+    # Calculate trend line and R squared for lengths
+    z2 = np.polyfit(df['Length_fov(mm)'], df['mean_length'], 1)
+    p2 = np.poly1d(z2)
+    r_squared2 = np.corrcoef(df['Length_fov(mm)'], df['mean_length'])[0,1]**2
+    
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=df, x='Length_fov(mm)', y='mean_length')
+    plt.plot(df['Length_fov(mm)'], p2(df['Length_fov(mm)']), "r--", alpha=0.8)
+    plt.xlabel('Length FOV (mm)')
+    plt.ylabel('Mean Length (mm)')
+    plt.title(f'Length FOV vs Mean Length (R² = {r_squared2:.3f})')
+    plt.show()
+
+    df['mean_normalized_scale']=df[['scale_normalized_1','scale_normalized_2','scale_normalized_3']].mean(axis=1)
+    # Calculate trend line and R squared for scales
+    z3 = np.polyfit(df['mean_normalized_scale'], df['combined_scale'], 1)
+    p3 = np.poly1d(z3)
+    r_squared3 = np.corrcoef(df['mean_normalized_scale'], df['combined_scale'])[0,1]**2
+
+    #scatter scale to scale
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(data=df, x='mean_normalized_scale', y='combined_scale')
+    plt.plot(df['mean_normalized_scale'], p3(df['mean_normalized_scale']), "r--", alpha=0.8)
+    plt.xlabel('Scale')
+    plt.ylabel('Combined Scale')
+    plt.title(f'Scale vs combined scalex (R² = {r_squared3:.3f})')
+    plt.show()
 
 
     # # Print MAE by pond type table

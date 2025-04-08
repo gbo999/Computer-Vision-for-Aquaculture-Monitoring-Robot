@@ -15,6 +15,7 @@ class ObjectLengthMeasurer:
         self.vertical_fov = vertical_fov
         self.distance_mm = distance_mm
         self.scale_x, self.scale_y = self.calculate_scaling_factors()
+        self.diagonal_fov = 82.5
         # self.to_scale_x = image_width / 640  # Assuming low-res width is 640
         # self.to_scale_y = image_height / 360  # Assuming low-res height is 360
 
@@ -54,6 +55,36 @@ class ObjectLengthMeasurer:
         length_mm = predicted_length * combined_scale
         return length_mm,combined_scale
 
+    def compute_length_diagonal(self, point1_low_res, point2_low_res):
+        """
+        Compute the real-world distance between two points in the low-resolution image using the diagonal field of view.
+        
+        Parameters:
+        - point1_low_res: Tuple (x1, y1) coordinates of the first point in low-res pixels.
+        - point2_low_res: Tuple (x2, y2) coordinates of the second point in low-res pixels.
+        
+        Returns:
+        - distance_mm: Real-world distance between the two points in millimeters.
+        """
+        # Calculate pixel distance in low-res image
+        delta_x_low = point2_low_res[0] - point1_low_res[0]
+        delta_y_low = point2_low_res[1] - point1_low_res[1]
+        distance_px = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
+
+        # Calculate angle in degrees
+        angle_rad = math.atan2(delta_y_low, delta_x_low)
+        angle_deg = math.degrees(angle_rad)
+        normalized_angle = self.normalize_angle(angle_deg)
+        
+
+        # Scale the pixel distance from low-res to high-res
+        # distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
+        
+        # Compute real-world distance
+        distance_mm,combined_scale = self.compute_length(distance_px, normalized_angle)
+        
+
+
     def compute_length_two_points(self, point1_low_res, point2_low_res):
         """
         Compute the real-world distance between two points in the low-resolution image.
@@ -79,12 +110,22 @@ class ObjectLengthMeasurer:
         angle_deg = math.degrees(angle_rad)
         normalized_angle = self.normalize_angle(angle_deg)
         
+
+
+        #    
+
+
+
         # Scale the pixel distance from low-res to high-res
         # distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
         
         # Compute real-world distance
         distance_mm,combined_scale = self.compute_length(distance_px, normalized_angle)
         
+
+
+        #create a function to use diagonal fov
+        print(f'distance_mm: {distance_mm}')
 
         return distance_mm, normalized_angle, distance_px,combined_scale
 

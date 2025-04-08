@@ -296,7 +296,8 @@ for image_name in df['image_name'].unique():
     # add bounding box to sample from df_shai
     shai_df = df_shai[df_shai['image_name'] == image_name]
     shai_detections = []
-
+    shai_polyline1 = []
+    shai_polyline2 = []
     if not shai_df.empty:
         for _,row in shai_df.iterrows():
             #convert BX, BY, Width, Height to int
@@ -308,13 +309,29 @@ for image_name in df['image_name'].unique():
             img_width_mm = 5312
             img_height_mm = 2988
 
-
-
+            #add polylines of diagonal of bounding box
             bounding_box =[BX/img_width_mm, BY/img_height_mm, Width/img_width_mm, Height/img_height_mm] 
+            #add polylines of diagonal of bounding box
             
+
+            top_left_max = [BX/img_width_mm, BY/img_height_mm]
+            top_right_max = [BX/img_width_mm + Width/img_width_mm, BY/img_height_mm]
+            bottom_left_max = [BX/img_width_mm, BY/img_height_mm + Height/img_height_mm]
+            bottom_right_max = [BX/img_width_mm + Width/img_width_mm, BY/img_height_mm + Height/img_height_mm]
+
+            # Diagonals
+            diagonal1_max = [top_left_max, bottom_right_max]
+            diagonal2_max = [top_right_max, bottom_left_max]
+
+
+            diagonal_polyline1 = fo.Polyline(points=[diagonal1_max])
+            diagonal_polyline2 = fo.Polyline(points=[diagonal2_max])
+            shai_polyline1.append(diagonal_polyline1)
+            shai_polyline2.append(diagonal_polyline2)
             
             shai_detections.append(fo.Detection(bounding_box=bounding_box,label=str(row['Length'])))
-
+    sample["shai_polyline1"] = fo.Polylines(polylines=shai_polyline1)
+    sample["shai_polyline2"] = fo.Polylines(polylines=shai_polyline2)
 
     sample["bounding_box"] = fo.Detections(detections=shai_detections)
       

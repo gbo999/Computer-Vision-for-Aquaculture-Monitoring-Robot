@@ -6,7 +6,7 @@ WEIGHTS_TYPE="all"
 ERROR_SIZE="mean"
 
 # Define the path to your Python script
-PYTHON_SCRIPT="fifty_one/measurements/analysis/error_flags_analysis.py"
+PYTHON_SCRIPT="fifty_one/measurements/results/analysis/error_flags_analysis.py"
 
 # Function to display a menu
 display_menu() {

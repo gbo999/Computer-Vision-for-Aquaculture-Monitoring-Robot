@@ -1,0 +1,26 @@
+{
+  "name": "counting_research_algorithms",
+  "version": "1.0.0",
+  "description": "## Overview",
+  "main": "start_fiftyone_tunnel.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gbo999/counting_research_algorithms.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gbo999/counting_research_algorithms/issues"
+  },
+  "homepage": "https://github.com/gbo999/counting_research_algorithms#readme",
+  "dependencies": {
+    "localtunnel": "^2.0.2"
+  }
+}
