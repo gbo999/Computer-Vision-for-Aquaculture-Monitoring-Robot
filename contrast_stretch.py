@@ -73,7 +73,7 @@ def process_directory(input_dir, output_dir):
 
 if __name__ == "__main__":
     # Input and output directories
-    input_dir = "/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/measurements/all"
+    input_dir = "/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/measurements/carapace/all"
     output_dir = os.path.join(os.path.dirname(input_dir), "contrast_stretched")
     
     # Process the directory

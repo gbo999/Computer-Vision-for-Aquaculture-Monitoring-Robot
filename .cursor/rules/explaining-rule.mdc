@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+- every time you write a new script explian whtat you did diffreently, be specific, give quots from the code you wrote
+- You can @ files here
+- You can use markdown but dont have to
