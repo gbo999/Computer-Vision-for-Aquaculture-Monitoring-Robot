@@ -9,6 +9,19 @@ import os
 import ast
 import plotly.express as px
 from sklearn.metrics import r2_score
+import warnings
+
+# Suppress matplotlib warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+# For specific matplotlib warnings
+warnings.filterwarnings("ignore", module="matplotlib")
+warnings.filterwarnings("ignore", module="plotly")
+# Suppress pandas SettingWithCopyWarning
+warnings.filterwarnings("ignore", message=".*SettingWithCopyWarning.*")
+# Additional method to suppress pandas warnings
+pd.options.mode.chained_assignment = None  # default='warn'
 
 def calculate_mape(estimated_lengths, true_lengths):
     """
@@ -95,11 +108,11 @@ Key components:
 
 
 
-    #uncertainty std / sqrt(3) 
-    df['uncertainty'] = df['Std_Length'] / np.sqrt(3)
-    print('========uncertainty========')
-    #describe uncertainty
-    print(df['uncertainty'].describe())
+    # #uncertainty std / sqrt(3) 
+    # df['uncertainty'] = df['Std_Length'] / np.sqrt(3)
+    # print('========uncertainty========')
+    # #describe uncertainty
+    # print(df['uncertainty'].describe())
 
 
     #if pose <0.75 remove
@@ -141,7 +154,369 @@ Key components:
     df['MPE_length3'] = abs(df['Length_3'] - df['Length_fov(mm)']) / df['Length_3'] * 100
 
 
+
+    #mean annotation length
+    df['mean_annotation_length'] = df[['annotation_length_1', 'annotation_length_2', 'annotation_length_3']].mean(axis=1)
+
     df['mean_length'] = df[['Length_1', 'Length_2', 'Length_3']].mean(axis=1)
+
+    df['std_length'] = df[['Length_1', 'Length_2', 'Length_3']].std(axis=1)
+
+
+    mean = df['mean_length'].mean()
+
+    print('========mean========')
+    print(mean)
+
+    print('========std========')
+    std = df['std_length'].mean()
+    print(std)
+
+    df['mean_pixels'] = df[['Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].mean(axis=1)
+
+
+    df['diff_pixels'] = abs(df['mean_pixels'] - df['pred_Distance_pixels'])
+    df['diff_mm'] =abs( df['Length_fov(mm)'] - df['mean_length'])
+
+    df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
+
+    df['pred_scale'] = ((df['pred_Distance_pixels'] / df['Length_fov(mm)']))*10
+
+    df['diff_scale'] = abs(df['mean_scale'] - df['pred_scale'])
+
+    
+
+    # Find outliers using mean ± 3 standard deviations
+    df_outliers = df[(df['Length_fov(mm)'] >= df['mean_length'] + 3*std) | 
+            (df['Length_fov(mm)'] <= df['mean_length'] - 3*std)]
+
+
+
+    # Print outliers before removing them
+    for pond_type in df_outliers['Pond_Type'].unique():
+        #print mean length and std length
+       
+        #print number of prawns in pond_type
+        print(f"Number of prawns in {pond_type}: {len(df[df['Pond_Type'] == pond_type])}")
+        #if pond_type is not circle_male or circle_female, remove   
+        pond_outliers = df_outliers[df_outliers['Pond_Type'] == pond_type]
+        print(f"\nOutliers being removed for {pond_type}:")
+        print(pond_outliers[['Label', 'PrawnID', 'Length_fov(mm)', 'mean_length','diff_mm','pred_Distance_pixels','mean_pixels','diff_pixels','mean_scale','pred_scale','diff_scale']].sort_values(by='diff_mm', ascending=False))
+        print(f"Number of outliers for {pond_type}: {len(pond_outliers)} out of {len(df[df['Pond_Type'] == pond_type])}")
+        #save to csv
+        pond_outliers.to_csv(f'fifty_one/measurements/results/analysis/outliers_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.csv', index=False)
+
+    # # Remove outliers using mean ± 3 standard deviations
+    # df = df[(df['Length_fov(mm)'] < mean + 3*std) & 
+    #         (df['Length_fov(mm)'] > mean - 3*std)]
+
+    df = df[(df['Length_fov(mm)'] < df['mean_length'] + 3*std) & 
+            (df['Length_fov(mm)'] > df['mean_length'] - 3*std)]
+
+
+    # Calculate points within and outside standard deviation bounds
+    within_std_bounds = ((df['Length_fov(mm)'] <= df['mean_length'] + std) & 
+                        (df['Length_fov(mm)'] >= df['mean_length'] - std))
+    
+    outside_std_bounds = ~within_std_bounds
+
+
+
+
+    # Get min and max for diagonal lines
+    min_val = min(df['mean_length'].min(), df['Length_fov(mm)'].min())
+    max_val = max(df['mean_length'].max(), df['Length_fov(mm)'].max())
+    x = np.linspace(min_val, max_val, 100)
+
+    #std
+
+    # Create scatter plots for each pond type
+    for pond_type in df['Pond_Type'].unique():
+        print(f"Mean length for {pond_type}: {df[df['Pond_Type'] == pond_type]['mean_length'].mean()}")
+        print(f"Std length for {pond_type}: {df[df['Pond_Type'] == pond_type]['std_length'].mean()}")
+        print(f"Number of prawns in {pond_type}: {len(df[df['Pond_Type'] == pond_type])}")
+        df_pond = df[df['Pond_Type'] == pond_type]
+
+        min_val = min(df_pond['mean_length'].min(), df_pond['Length_fov(mm)'].min())
+        max_val = max(df_pond['mean_length'].max(), df_pond['Length_fov(mm)'].max())
+        x = np.linspace(min_val, max_val, 100)
+
+        median_mad = df_pond['std_length'].mean()
+
+        
+        # Create scatter plot
+        scatter = go.Scatter(
+            x=df_pond['mean_length'],
+            y=df_pond['Length_fov(mm)'],
+            mode='markers',
+            name='Measurements',
+            text=df_pond.apply(lambda row: f"Image: {row['Label']}<br>Prawn ID: {row['PrawnID']}", axis=1),
+            hoverinfo='text+x+y',
+            marker=dict(opacity=0.7)
+        )
+
+       
+
+        # Create diagonal lines
+        diag = go.Scatter(x=x, y=x, mode='lines', name='Perfect match (y=x)', 
+                        line=dict(color='black', dash='dash'))
+        upper = go.Scatter(x=x, y=x + median_mad, mode='lines', 
+                        name=f'mean + Std (uncertainty) ({median_mad:.2f} mm)',
+                        line=dict(color='#4B0082', dash='dash'))
+        lower = go.Scatter(x=x, y=x - median_mad, mode='lines',
+                        name=f'mean - Std (uncertainty) ({median_mad:.2f} mm)', 
+                        line=dict(color='#4B0082', dash='dash'))
+
+        # Calculate percentage within bounds for this pond type
+        within_bounds = ((df_pond['Length_fov(mm)'] <= df_pond['mean_length'] + median_mad) & 
+                        (df_pond['Length_fov(mm)'] >= df_pond['mean_length'] - median_mad)).mean() * 100
+
+        # Create layout
+        layout = go.Layout(
+            title=f'Model Measurements vs mean Values with Std (uncertainty) Boundaries - {pond_type}',
+            xaxis_title='mean of manual measurements (mm)',
+            yaxis_title='Model Measurements  (mm)',
+            showlegend=True,
+            annotations=[
+                dict(
+                    x=0.02,
+                    y=0.02,
+                    xref="paper",
+                    yref="paper",
+                    text=f"Points within Std (uncertainty) bounds: {within_bounds:.1f}%",
+                    showarrow=False,
+                    bgcolor="white",
+                    borderpad=4
+                )
+            ],
+            width=800,
+            height=800
+        )
+
+        # Create figure and add traces
+        fig = go.Figure(data=[scatter, diag, upper, lower], layout=layout)
+
+        # Update layout for equal aspect ratio
+        fig.update_layout(
+            yaxis=dict(
+                scaleanchor="x",
+                scaleratio=1
+            )
+        )
+
+        fig.write_html(f"fifty_one/measurements/results/analysis/model_vs_mean_measurements_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
+
+
+      
+
+        
+
+        # Calculate error components
+        df_pond['pixel_error_contribution'] = abs(df_pond['diff_pixels'] / df_pond['mean_pixels'] * 100)
+        df_pond['scale_error_contribution'] = abs(df_pond['diff_scale'] / df_pond['mean_scale'] * 100)
+        
+        # Calculate actual impact in millimeters with signs preserved
+        df_pond['pixel_error_mm'] = (df_pond['mean_pixels'] - df_pond['pred_Distance_pixels']) * (1/df_pond['mean_scale']) * 10
+        df_pond['scale_error_mm'] = df_pond['mean_pixels'] * (1/df_pond['mean_scale'] - 1/df_pond['pred_scale']) * 10
+        
+        # Calculate total error
+        df_pond['total_error_mm'] = df_pond['pixel_error_mm'] + df_pond['scale_error_mm']
+
+        # Create stacked bar chart for points outside standard deviation bounds
+        error_points = df_pond[outside_std_bounds].reset_index(drop=True)
+        error_points = error_points.sort_values('total_error_mm', key=abs, ascending=False)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            name='Pixel Error',
+            x=error_points.index,
+            y=error_points['pixel_error_mm'],
+            marker_color='#1f77b4',
+            hovertemplate="Image: %{customdata[0]}<br>" +
+                         "Prawn ID: %{customdata[1]}<br>" +
+                         "Mean Length: %{customdata[2]:.1f}mm<br>" +
+                         "model Length: %{customdata[3]:.1f}mm<br>" +
+                         "Pixel Error: %{y:.1f}mm<br>" +
+                         "Impact: %{customdata[4]:.1f}%<extra></extra>",
+            customdata=error_points[['Label', 'PrawnID', 'mean_length', 'Length_fov(mm)']].values
+        ))
+        fig.add_trace(go.Bar(
+            name='Scale Error', 
+            x=error_points.index,
+            y=error_points['scale_error_mm'],
+            marker_color='#ff7f0e',
+            hovertemplate="Image: %{customdata[0]}<br>" +
+                         "Prawn ID: %{customdata[1]}<br>" +
+                         "Mean Length: %{customdata[2]:.1f}mm<br>" +
+                         "model Length: %{customdata[3]:.1f}mm<br>" +
+                         "Scale Error: %{y:.1f}mm<br>" +
+                         "Impact: %{customdata[4]:.1f}%<extra></extra>",
+            customdata=error_points[['Label', 'PrawnID', 'mean_length', 'Length_fov(mm)']].values
+        ))
+
+        # Update layout
+        fig.update_layout(
+            barmode='stack',
+            title=f'Error Components Analysis - {pond_type}',
+            xaxis_title='Measurement Index',
+            yaxis_title='Error (mm)',
+            showlegend=True,
+            width=1000,
+            height=600
+        )
+
+        fig.write_html(f"fifty_one/measurements/results/analysis/error_components_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
+
+
+
+
+
+
+
+
+
+
+
+        # # Calculate error components
+        # df_pond['pixel_error_contribution'] = abs(df_pond['diff_pixels'] / df_pond['mean_pixels'] * 100)
+        # df_pond['scale_error_contribution'] = abs(df_pond['diff_scale'] / df_pond['mean_scale'] * 100)
+
+        # # Recalculate within_std_bounds for this specific pond type
+        # pond_within_std_bounds = ((df_pond['Length_fov(mm)'] <= df_pond['mean_length'] + median_mad) & 
+        #                         (df_pond['Length_fov(mm)'] >= df_pond['mean_length'] - median_mad))
+
+
+        # #mean length
+        
+
+        # # Create stacked bar chart for points with errors
+        # error_points = df_pond[~pond_within_std_bounds].reset_index(drop=True)
+        # error_points['mean_length'] = df_pond['mean_pixels']*(1/(df_pond['mean_scale']))*10
+        # # Calculate total error percentage as MPE
+        # error_points['total_error_pct'] =  df_pond['pixel_error_contribution']+df_pond['scale_error_contribution']
+
+        # # Sort by total error
+        # error_points = error_points.sort_values('total_error_pct', ascending=False)
+
+        # # Calculate mean MPE
+        # error_points['mean_mpe'] = abs(error_points['Length_fov(mm)'] - error_points['mean_length'])/error_points['mean_length']*100
+        # fig = go.Figure()
+        # fig.add_trace(go.Bar(
+        #     name='Pixel Error Contribution',
+        #     x=error_points.index,
+        #     y=error_points['pixel_error_contribution'],
+        #     marker_color='#1f77b4',
+        #     hovertemplate="Image: %{customdata[0]}<br>" +
+        #                  "Prawn ID: %{customdata[1]}<br>" +
+        #                  "Pixel Error: %{y:.1f}%<br>" +
+        #                  "Mean MPE: %{customdata[2]:.1f}%<extra></extra>",
+        #     customdata=error_points[['Label', 'PrawnID', 'mean_mpe']].values
+        # ))
+        # fig.add_trace(go.Bar(
+        #     name='Scale Error Contribution', 
+        #     x=error_points.index,
+        #     y=error_points['scale_error_contribution'],
+        #     marker_color='#ff7f0e',
+        #     hovertemplate="Image: %{customdata[0]}<br>" +
+        #                  "Prawn ID: %{customdata[1]}<br>" +
+        #                  "Scale Error: %{y:.1f}%<br>" +
+        #                  "Mean MPE: %{customdata[2]:.1f}%<extra></extra>",
+        #     customdata=error_points[['Label', 'PrawnID', 'mean_mpe']].values
+        # ))
+
+        # # Update layout
+        # fig.update_layout(
+        #     barmode='stack',
+        #     title=f'Error Components Analysis - {pond_type}',
+        #     xaxis_title='Measurement Index',
+        #     yaxis_title='Error Contribution (%)',
+        #     showlegend=True,
+        #     width=1000,
+        #     height=600
+        # )
+
+    
+
+
+        # fig.write_html(f"fifty_one/measurements/results/analysis/stacked_error_components_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
+
+       
+    # Compare Length_fov with mean annotation length for each pond type
+    for pond_type in df['Pond_Type'].unique():
+        df_pond = df[df['Pond_Type'] == pond_type]
+
+        df_pond['mpe']=abs(df_pond['Length_fov(mm)'] - df_pond['mean_annotation_length'])/df_pond['mean_annotation_length'] * 100
+
+        #without outliers in mean percentage error
+        df_pond = df_pond[df_pond['mpe'] < df_pond['mpe'].std() * 3]
+        
+        print(f"\nLength Comparison Stats for {pond_type}:")
+        print(f"Mean Length_fov: {df_pond['Length_fov(mm)'].mean():.2f} mm")
+        print(f"Mean annotation length: {df_pond['mean_annotation_length'].mean():.2f} mm")
+        
+        # Calculate percentage difference
+        pct_diff = abs(df_pond['Length_fov(mm)'] - df_pond['mean_annotation_length'])/df_pond['mean_annotation_length'] * 100
+        print(f"Mean percentage difference: {pct_diff.mean():.2f}%")
+        print(f"Median percentage difference: {pct_diff.median():.2f}%")
+        print(f"Std dev of percentage difference: {pct_diff.std():.2f}%")
+        
+        # Calculate correlation
+        correlation = df_pond['Length_fov(mm)'].corr(df_pond['mean_annotation_length'])
+        print(f"Correlation coefficient: {correlation:.3f}")
+
+
+
+
+
+
+
+
+    # Analyze points for each pond type
+    for pond_type in df['Pond_Type'].unique():
+        df_pond = df[df['Pond_Type'] == pond_type]
+        
+        # Get counts and percentages for this pond type
+        total_count = len(df_pond)
+        within_count = len(df_pond[within_std_bounds])
+        outside_count = len(df_pond[outside_std_bounds])
+        
+        print(f"\nPoints Analysis for {pond_type} ponds:")
+        print(f"Points within std bounds: {within_count} out of {total_count} ({within_count/total_count*100:.1f}%)")
+        print(f"Points outside std bounds: {outside_count} out of {total_count} ({outside_count/total_count*100:.1f}%)")
+        
+        # For points outside bounds, calculate distance beyond std boundary
+        if outside_count > 0:
+            df_outside = df_pond[outside_std_bounds]
+            distance_beyond_std = df_outside.apply(lambda row: 
+                abs(row['Length_fov(mm)'] - (row['mean_length'] + std)) 
+                if row['Length_fov(mm)'] > row['mean_length'] + std
+                else abs(row['Length_fov(mm)'] - (row['mean_length'] - std)), axis=1)
+                
+            mean_distance_beyond = distance_beyond_std.mean()
+            median_distance_beyond = distance_beyond_std.median()
+            std_distance_beyond = distance_beyond_std.std()
+            
+            print("\nDistance Beyond Std Bounds:")
+            print(f"Mean distance beyond std: {mean_distance_beyond:.2f} mm")
+            print(f"Median distance beyond std: {median_distance_beyond:.2f} mm")
+            print(f"Standard deviation of distance beyond std: {std_distance_beyond:.2f} mm")
+            
+            # Calculate percentage beyond std bounds
+            percent_beyond_std = (distance_beyond_std / abs(df_outside.apply(lambda row: 
+                row['mean_length'] + std if row['Length_fov(mm)'] > row['mean_length'] 
+                else row['mean_length'] - std, axis=1)))*100
+            mean_percent_beyond = percent_beyond_std.median()
+            std_percent_beyond = percent_beyond_std.std()
+            
+            print(f"Mean percentage beyond std: {mean_percent_beyond:.2f}%")
+            print(f"Standard deviation of percentage beyond std: {std_percent_beyond:.2f}%")
+        else:
+            print("\nNo points outside std bounds")
+
+
+
+
+
+
 
 
     df['mpe_mean_length'] = abs(df['mean_length'] - df['Length_fov(mm)']) / df['mean_length'] * 100
@@ -254,7 +629,7 @@ Key components:
         plt.xlabel('Mean Absolute Error (mm)')
         plt.ylabel('Density')
         plt.title('Smoothed Distribution of Mean Absolute Error')
-        plt.show()
+        # plt.show()
 
         #show smoothed histogram of mpe
         plt.figure(figsize=(10, 6))
@@ -262,7 +637,7 @@ Key components:
         plt.xlabel('Mean Percentage Error (%)')
         plt.ylabel('Density')
         plt.title('Smoothed Distribution of Mean Percentage Error')
-        plt.show()
+        # plt.show()
 
 
 
@@ -340,7 +715,7 @@ Key components:
         plt.xlabel('Mean Absolute Error (mm)')
         plt.ylabel('Density')
         plt.title('Smoothed Distribution of Mean Absolute Error')
-        plt.show()
+        # plt.show()
 
         #show smoothed histogram of mpe
         plt.figure(figsize=(10, 6))
@@ -348,7 +723,7 @@ Key components:
         plt.xlabel('Mean Percentage Error (%)')
         plt.ylabel('Density')
         plt.title('Smoothed Distribution of Mean Percentage Error')
-        plt.show()
+        # plt.show()
 
  #if row justitfiend take the min mpe as the mpe
         # df['mpe'] = df.apply(lambda row: min(row['MPE_length1'], row['MPE_length2'], row['MPE_length3']) if row['Justified'] else row['mpe'], axis=1)
@@ -461,10 +836,10 @@ Key components:
     df['scale_normalized_3'] = 1/(df['Scale_3']/10)
 
 
-    print(f'combined scale: {df["combined_scale"].describe()}')
-    print(f'scale_normalized_1: {df["scale_normalized_1"].describe()}')
-    print(f'scale_normalized_2: {df["scale_normalized_2"].describe()}')
-    print(f'scale_normalized_3: {df["scale_normalized_3"].describe()}')
+    # print(f'combined scale: {df["combined_scale"].describe()}')
+    # print(f'scale_normalized_1: {df["scale_normalized_1"].describe()}')
+    # print(f'scale_normalized_2: {df["scale_normalized_2"].describe()}')
+    # print(f'scale_normalized_3: {df["scale_normalized_3"].describe()}')
    
         #avg scale error
     df['scale_error_1'] = abs (df['combined_scale'] - df['scale_normalized_1'])/df['scale_normalized_1']*100
@@ -528,8 +903,8 @@ Key components:
     
     
     
-    high_error_pct = df['high_error'].mean() * 100
-    print(f"Percentage of measurements with errors > 10%: {high_error_pct:.1f}%")
+    # high_error_pct = df['high_error'].mean() * 100
+    # print(f"Percentage of measurements with errors > 10%: {high_error_pct:.1f}%")
 
 
 
@@ -819,11 +1194,11 @@ Key components:
     df['min_error_pixels']= df[['Length_1_pixels', 'Length_2_pixels', 'Length_3_pixels']].min(axis=1)
 
 
-# Print some statistics about our prioritized assignments
-    print("\nAssignments based on percentage values:")
-    for category in priority_names + ['No Flags']:
-        count = len(df[df['assigned_category'] == category])
-        print(f"{category}: {count} measurements")
+# # Print some statistics about our prioritized assignments
+#     print("\nAssignments based on percentage values:")
+#     for category in priority_names + ['No Flags']:
+#         count = len(df[df['assigned_category'] == category])
+#         print(f"{category}: {count} measurements")
 
 # Store colors for visualization
     priority_colors = ['#9b59b6', '#2ecc71', '#f39c12', '#3498db', '#e74c3c', '#c0392b', '#8e44ad', '#27ae60', '#f1c40f', '#e67e22', '#34495e']
@@ -1321,7 +1696,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
     #the mean of ranges sns kde plot
@@ -1332,7 +1707,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
 
@@ -1354,7 +1729,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
         #the mean of ranges sns kde plot
@@ -1365,7 +1740,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
       
@@ -1392,7 +1767,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
         sns.kdeplot(ranges, fill=True)
@@ -1402,7 +1777,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
 
@@ -1414,7 +1789,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
         # kde plot of pixel error
@@ -1425,7 +1800,7 @@ Key components:
         plt.grid(True)
         plt.tight_layout()
         plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
-        plt.show()
+        # plt.show()
 
 
         #one 3d scatter plot of lengths, pixels, scale
@@ -1439,7 +1814,7 @@ Key components:
             )
         )
         fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/length_pixels_scale_scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
-        fig.show()
+        # fig.show()
 
 
 
@@ -1556,7 +1931,7 @@ Key components:
         std_mape_with_only_category = df[df['assigned_category'] == category]['mpe'].std()
 
 
-        print(f"{category:<30} {mae_without_category:>25.2f}±{std_mae_without_category:.2f} {mae_with_only_category:>25.2f}±{std_mae_with_only_category:.2f} {mape_without_category:>25.2f}±{std_mape_without_category:.2f} {mape_with_only_category:>25.2f}±{std_mape_with_only_category:.2f} {std_mae_flags:>25.2f} {std_mape_flags:>25.2f} ")
+        # print(f"{category:<30} {mae_without_category:>25.2f}±{std_mae_without_category:.2f} {mae_with_only_category:>25.2f}±{std_mae_with_only_category:.2f} {mape_without_category:>25.2f}±{std_mape_without_category:.2f} {mape_with_only_category:>25.2f}±{std_mape_with_only_category:.2f} {std_mae_flags:>25.2f} {std_mape_flags:>25.2f} ")
 
 
 
@@ -1573,7 +1948,7 @@ Key components:
 
     mape_high_error_rate_image_and_gt_expert_error_and_high_pixel_error = df['pixel_pct'].mean()
 
-    print(f"{'High error rate image and gt expert error and high pixel error':<30} {mae_high_error_rate_image_and_gt_expert_error_and_high_pixel_error:>25.2f} {mape_high_error_rate_image_and_gt_expert_error_and_high_pixel_error:>25.2f}")
+    # print(f"{'High error rate image and gt expert error and high pixel error':<30} {mae_high_error_rate_image_and_gt_expert_error_and_high_pixel_error:>25.2f} {mape_high_error_rate_image_and_gt_expert_error_and_high_pixel_error:>25.2f}")
     
     
     
@@ -1606,12 +1981,12 @@ Key components:
 
 
 
-    # Existing overall statistics table
-    print("\n=== Overall Statistics ===")
-    print(f"{'Metric':<30} {'Without Flags':>15} {'With Flags':>15}")
-    print("-" * 60)
-    print(f"{'MAE (Mean Absolute Error)':<30} {mae_flags:>15.2f}±{std_mae_flags:>25.2f} {mae_with_flags:>15.2f}±{std_mae_with_flags:>25.2f}")
-    print(f"{'MAPE (Mean Absolute % Error)':<30} {mape_flags:>15.2f}±{std_mape_flags:>25.2f} {mape_with_flags:>15.2f}±{std_mape_with_flags:>25.2f}")
+    # # Existing overall statistics table
+    # print("\n=== Overall Statistics ===")
+    # print(f"{'Metric':<30} {'Without Flags':>15} {'With Flags':>15}")
+    # print("-" * 60)
+    # print(f"{'MAE (Mean Absolute Error)':<30} {mae_flags:>15.2f}±{std_mae_flags:>25.2f} {mae_with_flags:>15.2f}±{std_mae_with_flags:>25.2f}")
+    # print(f"{'MAPE (Mean Absolute % Error)':<30} {mape_flags:>15.2f}±{std_mape_flags:>25.2f} {mape_with_flags:>15.2f}±{std_mape_with_flags:>25.2f}")
 
 
 
@@ -1649,7 +2024,7 @@ Key components:
     plt.title('Combined Influence of Pixel & Scale Errors on MPE')
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
 
 
@@ -1702,7 +2077,7 @@ Key components:
 
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
     df['mean_pixel_length'] = df[['Length_1_pixels','Length_2_pixels','Length_3_pixels']].mean(axis=1)
     
@@ -1717,7 +2092,7 @@ Key components:
     plt.xlabel('Mean Expert Pixel Length (mm)')
     plt.ylabel('Pixel Length (mm)')
     plt.title(f'Mean Expert Pixel Length vs Pixel Length (R² = {r_squared1:.3f})')
-    plt.show()
+    # plt.show()
 
     df['mean_length'] = df[['Length_1','Length_2','Length_3']].mean(axis=1)
     
@@ -1732,7 +2107,7 @@ Key components:
     plt.xlabel('Length FOV (mm)')
     plt.ylabel('Mean Length (mm)')
     plt.title(f'Length FOV vs Mean Length (R² = {r_squared2:.3f})')
-    plt.show()
+    # plt.show()
 
     df['mean_normalized_scale']=df[['scale_normalized_1','scale_normalized_2','scale_normalized_3']].mean(axis=1)
     # Calculate trend line and R squared for scales
@@ -1747,7 +2122,7 @@ Key components:
     plt.xlabel('Scale')
     plt.ylabel('Combined Scale')
     plt.title(f'Scale vs combined scalex (R² = {r_squared3:.3f})')
-    plt.show()
+    # plt.show()
 
 
     # # Print MAE by pond type table
@@ -1820,7 +2195,7 @@ Key components:
     #abs mpe
     df['mpe'] = abs(df['mpe'])
     overall_mpe = df['mpe'].mean()
-    print(f"{'Overall mpe':<20} {overall_mpe:>15}")
+    # print(f"{'Overall mpe':<20} {overall_mpe:>15}")
 
 
     #abs mpe annotation length
@@ -1882,7 +2257,7 @@ Key components:
     # print(df['Length_fov(mm)'].describe())
 
     #annotation length describe
-    print(df['mean_annotation_length'].describe())  
+    # print(df['mean_annotation_length'].describe())  
 
 
     # #length 1 describe
@@ -1899,11 +2274,11 @@ Key components:
 
 
 
-    print('mpe_annotation')
-    df['mpe_annotation'] =abs(df['Length_fov(mm)']-df['mean_annotation_length'])/df['mean_annotation_length']*10
-    df
+    # print('mpe_annotation')
+    # df['mpe_annotation'] =abs(df['Length_fov(mm)']-df['mean_annotation_length'])/df['mean_annotation_length']*10
+    # df
     
-    print(df['mpe_annotation'].describe())
+    # print(df['mpe_annotation'].describe())
 
 #     #mpe annotation median
 #     #mpe annotation median
@@ -2191,46 +2566,46 @@ Key components:
 
         
         
-        #mean scale
+    #     #mean scale
 
-     #overall mpe annotation mpe
+    #  #overall mpe annotation mpe
 
-    print('========mpe annotation========')
+    # print('========mpe annotation========')
 
-    print(df['mpe_annotation'].describe())
+    # print(df['mpe_annotation'].describe())
     
-    #overall mpe and mae
+    # #overall mpe and mae
 
-    print('========mpe and mae========')
+    # print('========mpe and mae========')
 
    
 
 
-    #overall mpe and mae
+    # #overall mpe and mae
 
-    print('========mpe and mae========')
+    # print('========mpe and mae========')
 
-    print(df['mpe'].describe())
+    # print(df['mpe'].describe())
 
-    print(df['mae'].describe())
+    # print(df['mae'].describe())
 
 
 
-    for pond_type in df['Pond_Type'].unique():
+    # for pond_type in df['Pond_Type'].unique():
         
-    #overall pond type
-        print(f"\n=== {pond_type} Statistics ===")
+    # #overall pond type
+    #     print(f"\n=== {pond_type} Statistics ===")
     
     
     
-        print(df[df['Pond_Type'] == pond_type]['mpe_annotation'].describe())
+    #     print(df[df['Pond_Type'] == pond_type]['mpe_annotation'].describe())
        
 
-        #overall mae 
-        print(df[df['Pond_Type'] == pond_type]['mae'].describe())
+    #     #overall mae 
+    #     print(df[df['Pond_Type'] == pond_type]['mae'].describe())
 
-        #overall mpe
-        print(df[df['Pond_Type'] == pond_type]['mpe'].describe())
+    #     #overall mpe
+    #     print(df[df['Pond_Type'] == pond_type]['mpe'].describe())
 
     
         

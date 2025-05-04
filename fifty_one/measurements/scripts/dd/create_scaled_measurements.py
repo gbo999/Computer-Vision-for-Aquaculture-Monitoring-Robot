@@ -24,9 +24,7 @@ print("Scales dataframe:")
 print(scales_df[['Label', 'Length', 'scale_factor']].head())
 
 # Find all measurement files
-measurement_files = glob.glob('fifty_one/re (2)/meausrements-fixed-*.csv') + \
-                    glob.glob('fifty_one/re (2)/measurements-fixed-*.csv')
-
+measurement_files = glob.glob('fifty_one/re (2)/meausrements-fixed-total*.csv') 
 print(f"\nFound {len(measurement_files)} measurement files")
 
 # Function to extract base image name from the full image name
@@ -133,7 +131,7 @@ if all_data:
     combined_df = pd.concat(all_data, ignore_index=True)
     
     # Save the combined data
-    output_path = 'fifty_one/processed_data/scaled_measurements.csv'
+    output_path = 'fifty_one/processed_data/scaled_measurements_total.csv'
     combined_df.to_csv(output_path, index=False)
     print(f"\nSaved combined dataset with {len(combined_df)} rows to {output_path}")
     

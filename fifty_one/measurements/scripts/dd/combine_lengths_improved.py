@@ -3,15 +3,24 @@ import os
 import re
 import numpy as np
 import glob
+import argparse
 
 # Set paths
 # Use relative paths from this script's location
 script_dir = os.path.dirname(os.path.abspath(__file__))
-base_dir = os.path.abspath(os.path.join(script_dir, '../..'))
-scaled_measurements_path = os.path.join(base_dir, 'fifty_one/processed_data/scaled_measurements.csv')
-body_length_path = os.path.join(base_dir, 'updated_filtered_data_with_lengths_body-all.xlsx')
-carapace_length_path = os.path.join(base_dir, 'updated_filtered_data_with_lengths_carapace-all.xlsx')
-output_dir = os.path.join(base_dir, 'fifty_one/processed_data/')
+base_dir = os.path.abspath(os.path.join(script_dir, '../../..'))
+# scaled_measurements_path = os.path.join(base_dir, 'fifty_one/processed_data/scaled_measurements.csv')
+
+scaled_measurements_total_path =f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/processed_data/scaled_measurements_total.csv'
+
+scaled_measurements_carapace_path =f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/processed_data/scaled_measurements_carapace.csv'
+
+
+
+
+body_length_path = f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/updated_filtered_data_with_lengths_body-all.xlsx'
+carapace_length_path = f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/updated_filtered_data_with_lengths_carapace-all.xlsx'
+output_dir = f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/processed_data/'
 
 # Create output directory if it doesn't exist
 os.makedirs(output_dir, exist_ok=True)
@@ -79,7 +88,7 @@ def extract_bbox_from_name(image_name):
     return None, None, None, None
 
 # Function to check if a center point is inside a bounding box
-def is_center_within_bbox(center_x, center_y, bbox_x, bbox_y, bbox_w, bbox_h, tolerance=100):
+def is_center_within_bbox(center_x, center_y, bbox_x, bbox_y, bbox_w, bbox_h, tolerance=500):
     """
     Check if a point (center_x, center_y) is inside a bounding box with tolerance.
 
@@ -102,7 +111,6 @@ def is_center_within_bbox(center_x, center_y, bbox_x, bbox_y, bbox_w, bbox_h, to
     within_y = (bbox_y - tolerance) <= center_y <= (bbox_y + bbox_h + tolerance)
 
     return within_x and within_y
-
 
 # Function to extract camera frame from image name
 def extract_camera_frame(image_name):
@@ -129,6 +137,7 @@ def extract_camera_frame(image_name):
         if len(parts) > 1:
             return parts[0]
         else:
+            print(f"No camera frame found in {image_name}")
             return None
     
     # Split by jpg_gamma if present
@@ -263,10 +272,21 @@ def extract_specific_frame_info(image_name):
     return None
 
 # Process both body and carapace data with spatial matching
-def process_measurements(measurements_df, length_df, output_filename, measurement_type):
+def process_measurements(measurements_df, length_df, output_filename, measurement_type, tolerance=500):
+    """
+    Process measurements and match them with length data.
+    
+    Parameters:
+        measurements_df (DataFrame): DataFrame containing measurement data
+        length_df (DataFrame): DataFrame containing length data
+        output_filename (str): Name of the output file
+        measurement_type (str): Type of measurement ('body' or 'carapace')
+        tolerance (int): Tolerance in pixels for bbox matching
+    """
     print(f"\n--- Processing {measurement_type} measurements ---")
     print(f"Measurements dataframe: {len(measurements_df)} rows")
     print(f"Length dataframe: {len(length_df)} rows")
+    print(f"Using tolerance: {tolerance} pixels for bbox matching")
     
     # Extract camera frame from both dataframes for initial matching
     measurements_df.dropna(subset=['image_name'], inplace=True)
@@ -275,7 +295,7 @@ def process_measurements(measurements_df, length_df, output_filename, measuremen
     # Print camera frame column
 
     measurements_df['camera_frame'] = measurements_df['image_name'].astype(str).apply(extract_camera_frame)
-    measurements_df = measurements_df.sort_values(by='camera_frame').dropna(subset=['camera_frame'])
+    # measurements_df = measurements_df.sort_values(by='camera_frame').dropna(subset=['camera_frame'])
     print(measurements_df['camera_frame'].head())
 
     #len unique camera frames
@@ -358,8 +378,46 @@ def process_measurements(measurements_df, length_df, output_filename, measuremen
 
 
     #mathch by camera frame
-    common_frames = set(measurements_df['camera_frame']).intersection(set(length_df['camera_frame']))
+    # Find frames that are close matches but not exact
+    meas_frames = set(measurements_df['camera_frame'])
+    length_frames = set(length_df['camera_frame'])
+    common_frames = meas_frames.intersection(length_frames)
+    
+    # Check for near misses by comparing frame numbers
+    near_misses = []
+    for mf in meas_frames:
+        if mf not in common_frames:
+            print(f"Measurement frame {mf} not in common frames")
 
+            # Try to find frames that differ by only a small amount
+            for lf in length_frames:
+                try:
+                    # Extract numeric parts and compare, handling different formats
+                    mf_parts = str(mf).split('_')
+                    lf_parts = str(lf).split('_')
+                    
+                    # Compare each part of the frame number
+                    if len(mf_parts) == len(lf_parts):
+                        total_diff = 0
+                        for mf_part, lf_part in zip(mf_parts, lf_parts):
+                            mf_num = int(''.join(filter(str.isdigit, mf_part)))
+                            lf_num = int(''.join(filter(str.isdigit, lf_part)))
+                            total_diff += abs(mf_num - lf_num)
+                            
+                        if total_diff <= 5:  # Total difference threshold across all parts
+                            near_misses.append((mf, lf, total_diff))
+                except (ValueError, TypeError):
+                    continue
+    
+    # Always print something about near misses, even if none found
+    if near_misses:
+        # Sort by difference amount
+        near_misses.sort(key=lambda x: x[2])
+        print("\nFound near-miss frame matches (sorted by difference):")
+        for mf, lf, diff in near_misses[:5]:  # Show first 5 examples
+            print(f"Measurement frame {mf} nearly matches length frame {lf} (diff: {diff})")
+    else:
+        print("\nNo near-miss frame matches found")
 
     print(f"Common camera frames: {len(common_frames)}")
     
@@ -426,7 +484,7 @@ def process_measurements(measurements_df, length_df, output_filename, measuremen
                                     bbox_x, bbox_y, bbox_w, bbox_h = bbox_values
                                     
                                     # Check if center is in this bbox
-                                    if is_center_within_bbox(center_x, center_y, bbox_x, bbox_y, bbox_w, bbox_h):
+                                    if is_center_within_bbox(center_x, center_y, bbox_x, bbox_y, bbox_w, bbox_h, tolerance):
                                         found_match = True
                                         break
                             except Exception as e:
@@ -472,8 +530,8 @@ def process_measurements(measurements_df, length_df, output_filename, measuremen
             
             # Add length data - only including the important columns
             for col in length_df.columns:
-                if 'boundingbox' not in col.lower() and 'BoundingBox' not in col:  # Skip bounding box columns
-                    merged_row[f'length_{col}'] = length_row[col]
+                # Include all columns, including bounding box columns
+                merged_row[f'length_{col}'] = length_row[col]
             
             # Add match type
             merged_row['match_type'] = match_type
@@ -542,51 +600,46 @@ def process_measurements(measurements_df, length_df, output_filename, measuremen
         print("No matches found")
         return None
 
-# Load scaled measurements
-print("Loading scaled measurements data...")
-scaled_df = pd.read_csv(scaled_measurements_path)
-print(f"Loaded {len(scaled_df)} records")
+if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Combine measurements with length data')
+    parser.add_argument('--tolerance', type=int, default=500, 
+                        help='Tolerance in pixels for bbox matching (default: 500)')
+    args = parser.parse_args()
+    
+    # Split by measurement type
+    total_df = pd.read_csv(scaled_measurements_total_path)
+    carapace_df = pd.read_csv(scaled_measurements_carapace_path)
 
-# Split by measurement type
-total_df = scaled_df[scaled_df['measurement_type'] == 'total'].copy()
-carapace_df = scaled_df[scaled_df['measurement_type'] == 'carapace'].copy()
+    # Load body length data
+    print(f"\nLoading body length data from {body_length_path}")
+    try:
+        body_length_df = pd.read_excel(body_length_path)
+        print(f"Loaded {len(body_length_df)} body length records")
+    except Exception as e:
+        print(f"Error loading body length file: {e}")
+        body_length_df = None
 
-# print(f"Total (body) measurements: {len(total_df)}")
-# print(f"Carapace measurements: {len(carapace_df)}")
+    # Load carapace length data
+    print(f"\nLoading carapace length data from {carapace_length_path}")
+    try:
+        carapace_length_df = pd.read_excel(carapace_length_path)
+        print(f"Loaded {len(carapace_length_df)} carapace length records")
+    except Exception as e:
+        print(f"Error loading carapace length file: {e}")
+        carapace_length_df = None
 
-# Load body length data
-print(f"\nLoading body length data from {body_length_path}")
-try:
-    body_length_df = pd.read_excel(body_length_path)
-    print(f"Loaded {len(body_length_df)} body length records")
-except Exception as e:
-    print(f"Error loading body length file: {e}")
-    body_length_df = None
+    # Process body data
+    if body_length_df is not None:
+        body_result = process_measurements(total_df, body_length_df, 
+                                         'combined_body_length_data.csv', 
+                                         'body/total', args.tolerance)
 
-# Load carapace length data
-print(f"\nLoading carapace length data from {carapace_length_path}")
-try:
-    carapace_length_df = pd.read_excel(carapace_length_path)
-    print(f"Loaded {len(carapace_length_df)} carapace length records")
-except Exception as e:
-    print(f"Error loading carapace length file: {e}")
-    carapace_length_df = None
+    # Process carapace data
+    if carapace_length_df is not None:
+        carapace_result = process_measurements(carapace_df, carapace_length_df, 
+                                             'combined_carapace_length_data.csv', 
+                                             'carapace', args.tolerance)
 
-# # First, find matching image names and print examples
-# print("Finding matching image names...")
-# matching_image_names = set(total_df['camera_frame']).intersection(set(body_length_df['camera_frame']))
+    print("\nProcessing complete!")
 
-# # Print examples of matching image names
-# print("Example matching image names:")
-# for example_name in list(matching_image_names)[:5]:  # Print first 5 examples
-#     print(example_name)
-
-# Process body data
-if body_length_df is not None:
-    body_result = process_measurements(total_df, body_length_df, 'combined_body_length_data.csv', 'body/total')
-
-# Process carapace data
-if carapace_length_df is not None:
-    carapace_result = process_measurements(carapace_df, carapace_length_df, 'combined_carapace_length_data.csv', 'carapace')
-
-print("\nProcessing complete!") 
