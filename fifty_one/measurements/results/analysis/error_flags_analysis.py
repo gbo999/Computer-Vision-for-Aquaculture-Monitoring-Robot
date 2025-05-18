@@ -243,7 +243,6 @@ Key components:
 
         median_mad = df_pond['std_length'].mean()
 
-        
         # Create scatter plot
         scatter = go.Scatter(
             x=df_pond['mean_length'],
@@ -252,7 +251,10 @@ Key components:
             name='Measurements',
             text=df_pond.apply(lambda row: f"Image: {row['Label']}<br>Prawn ID: {row['PrawnID']}", axis=1),
             hoverinfo='text+x+y',
-            marker=dict(opacity=0.7)
+            marker=dict(
+                color='#ff7f0e',
+                opacity=0.7
+            )
         )
 
        
@@ -262,10 +264,10 @@ Key components:
                         line=dict(color='black', dash='dash'))
         upper = go.Scatter(x=x, y=x + median_mad, mode='lines', 
                         name=f'mean + Std (uncertainty) ({median_mad:.2f} mm)',
-                        line=dict(color='#4B0082', dash='dash'))
+                        line=dict(color='#2c7fb8', dash='dash'))
         lower = go.Scatter(x=x, y=x - median_mad, mode='lines',
                         name=f'mean - Std (uncertainty) ({median_mad:.2f} mm)', 
-                        line=dict(color='#4B0082', dash='dash'))
+                        line=dict(color='#2c7fb8', dash='dash'))
 
         # Calculate percentage within bounds for this pond type
         within_bounds = ((df_pond['Length_fov(mm)'] <= df_pond['mean_length'] + median_mad) & 
@@ -329,7 +331,7 @@ Key components:
         fig.add_trace(go.Bar(
             name='Pixel Error',
             x=error_points.index,
-            y=error_points['pixel_error_mm'],
+            y=error_points['pixel_error_mm'],  # Already has correct sign
             marker_color='#1f77b4',
             hovertemplate="Image: %{customdata[0]}<br>" +
                          "Prawn ID: %{customdata[1]}<br>" +
@@ -342,7 +344,7 @@ Key components:
         fig.add_trace(go.Bar(
             name='Scale Error', 
             x=error_points.index,
-            y=error_points['scale_error_mm'],
+            y=error_points['scale_error_mm'],  # Already has correct sign
             marker_color='#ff7f0e',
             hovertemplate="Image: %{customdata[0]}<br>" +
                          "Prawn ID: %{customdata[1]}<br>" +
@@ -355,7 +357,7 @@ Key components:
 
         # Update layout
         fig.update_layout(
-            barmode='stack',
+            barmode='relative',  # Shows bars side by side
             title=f'Error Components Analysis - {pond_type}',
             xaxis_title='Measurement Index',
             yaxis_title='Error (mm)',
@@ -367,7 +369,60 @@ Key components:
         fig.write_html(f"fifty_one/measurements/results/analysis/error_components_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
 
 
+        #create the same for mean aground truth pixels and Length_ground_truth_annotation_pixels
+        df_pond['pixel_error_mm_ground_truth'] = abs(df_pond['Length_ground_truth_annotation_pixels'] - df_pond['pred_Distance_pixels']) 
 
+        
+        # Calculate actual impact in millimeters with signs preserved
+        df_pond['pixel_error_mm_ground_truth'] = (df_pond['Length_ground_truth_annotation_pixels'] - df_pond['pred_Distance_pixels']) * (1/df_pond['mean_scale']) * 10
+        df_pond['scale_error_mm_ground_truth'] = df_pond['Length_ground_truth_annotation_pixels'] * (1/df_pond['mean_scale'] - 1/df_pond['pred_scale']) * 10
+        
+        # Calculate total error
+        df_pond['total_error_mm_ground_truth'] = df_pond['pixel_error_mm_ground_truth'] + df_pond['scale_error_mm_ground_truth']
+
+        # Create stacked bar chart for points outside standard deviation bounds
+        error_points = df_pond[outside_std_bounds].reset_index(drop=True)
+        error_points = error_points.sort_values('total_error_mm_ground_truth', key=abs, ascending=False)
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            name='Pixel Error',
+            x=error_points.index,
+            y=error_points['pixel_error_mm_ground_truth'],  # Already has correct sign
+            marker_color='#1f77b4',
+            hovertemplate="Image: %{customdata[0]}<br>" +
+                         "Prawn ID: %{customdata[1]}<br>" +
+                         "Mean Length: %{customdata[2]:.1f}mm<br>" +
+                         "model Length: %{customdata[3]:.1f}mm<br>" +
+                         "Pixel Error: %{y:.1f}mm<br>" +
+                         "Impact: %{customdata[4]:.1f}%<extra></extra>",
+            customdata=error_points[['Label', 'PrawnID', 'mean_annotation_length', 'Length_fov(mm)']].values
+        ))
+        # fig.add_trace(go.Bar(
+        #     name='Scale Error', 
+        #     x=error_points.index,
+        #     y=error_points['scale_error_mm_ground_truth'],  # Already has correct sign
+        #     marker_color='#ff7f0e',
+        #     hovertemplate="Image: %{customdata[0]}<br>" +
+        #                  "Prawn ID: %{customdata[1]}<br>" +
+        # #                  "Mean Length: %{customdata[2]:.1f}mm<br>" +
+        # #                  "model Length: %{customdata[3]:.1f}mm<br>" +
+        # #                  "Scale Error: %{y:.1f}mm<br>" +
+        # #                  "Impact: %{customdata[4]:.1f}%<extra></extra>",
+        # #     customdata=error_points[['Label', 'PrawnID', 'mean_length', 'Length_fov(mm)']].values
+        # # ))
+
+        # Update layout
+        fig.update_layout(
+            barmode='relative',  # Shows bars side by side
+            title=f'Error Components Analysis - {pond_type}',
+            xaxis_title='Measurement Index',
+            yaxis_title='Error (mm)',
+            showlegend=True,
+            width=1000,
+            height=600
+        )
+
+        fig.write_html(f"fifty_one/measurements/results/analysis/error_components_ground_truth_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
 
 
 
