@@ -5,8 +5,11 @@ TYPE="carapace"
 WEIGHTS_TYPE="all"
 ERROR_SIZE="mean"
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # Define the path to your Python script
-PYTHON_SCRIPT="fifty_one/measurements/results/analysis/error_flags_analysis.py"
+PYTHON_SCRIPT="${SCRIPT_DIR}/error_flags_analysis.py"
 
 # Function to display a menu
 display_menu() {
@@ -34,7 +37,7 @@ validate_choice() {
     shift
     local options=("$@")
     
-    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#options[@]}" ]]; then
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#options[@]}" ]; then
         echo "$choice"
     else
         echo "Invalid option. Using default."
@@ -85,7 +88,7 @@ echo "Selected error size: $ERROR_SIZE"
 echo
 
 # Build the command
-CMD="python $PYTHON_SCRIPT --type $TYPE --weights_type $WEIGHTS_TYPE --error_size $ERROR_SIZE"
+CMD="python \"${PYTHON_SCRIPT}\" --type $TYPE --weights_type $WEIGHTS_TYPE --error_size $ERROR_SIZE"
 
 # Show the command to be executed
 echo -e "\nThe following command will be executed:"

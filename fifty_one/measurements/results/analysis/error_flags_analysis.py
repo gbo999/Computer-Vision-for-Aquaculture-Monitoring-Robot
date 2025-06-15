@@ -10,6 +10,8 @@ import ast
 import plotly.express as px
 from sklearn.metrics import r2_score
 import warnings
+from scipy import stats
+from plotly.subplots import make_subplots
 
 # Suppress matplotlib warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -91,7 +93,32 @@ Key components:
     'right': 'circle_female', # Rename 'right' to 'circle_female'
     'left': 'circle_male',    # Rename 'left' to 'circle_male'
 })
-    
+    #number of prawns in each pond type
+    print(df['Pond_Type'].value_counts())
+
+
+
+    df['std_length'] = df[['Length_1', 'Length_2', 'Length_3']].std(axis=1)
+
+
+    print('========std length========')
+    for pond_type in df['Pond_Type'].unique():
+        print(f"Std length for {pond_type}: {df[df['Pond_Type'] == pond_type]['std_length'].mean()}")
+
+
+    #mean length
+    df['mean_length'] = df[['Length_1', 'Length_2', 'Length_3']].mean(axis=1)
+    print('========mean length========')
+    for pond_type in df['Pond_Type'].unique():
+        print(f"Mean length for {pond_type}: {df[df['Pond_Type'] == pond_type]['mean_length'].describe()}")
+        
+
+
+
+
+
+
+
 
     df['choice'] = f'{args.type}_{args.weights_type}_{args.error_size}'
 
@@ -136,12 +163,16 @@ Key components:
     print('========std length========')
     print(df['std_length'].describe())
 
-    #standard error of the mean
-    df['sem_length'] = df['std_length'] / np.sqrt(3)
 
-    #describe sem length
-    print('========sem length========')
-    print(df['sem_length'].describe())
+
+
+
+    # #standard error of the mean
+    # df['sem_length'] = df['std_length'] / np.sqrt(3)
+
+    # #describe sem length
+    # print('========sem length========')
+    # print(df['sem_length'].describe())
     
     
 
@@ -161,6 +192,12 @@ Key components:
     df['mean_length'] = df[['Length_1', 'Length_2', 'Length_3']].mean(axis=1)
 
     df['std_length'] = df[['Length_1', 'Length_2', 'Length_3']].std(axis=1)
+
+
+   
+
+
+
 
 
     mean = df['mean_length'].mean()
@@ -206,20 +243,10 @@ Key components:
         #save to csv
         pond_outliers.to_csv(f'fifty_one/measurements/results/analysis/outliers_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.csv', index=False)
 
-    # # Remove outliers using mean ± 3 standard deviations
-    # df = df[(df['Length_fov(mm)'] < mean + 3*std) & 
-    #         (df['Length_fov(mm)'] > mean - 3*std)]
-
-    df = df[(df['Length_fov(mm)'] < df['mean_length'] + 3*std) & 
-            (df['Length_fov(mm)'] > df['mean_length'] - 3*std)]
+  
 
 
-    # Calculate points within and outside standard deviation bounds
-    within_std_bounds = ((df['Length_fov(mm)'] <= df['mean_length'] + std) & 
-                        (df['Length_fov(mm)'] >= df['mean_length'] - std))
-    
-    outside_std_bounds = ~within_std_bounds
-
+    #
 
 
 
@@ -279,18 +306,6 @@ Key components:
             xaxis_title='mean of manual measurements (mm)',
             yaxis_title='Model Measurements  (mm)',
             showlegend=True,
-            annotations=[
-                dict(
-                    x=0.02,
-                    y=0.02,
-                    xref="paper",
-                    yref="paper",
-                    text=f"Points within Std (uncertainty) bounds: {within_bounds:.1f}%",
-                    showarrow=False,
-                    bgcolor="white",
-                    borderpad=4
-                )
-            ],
             width=800,
             height=800
         )
@@ -308,10 +323,362 @@ Key components:
 
         fig.write_html(f"fifty_one/measurements/results/analysis/model_vs_mean_measurements_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
 
+        # Create combined model vs mean plot with all pond types
+        if pond_type == df['Pond_Type'].unique()[-1]:  # Only create combined plot after processing all pond types
+            # Create figure with subplots
+            combined_fig = make_subplots(
+                rows=1, cols=3,
+                subplot_titles=[f'Model vs Mean Measurements - {pt}' for pt in df['Pond_Type'].unique()],
+                horizontal_spacing=0.1
+            )
+            
+            # Process each pond type
+            for idx, pond_type in enumerate(df['Pond_Type'].unique(), 1):
+                df_pond = df[df['Pond_Type'] == pond_type]
+                
+                # Calculate min and max for diagonal lines
+                min_val = min(df_pond['mean_length'].min(), df_pond['Length_fov(mm)'].min())
+                max_val = max(df_pond['mean_length'].max(), df_pond['Length_fov(mm)'].max())
+                x = np.linspace(min_val, max_val, 100)
+                
+                median_mad = df_pond['std_length'].mean()
+                
+                # Add scatter plot
+                combined_fig.add_trace(
+                    go.Scatter(
+                        x=df_pond['mean_length'],
+                        y=df_pond['Length_fov(mm)'],
+                        mode='markers',
+                        name='Measurements',
+                        text=df_pond.apply(lambda row: f"Image: {row['Label']}<br>Prawn ID: {row['PrawnID']}", axis=1),
+                        hoverinfo='text+x+y',
+                        marker=dict(
+                            color='#ff7f0e',
+                            opacity=0.7
+                        ),
+                        showlegend=False
+                    ),
+                    row=1, col=idx
+                )
+                
+                # Add diagonal lines
+                combined_fig.add_trace(
+                    go.Scatter(
+                        x=x, y=x,
+                        mode='lines',
+                        name='Perfect match (y=x)',
+                        line=dict(color='black', dash='dash'),
+                        showlegend=False
+                    ),
+                    row=1, col=idx
+                )
+                
+                combined_fig.add_trace(
+                    go.Scatter(
+                        x=x, y=x + median_mad,
+                        mode='lines',
+                        name=f'mean + Std ({median_mad:.2f} mm)',
+                        line=dict(color='#2c7fb8', dash='dash'),
+                        showlegend=False
+                    ),
+                    row=1, col=idx
+                )
+                
+                combined_fig.add_trace(
+                    go.Scatter(
+                        x=x, y=x - median_mad,
+                        mode='lines',
+                        name=f'mean - Std ({median_mad:.2f} mm)',
+                        line=dict(color='#2c7fb8', dash='dash'),
+                        showlegend=False
+                    ),
+                    row=1, col=idx
+                )
+                
+                # Add custom legend using annotations
+                combined_fig.add_annotation(
+                    x=min_val, y=max_val,
+                    xref=f'x{idx}', yref=f'y{idx}',
+                    text=f'<b>Legend:</b><br>• Measurements<br>• Perfect match (y=x)<br>• mean + Std ({median_mad:.2f} mm)<br>• mean - Std ({median_mad:.2f} mm)',
+                    showarrow=False,
+                    bgcolor='white',
+                    bordercolor='black',
+                    borderwidth=1,
+                    borderpad=4,
+                    align='left',
+                    xanchor='left',
+                    yanchor='top'
+                )
+                
+                # Update axes for equal aspect ratio
+                combined_fig.update_xaxes(
+                    title_text='Mean of Manual Measurements (mm)',
+                    scaleanchor=f'y{idx}',
+                    scaleratio=1,
+                    row=1, col=idx
+                )
+                combined_fig.update_yaxes(
+                    title_text='Model Measurements (mm)',
+                    row=1, col=idx
+                )
+            
+            # Update layout for combined plot
+            combined_fig.update_layout(
+                title_text='Model vs Mean Measurements Across All Pond Types',
+                height=600,
+                width=1800,
+                showlegend=False  # Disable the main legend
+            )
+            
+            # Save combined plot
+            combined_fig.write_html(f"fifty_one/measurements/results/analysis/model_vs_mean_measurements_combined_{args.type}_{args.weights_type}_{args.error_size}.html")
 
-      
+        #add a trace to the figure to show the points that are within the std bounds
+
+
+           # Calculate error components
+        df_pond['pixel_error_contribution'] = abs(df_pond['diff_pixels'] / df_pond['mean_pixels'] * 100)
+        df_pond['scale_error_contribution'] = abs(df_pond['diff_scale'] / df_pond['mean_scale'] * 100)
+        
+        # Calculate actual impact in millimeters with signs preserved
+        df_pond['pixel_error_mm'] = (df_pond['mean_pixels'] - df_pond['pred_Distance_pixels']) * (1/df_pond['mean_scale']) * 10
+        df_pond['scale_error_mm'] = df_pond['mean_pixels'] * (1/df_pond['mean_scale'] - 1/df_pond['pred_scale']) * 10
+        
+        # Calculate total error
+        df_pond['total_error_mm'] = df_pond['pixel_error_mm'] + df_pond['scale_error_mm']
+
+
+
+        df_pond['within_std'] = (
+            (df_pond['Length_fov(mm)'] <= df_pond['mean_length'] + df_pond['std_length'].mean()) &
+            (df_pond['Length_fov(mm)'] >= df_pond['mean_length'] - df_pond['std_length'].mean())
+        )
+        df_pond['outside_std'] = ~df_pond['within_std']
+
+
+        df_pond['MAE'] = abs(df_pond['Length_fov(mm)'] - df_pond['mean_length'])
+        from statsmodels import robust
+        mae_mad = robust.mad(df_pond['MAE'])
+        print(f"MAE for {pond_type}: , median: {df_pond['MAE'].median()}, mad: {mae_mad}, min: {df_pond['MAE'].min()}, max: {df_pond['MAE'].max()}")
+
+
+
+
+        df_pond['MARE'] = abs(df_pond['Length_fov(mm)'] - df_pond['mean_length'])/df_pond['mean_length'] * 100
+        mare_mad = robust.mad(df_pond['MARE'])      #median absolute deviation
+        print(f"MARE for {pond_type}: , median: {df_pond['MARE'].median()}, mad: {mare_mad}, min: {df_pond['MARE'].min()}, max: {df_pond['MARE'].max()}")
+
+
+
+
+
 
         
+        # For points outside std, determine which error source "sets the tone" (i.e., dominates the total error direction)
+        # If pixel and scale error have the same sign, the dominant one is the one with the larger absolute value
+        # If pixel and scale error have opposite signs (i.e., partially cancel), the one whose sign matches the total error sets the tone
+        # If both are very small, label as 'Both'
+        def determine_error_type(row):
+            if row['MARE'] <= 5:
+                return 'Within 5% MARE'
+            pixel_err = row['pixel_error_mm']
+            scale_err = row['scale_error_mm']
+            total_err = row['total_error_mm']
+            # If both errors are very small, label as 'Both'
+            if abs(pixel_err) < 1e-6 and abs(scale_err) < 1e-6:
+                return 'Both'
+            # If both errors have the same sign, the larger one sets the tone
+            if (pixel_err >= 0 and scale_err >= 0) or (pixel_err <= 0 and scale_err <= 0):
+                if abs(pixel_err) > abs(scale_err):
+                    return 'Pixel Error'
+                elif abs(scale_err) > abs(pixel_err):
+                    return 'Scale Error'
+                else:
+                    return 'Both'
+            # If errors have opposite signs, the one whose sign matches the total error sets the tone
+            if abs(total_err) < 1e-6:
+                return 'Both'
+            if (total_err > 0 and pixel_err > 0) or (total_err < 0 and pixel_err < 0):
+                return 'Pixel Error'
+            elif (total_err > 0 and scale_err > 0) or (total_err < 0 and scale_err < 0):
+                return 'Scale Error'
+            else:
+                return 'Both'
+
+        df_pond['error_type'] = df_pond.apply(determine_error_type, axis=1)
+
+        # Percentage of points with MARE > 5% by error type
+        beyond_5_df = df_pond[df_pond['MARE'] > 5]
+        beyond_5_counts = beyond_5_df['error_type'].value_counts()
+        print(f"\nFor {pond_type}:")
+        print("Percentage of points with MARE > 5% by dominant error type:")
+        if len(beyond_5_df) > 0:
+            print((beyond_5_counts / len(beyond_5_df)) * 100)
+        else:
+            print("No points with MARE > 5%.")
+
+
+        #if pixel error check if the annotation pixel error is smaller within those with pixel error
+        pixel_error_df = df_pond[df_pond['error_type'].isin(['Pixel Error', 'Both'])]
+
+
+        #ground-truth pixel mm error
+
+
+        #check if the annotation pixel error is smaller
+        pixel_error_df['annotation_pixel_error'] = abs(pixel_error_df['pred_Distance_pixels'] - pixel_error_df['Length_ground_truth_annotation_pixels'])
+        #check if the annotation pixel error is smaller
+
+        #annotation pixel error in mm
+        pixel_error_df['annotation_pixel_error_mm'] = pixel_error_df['annotation_pixel_error'] * (1/pixel_error_df['mean_scale']) * 10
+
+        pixel_error_df['annotation_pixel_error_smaller'] = pixel_error_df['annotation_pixel_error'] < pixel_error_df['pixel_error_mm']
+        #percentage of points where the annotation pixel error is smaller
+        print(f"Percentage of points where the annotation pixel error is smaller: {pixel_error_df['annotation_pixel_error_smaller'].mean()*100:.2f}%")
+        
+
+        #out of the scale error how much come from the same image name
+        scale_error_df = df_pond[df_pond['error_type'].isin(['Scale Error', 'Both'])]
+
+        # Calculate the percentage of scale error points that share the same image (Label) with at least one other scale error point
+        if not scale_error_df.empty and 'Label' in scale_error_df:
+            label_counts = scale_error_df['Label'].value_counts()
+            print(label_counts)
+            
+            # Only consider labels that appear more than once among scale error points
+            shared_label_count = (scale_error_df['Label'].isin(label_counts[label_counts > 1].index)).sum()
+            percent_shared = 100 * shared_label_count / len(scale_error_df)
+            print(f"Percentage of scale error points that share the same image (Label) with at least one other scale error point: {percent_shared:.2f}%")
+        
+
+        # Optionally, print summary counts for analysis
+        # Updated: Print dominant error type counts for points with MARE > 5%
+        mare_gt5_counts = df_pond[df_pond['MARE'] > 5]['error_type'].value_counts()
+        print(f"\nFor {pond_type}:")
+        print("Points with MARE > 5% by dominant error type:")
+        print(mare_gt5_counts)
+
+
+
+
+        fig.add_trace(go.Scatter(
+            x=df_pond['mean_length'],
+            y=df_pond['Length_fov(mm)'],
+            mode='markers',
+            marker=dict(
+                color=np.where(
+                    df_pond['within_std'],
+                    'green',
+                    df_pond['error_type'].map({'Pixel Error': 'red', 'Scale Error': 'orange'}).fillna('gray')
+                )
+            ),
+            name='Model vs Manual',
+            customdata=np.stack([df_pond['Label'], df_pond['PrawnID']], axis=-1) if 'Label' in df_pond and 'PrawnID' in df_pond else None,
+            hovertemplate="Image: %{customdata[0]}<br>Prawn ID: %{customdata[1]}<br>Mean Length: %{x:.2f} mm<br>Model Length: %{y:.2f} mm<extra></extra>"
+        ))
+
+        fig.write_html(f"fifty_one/measurements/results/analysis/with_std_bounds_colors_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
+
+
+
+        
+
+
+
+        # Plot manual measurement means with error bars and model predictions for each prawn
+        # Convert to Plotly with hover of mean±std, image name, prawnid
+
+        # Sort by mean_length for better visualization (optional)
+        sorted_df = df_pond.sort_values('mean_length').reset_index(drop=True)
+
+        # Adaptive spacing: use a nonlinear function to increase spacing for larger datasets
+        n_points = len(sorted_df)
+        # Use uniform spacing for x-axis
+        if n_points > 1:
+            max_x = 800
+            x = np.linspace(0, max_x, n_points)
+        else:
+            x = sorted_df.index.to_numpy()
+
+        y_manual = sorted_df['mean_length']
+        yerr_manual = sorted_df['std_length']
+        y_model = sorted_df['Length_fov(mm)']
+        labels = sorted_df['Label'] if 'Label' in sorted_df else [''] * len(sorted_df)
+        prawnids = sorted_df['PrawnID'] if 'PrawnID' in sorted_df else [''] * len(sorted_df)
+
+        # Manual measurements with error bars
+        manual_trace = go.Scatter(
+            x=x,
+            y=y_manual,
+            error_y=dict(
+                type='data',
+                array=yerr_manual,
+                visible=True,
+                color='rgba(31,119,180,0.5)',
+                thickness=2,
+                width=8
+            ),
+            mode='markers',
+            marker=dict(
+                color='rgba(31,119,180,1)',
+                size=10,
+                symbol='circle'
+            ),
+            name='Manual Mean ± Std',
+            customdata=list(
+                zip(
+                    y_manual,
+                    yerr_manual,
+                    labels,
+                    prawnids
+                )
+            ),
+            hovertemplate=(
+                "Index: %{x}<br>"
+                "Manual Mean: %{customdata[0]:.2f} mm<br>"
+                "Std: %{customdata[1]:.2f} mm<br>"
+                "Image: %{customdata[2]}<br>"
+                "PrawnID: %{customdata[3]}<extra></extra>"
+            )
+        )
+
+        # Model predictions
+        model_trace = go.Scatter(
+            x=x,
+            y=y_model,
+            mode='markers',
+            marker=dict(
+                color='orange',
+                size=10,
+                symbol='x'
+            ),
+            name='Model Prediction',
+            customdata=list(
+                zip(
+                    y_model,
+                    labels,
+                    prawnids
+                )
+            ),
+            hovertemplate=(
+                "Index: %{x}<br>"
+                "Model Prediction: %{customdata[0]:.2f} mm<br>"
+                "Image: %{customdata[1]}<br>"
+                "PrawnID: %{customdata[2]}<extra></extra>"
+            )
+        )
+
+        fig = go.Figure([manual_trace, model_trace])
+        fig.update_layout(
+            title=f'Manual Measurement Means (±Std) and Model Predictions - {pond_type}',
+            xaxis_title='Prawn Index (spaced)',
+            yaxis_title='Length (mm)',
+            legend=dict(x=0.01, y=0.99),
+            width=1000,
+            height=500,
+            margin=dict(l=40, r=40, t=60, b=40)
+        )
+        fig.write_html(f"fifty_one/measurements/results/analysis/error_bars_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
 
         # Calculate error components
         df_pond['pixel_error_contribution'] = abs(df_pond['diff_pixels'] / df_pond['mean_pixels'] * 100)
@@ -325,8 +692,17 @@ Key components:
         df_pond['total_error_mm'] = df_pond['pixel_error_mm'] + df_pond['scale_error_mm']
 
         # Create stacked bar chart for points outside standard deviation bounds
+
+        within_std_bounds = (
+            (df_pond['Length_fov(mm)'] <= df_pond['mean_length'] + df_pond['std_length']) &
+            (df_pond['Length_fov(mm)'] >= df_pond['mean_length'] - df_pond['std_length'])
+        )
+        outside_std_bounds = ~within_std_bounds
+
+        # Sort by image name (Label)
         error_points = df_pond[outside_std_bounds].reset_index(drop=True)
-        error_points = error_points.sort_values('total_error_mm', key=abs, ascending=False)
+        error_points = error_points.sort_values('Label', ascending=True).reset_index(drop=True)
+
         fig = go.Figure()
         fig.add_trace(go.Bar(
             name='Pixel Error',
@@ -367,6 +743,105 @@ Key components:
         )
 
         fig.write_html(f"fifty_one/measurements/results/analysis/error_components_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
+
+        #create combined graph with the 3 pond types
+        if pond_type == df['Pond_Type'].unique()[-1]:  # Only create combined plot after processing all pond types
+            # Create figure with subplots
+            combined_fig = make_subplots(
+                rows=1, cols=3,
+                subplot_titles=[f'Error Components Analysis - {pt}' for pt in df['Pond_Type'].unique()],
+                horizontal_spacing=0.1
+            )
+            
+            # Process each pond type
+            for idx, pond_type in enumerate(df['Pond_Type'].unique(), 1):
+                df_pond = df[df['Pond_Type'] == pond_type]
+                
+                # Calculate error components
+                df_pond['pixel_error_mm'] = (df_pond['mean_pixels'] - df_pond['pred_Distance_pixels']) * (1/df_pond['mean_scale']) * 10
+                df_pond['scale_error_mm'] = df_pond['mean_pixels'] * (1/df_pond['mean_scale'] - 1/df_pond['pred_scale']) * 10
+                
+                # Calculate total error
+                df_pond['total_error_mm'] = df_pond['pixel_error_mm'] + df_pond['scale_error_mm']
+                
+                # Get points outside standard deviation bounds
+                within_std_bounds = (
+                    (df_pond['Length_fov(mm)'] <= df_pond['mean_length'] + df_pond['std_length']) &
+                    (df_pond['Length_fov(mm)'] >= df_pond['mean_length'] - df_pond['std_length'])
+                )
+                outside_std_bounds = ~within_std_bounds
+                
+                # Sort by image name (Label)
+                error_points = df_pond[outside_std_bounds].reset_index(drop=True)
+                error_points = error_points.sort_values('Label', ascending=True).reset_index(drop=True)
+                
+                # Add traces for this pond type
+                combined_fig.add_trace(
+                    go.Bar(
+                        name='Pixel Error',
+                        x=error_points.index,
+                        y=error_points['pixel_error_mm'],
+                        marker_color='#1f77b4',
+                        hovertemplate="Image: %{customdata[0]}<br>" +
+                                    "Prawn ID: %{customdata[1]}<br>" +
+                                    "Mean Length: %{customdata[2]:.1f}mm<br>" +
+                                    "Model Length: %{customdata[3]:.1f}mm<br>" +
+                                    "Pixel Error: %{y:.1f}mm<br>" +
+                                    "Impact: %{customdata[4]:.1f}%<extra></extra>",
+                        customdata=error_points[['Label', 'PrawnID', 'mean_length', 'Length_fov(mm)']].values
+                    ),
+                    row=1, col=idx
+                )
+                
+                combined_fig.add_trace(
+                    go.Bar(
+                        name='Scale Error',
+                        x=error_points.index,
+                        y=error_points['scale_error_mm'],
+                        marker_color='#ff7f0e',
+                        hovertemplate="Image: %{customdata[0]}<br>" +
+                                    "Prawn ID: %{customdata[1]}<br>" +
+                                    "Mean Length: %{customdata[2]:.1f}mm<br>" +
+                                    "Model Length: %{customdata[3]:.1f}mm<br>" +
+                                    "Scale Error: %{y:.1f}mm<br>" +
+                                    "Impact: %{customdata[4]:.1f}%<extra></extra>",
+                        customdata=error_points[['Label', 'PrawnID', 'mean_length', 'Length_fov(mm)']].values
+                    ),
+                    row=1, col=idx
+                )
+            
+            # Update layout for combined plot
+            combined_fig.update_layout(
+                barmode='relative',  # Shows bars side by side
+                title_text='Error Components Analysis Across All Pond Types',
+                height=600,  # Reduced height since plots are side by side
+                width=1800,  # Increased width to accommodate side-by-side plots
+                showlegend=True,
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="center",
+                    x=0.5
+                )
+            )
+            
+            # Update y-axis labels for all subplots
+            for i in range(1, 4):
+                combined_fig.update_yaxes(title_text="Error (mm)", row=1, col=i)
+                combined_fig.update_xaxes(title_text="Measurement Index", row=1, col=i)
+            
+            # Save combined plot
+            combined_fig.write_html(f"fifty_one/measurements/results/analysis/error_components_combined_{args.type}_{args.weights_type}_{args.error_size}.html")
+
+
+
+
+
+
+
+
+
 
 
         #create the same for mean aground truth pixels and Length_ground_truth_annotation_pixels
@@ -530,6 +1005,25 @@ Key components:
         df_pond = df[df['Pond_Type'] == pond_type]
         
         # Get counts and percentages for this pond type
+        slope, intercept, r_value, p_value, std_err = stats.linregress(
+        df_pond['mean_length'], df_pond['Length_fov(mm)']
+        )
+
+
+        avg_std = df_pond['std_length'].mean()
+
+        df_pond['predicted_length'] = slope * df_pond['mean_length'] + intercept
+        within_std_bounds = (
+            (df_pond['Length_fov(mm)'] <= df_pond['mean_length'] + df_pond['std_length'].mean()) &
+            (df_pond['Length_fov(mm)'] >= df_pond['mean_length'] - df_pond['std_length'].mean())
+        )
+        outside_std_bounds = ~within_std_bounds
+
+
+
+
+
+
         total_count = len(df_pond)
         within_count = len(df_pond[within_std_bounds])
         outside_count = len(df_pond[outside_std_bounds])
@@ -549,21 +1043,25 @@ Key components:
             mean_distance_beyond = distance_beyond_std.mean()
             median_distance_beyond = distance_beyond_std.median()
             std_distance_beyond = distance_beyond_std.std()
+            #mad distance beyond std
+            mad_distance_beyond = stats.median_abs_deviation(distance_beyond_std)
             
             print("\nDistance Beyond Std Bounds:")
             print(f"Mean distance beyond std: {mean_distance_beyond:.2f} mm")
             print(f"Median distance beyond std: {median_distance_beyond:.2f} mm")
             print(f"Standard deviation of distance beyond std: {std_distance_beyond:.2f} mm")
-            
+            print(f"MAD of distance beyond std: {mad_distance_beyond:.2f} mm")
             # Calculate percentage beyond std bounds
             percent_beyond_std = (distance_beyond_std / abs(df_outside.apply(lambda row: 
                 row['mean_length'] + std if row['Length_fov(mm)'] > row['mean_length'] 
                 else row['mean_length'] - std, axis=1)))*100
             mean_percent_beyond = percent_beyond_std.median()
             std_percent_beyond = percent_beyond_std.std()
+            mad_percent_beyond = stats.median_abs_deviation(percent_beyond_std)
             
             print(f"Mean percentage beyond std: {mean_percent_beyond:.2f}%")
             print(f"Standard deviation of percentage beyond std: {std_percent_beyond:.2f}%")
+            print(f"MAD of percentage beyond std: {mad_percent_beyond:.2f}%")
         else:
             print("\nNo points outside std bounds")
 
