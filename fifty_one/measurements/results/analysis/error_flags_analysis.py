@@ -94,24 +94,17 @@ Key components:
     'left': 'circle_male',    # Rename 'left' to 'circle_male'
 })
     #number of prawns in each pond type
-    print(df['Pond_Type'].value_counts())
+    # print(df['Pond_Type'].value_counts())
 
 
 
-    df['std_length'] = df[['Length_1', 'Length_2', 'Length_3']].std(axis=1)
 
 
-    print('========std length========')
-    for pond_type in df['Pond_Type'].unique():
-        print(f"Std length for {pond_type}: {df[df['Pond_Type'] == pond_type]['std_length'].mean()}")
+    # print('========std length========')
+    # for pond_type in df['Pond_Type'].unique():
+    #     print(f"Std length for {pond_type}: {df[df['Pond_Type'] == pond_type]['std_length'].mean()}")
 
 
-    #mean length
-    df['mean_length'] = df[['Length_1', 'Length_2', 'Length_3']].mean(axis=1)
-    print('========mean length========')
-    for pond_type in df['Pond_Type'].unique():
-        print(f"Mean length for {pond_type}: {df[df['Pond_Type'] == pond_type]['mean_length'].describe()}")
-        
 
 
 
@@ -122,15 +115,6 @@ Key components:
 
     df['choice'] = f'{args.type}_{args.weights_type}_{args.error_size}'
 
-    df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
-    print('========mean scale========')
-    print(df['mean_scale'])
-
-    df['pred_scale'] = df['pred_Distance_pixels'] / df['Length_fov(mm)'] * 10
-    print('========pred scale========')
-    print(df['pred_scale'])
-
-    df['Length_fov(mm)'] = df['Length_fov(mm)']
 
 
 
@@ -156,13 +140,30 @@ Key components:
     df = df[df['Length_3'].notna()]
 
 
+    df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
+    print('========mean scale========')
+    print(df['mean_scale'])
+
+    df['pred_scale'] = df['pred_Distance_pixels'] / df['Length_fov(mm)'] * 10
+    print('========pred scale========')
+    print(df['pred_scale'])
+
+    df['Length_fov(mm)'] = df['Length_fov(mm)']
     #std of length
     df['std_length'] = df[['Length_1', 'Length_2', 'Length_3']].std(axis=1)
 
     #describe std length
-    print('========std length========')
-    print(df['std_length'].describe())
+    for pond_type in df['Pond_Type'].unique():
+        print(f"Standard deviation of length for {pond_type}: {df[df['Pond_Type'] == pond_type]['std_length'].describe()}")
 
+
+
+    #mean length
+    df['mean_length'] = df[['Length_1', 'Length_2', 'Length_3']].mean(axis=1)
+    print('========mean length========')
+    for pond_type in df['Pond_Type'].unique():
+        print(f"Mean length for {pond_type}: {df[df['Pond_Type'] == pond_type]['mean_length'].describe()}")
+        
 
 
 
@@ -217,16 +218,18 @@ Key components:
 
     df['mean_scale'] = df[['Scale_1', 'Scale_2', 'Scale_3']].mean(axis=1)
 
-    df['pred_scale'] = ((df['pred_Distance_pixels'] / df['Length_fov(mm)']))*10
+    df['pred_scale'] = ((df['pred_Distance_pixels'] / df['Length_fov(mm)'])*10)
 
     df['diff_scale'] = abs(df['mean_scale'] - df['pred_scale'])
 
     
 
     # Find outliers using mean ± 3 standard deviations
-    df_outliers = df[(df['Length_fov(mm)'] >= df['mean_length'] + 3*std) | 
-            (df['Length_fov(mm)'] <= df['mean_length'] - 3*std)]
+    df_outliers = df[(df['Length_fov(mm)'] >= df['mean_length'] + 5*std) | 
+            (df['Length_fov(mm)'] <= df['mean_length'] - 5*std)]
 
+    concatenated_df = pd.concat([df[['Label', 'PrawnID','Pond_Type', 'mean_length', 'Length_fov(mm)','mean_pixels', 'pred_Distance_pixels','Length_ground_truth_annotation_pixels','mean_scale', 'pred_scale']]])
+    concatenated_df.to_csv(f"fifty_one/measurements/results/analysis/error_flags_analysis_{args.type}_{args.weights_type}_{args.error_size}.csv", index=False)
 
 
     # Print outliers before removing them
@@ -253,9 +256,15 @@ Key components:
     # Get min and max for diagonal lines
     min_val = min(df['mean_length'].min(), df['Length_fov(mm)'].min())
     max_val = max(df['mean_length'].max(), df['Length_fov(mm)'].max())
-    x = np.linspace(min_val, max_val, 100)
+    x = np.linspace(min_val, max_val, 100)  
 
-    #std
+    
+
+    #std of the mean
+    df['std_mean'] = df[['Length_1', 'Length_2', 'Length_3']].std(axis=1)
+    print('========std of the mean========')
+    print(df['std_mean'])
+
 
     # Create scatter plots for each pond type
     for pond_type in df['Pond_Type'].unique():
@@ -456,19 +465,42 @@ Key components:
         df_pond['outside_std'] = ~df_pond['within_std']
 
 
-        df_pond['MAE'] = abs(df_pond['Length_fov(mm)'] - df_pond['mean_length'])
+        import matplotlib.pyplot as plt
+        import seaborn as sns
         from statsmodels import robust
+
+        # Calculate MAE
+        df_pond['MAE'] = abs(df_pond['Length_fov(mm)'] - df_pond['mean_length'])
         mae_mad = robust.mad(df_pond['MAE'])
         print(f"MAE for {pond_type}: , median: {df_pond['MAE'].median()}, mad: {mae_mad}, min: {df_pond['MAE'].min()}, max: {df_pond['MAE'].max()}")
+        #print mean and std of MAE
+        print('$$$$$$$$$')
+        print(f"Mean of MAE for {pond_type}: {df_pond['MAE'].mean()}, std: {df_pond['MAE'].std()}")
+        # KDE plot for MAE
+        plt.figure(figsize=(8, 5))
+        sns.kdeplot(df_pond['MAE'], fill=True, color='skyblue')
+        plt.title(f"MAE KDE Plot - {pond_type}")
+        plt.xlabel("MAE (mm)")
+        plt.ylabel("Density")
+        plt.tight_layout()
+        plt.savefig(f"fifty_one/measurements/results/analysis/mae_kde_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png")
+        plt.close()
 
-
-
-
+        # Calculate MARE
         df_pond['MARE'] = abs(df_pond['Length_fov(mm)'] - df_pond['mean_length'])/df_pond['mean_length'] * 100
         mare_mad = robust.mad(df_pond['MARE'])      #median absolute deviation
         print(f"MARE for {pond_type}: , median: {df_pond['MARE'].median()}, mad: {mare_mad}, min: {df_pond['MARE'].min()}, max: {df_pond['MARE'].max()}")
-
-
+        print(f"Mean of MARE for {pond_type}: {df_pond['MARE'].mean()}, std: {df_pond['MARE'].std()}")
+        # KDE plot for MARE
+        plt.figure(figsize=(8, 5))
+        sns.kdeplot(df_pond['MARE'], fill=True, color='salmon')
+        plt.title(f"MARE KDE Plot - {pond_type}")
+        plt.xlabel("MARE (%)")
+        plt.ylabel("Density")
+        plt.tight_layout()
+        plt.savefig(f"fifty_one/measurements/results/analysis/mare_kde_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png")
+        plt.close()
+        print('$$$$$$$$$')
 
 
 
@@ -478,9 +510,10 @@ Key components:
         # If pixel and scale error have the same sign, the dominant one is the one with the larger absolute value
         # If pixel and scale error have opposite signs (i.e., partially cancel), the one whose sign matches the total error sets the tone
         # If both are very small, label as 'Both'
+        # --- Rewritten to apply all statistics to all samples, not just those with MARE > 5% ---
+
         def determine_error_type(row):
-            if row['MARE'] <= 5:
-                return 'Within 5% MARE'
+            # Remove the MARE > 5% gating, always assign error type
             pixel_err = row['pixel_error_mm']
             scale_err = row['scale_error_mm']
             total_err = row['total_error_mm']
@@ -507,56 +540,154 @@ Key components:
 
         df_pond['error_type'] = df_pond.apply(determine_error_type, axis=1)
 
-        # Percentage of points with MARE > 5% by error type
-        beyond_5_df = df_pond[df_pond['MARE'] > 5]
-        beyond_5_counts = beyond_5_df['error_type'].value_counts()
+        # Percentage of points by error type (for all samples)
+        error_type_counts = df_pond['error_type'].value_counts()
         print(f"\nFor {pond_type}:")
-        print("Percentage of points with MARE > 5% by dominant error type:")
-        if len(beyond_5_df) > 0:
-            print((beyond_5_counts / len(beyond_5_df)) * 100)
-        else:
-            print("No points with MARE > 5%.")
+        print("Percentage of points by dominant error type (all samples):")
+        print((error_type_counts / len(df_pond)) * 100)
+        print(f'number of points by dominant error type (all samples):')
+        print(error_type_counts)
+
+        # Calculate the percentage of points where pixel_error_mm and scale_error_mm have opposite signs (i.e., partially cancel each other)
+        partial_cancel_mask_all = (df_pond['pixel_error_mm'] * df_pond['scale_error_mm'] < 0)
+        percent_partial_cancel_all = 100 * partial_cancel_mask_all.sum() / len(df_pond) if len(df_pond) > 0 else 0
+        print(f"Percentage of points where pixel and scale error partially cancel each other (opposite signs, all samples): {percent_partial_cancel_all:.2f}%")
+        num_partial_cancel_all = partial_cancel_mask_all.sum()
+        print(f"Number of points where pixel and scale error partially cancel each other (opposite signs, all samples): {num_partial_cancel_all}")
 
 
-        #if pixel error check if the annotation pixel error is smaller within those with pixel error
-        pixel_error_df = df_pond[df_pond['error_type'].isin(['Pixel Error', 'Both'])]
+        #cancellation magnitude
+        uncancelled_error = abs(df_pond['pixel_error_mm']) + abs(df_pond['scale_error_mm'])
+        actual_total_error = abs(df_pond['pixel_error_mm'] + df_pond['scale_error_mm'])
+        cancellation_magnitude = uncancelled_error - actual_total_error
+        print(f"Mean of cancellation magnitude for {pond_type}: {cancellation_magnitude.mean()}, std: {cancellation_magnitude.std()}")
+        print(f'mean percentage of cancellation magnitude for {pond_type}: {cancellation_magnitude.mean()/df_pond["Length_fov(mm)"].abs().mean()*100:.2f}%')
+        #plot the cancellation magnitude
+        plt.figure(figsize=(8, 5))
+        sns.kdeplot(cancellation_magnitude.dropna(), fill=True, color='skyblue')
+        plt.title(f"KDE of Cancellation Magnitude for {pond_type}")
+        plt.xlabel("Cancellation Magnitude")
+        plt.ylabel("Density")
+        plt.tight_layout()
+        plt.savefig(f"fifty_one/measurements/results/analysis/cancellation_magnitude_kde_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png")
 
 
-        #ground-truth pixel mm error
 
 
-        #check if the annotation pixel error is smaller
-        pixel_error_df['annotation_pixel_error'] = abs(pixel_error_df['pred_Distance_pixels'] - pixel_error_df['Length_ground_truth_annotation_pixels'])
-        #check if the annotation pixel error is smaller
 
-        #annotation pixel error in mm
-        pixel_error_df['annotation_pixel_error_mm'] = pixel_error_df['annotation_pixel_error'] * (1/pixel_error_df['mean_scale']) * 10
 
-        pixel_error_df['annotation_pixel_error_smaller'] = pixel_error_df['annotation_pixel_error'] < pixel_error_df['pixel_error_mm']
-        #percentage of points where the annotation pixel error is smaller
-        print(f"Percentage of points where the annotation pixel error is smaller: {pixel_error_df['annotation_pixel_error_smaller'].mean()*100:.2f}%")
+
+
+
+
+
+
+
+        # Calculate mean cancellation percentage for all samples
+        # The original formula could yield values > 100% or even negative if the sum of abs_pixel_all and abs_scale_all exceeds abs_total_all,
+        # which is possible if pixel and scale errors partially cancel (i.e., total error is less than the sum of the components).
+        # Instead, cancellation should be defined as the *fraction of the error that is cancelled out* due to opposite signs,
+        # i.e., how much smaller the total error is compared to the sum of the absolute component errors.
+        # The correct formula is: cancellation = (sum(abs components) - abs(total)) / sum(abs components)
+        # This gives 0% if no cancellation, up to 100% if total error is zero (perfect cancellation).
+        # If sum(abs components) == 0, set cancellation to NaN to avoid division by zero.
+
+        from scipy.stats import median_abs_deviation
+
+        abs_pixel_all = df_pond['pixel_error_mm'].abs()
+        abs_scale_all = df_pond['scale_error_mm'].abs()
+
+
+
+        #print many $$$ so i will notice it
+        print('$$$$$$$$$')
+        print(f"Mean of pixel error for {pond_type}: {abs_pixel_all.mean()}, std: {abs_pixel_all.std()}")
+        print(f"Mean of scale error for {pond_type}: {abs_scale_all.mean()}, std: {abs_scale_all.std()}")
+        #print pct of pixel error and scale error
+        print(f"Percentage of pixel error for {pond_type}: {abs_pixel_all.mean()/df_pond['Length_fov(mm)'].abs().mean()*100:.2f}%.std: {abs_pixel_all.std()/df_pond['Length_fov(mm)'].abs().mean()*100:.2f}%")
+        print(f"Percentage of scale error for {pond_type}: {abs_scale_all.mean()/df_pond['Length_fov(mm)'].abs().mean()*100:.2f}%.std: {abs_scale_all.std()/df_pond['Length_fov(mm)'].abs().mean()*100:.2f}%")
+        print('$$$$$$$$$')
+        # #print median and mad of pixel error
+        # print(f"Median of pixel error for {pond_type}: {abs_pixel_all.median()}, mad: {median_abs_deviation(abs_pixel_all, nan_policy='omit')}")
+        # print(f"Median of scale error for {pond_type}: {abs_scale_all.median()}, mad: {median_abs_deviation(abs_scale_all, nan_policy='omit')}")
+
+
+
+        # print(f"Mean of total error for {pond_type}: {df_pond['total_error_mm'].abs().mean()}, std: {df_pond['total_error_mm'].abs().std()}")
+
+
+
+
+
+
+        abs_total_all = df_pond['total_error_mm'].abs()
+        sum_abs_components = abs_pixel_all + abs_scale_all
+
+        # Calculate cancellation in mm (how much error is cancelled out in mm)
+        cancellation_mm_all = sum_abs_components - abs_total_all
+        # Set cancellation_mm_all to NaN where sum_abs_components is very small to avoid meaningless values
+        cancellation_mm_all = cancellation_mm_all.where(sum_abs_components > 1e-8, np.nan)
+
+        # Calculate cancellation as a percentage of the final (manual) length
+        with np.errstate(divide='ignore', invalid='ignore'):
+            cancellation_as_pct_of_length = (cancellation_mm_all / df_pond['Length_fov(mm)'].abs()) * 100
+            cancellation_as_pct_of_length = cancellation_as_pct_of_length.where(sum_abs_components > 1e-8, np.nan)
+
+        # Plot KDE for cancellation in mm
+        plt.figure(figsize=(8, 5))
+        sns.kdeplot(cancellation_mm_all.dropna(), fill=True, color='skyblue')
+        plt.title(f"KDE of Error Cancellation (mm) for {pond_type}")
+        plt.xlabel("Cancellation (mm)")
+        plt.ylabel("Density")
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        mm_kde_path = f"fifty_one/measurements/results/analysis/cancellation_kde_mm_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png"
+        plt.savefig(mm_kde_path)
         
 
-        #out of the scale error how much come from the same image name
-        scale_error_df = df_pond[df_pond['error_type'].isin(['Scale Error', 'Both'])]
-
-        # Calculate the percentage of scale error points that share the same image (Label) with at least one other scale error point
-        if not scale_error_df.empty and 'Label' in scale_error_df:
-            label_counts = scale_error_df['Label'].value_counts()
-            print(label_counts)
-            
-            # Only consider labels that appear more than once among scale error points
-            shared_label_count = (scale_error_df['Label'].isin(label_counts[label_counts > 1].index)).sum()
-            percent_shared = 100 * shared_label_count / len(scale_error_df)
-            print(f"Percentage of scale error points that share the same image (Label) with at least one other scale error point: {percent_shared:.2f}%")
+        # Optionally, also plot for percentage of length
+        plt.figure(figsize=(8, 5))
+        sns.kdeplot(cancellation_as_pct_of_length.dropna(), fill=True, color='salmon')
+        plt.title(f"KDE of Error Cancellation (% of Length) for {pond_type}")
+        plt.xlabel("Cancellation (% of Length)")
+        plt.ylabel("Density")
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        pct_kde_path = f"fifty_one/measurements/results/analysis/cancellation_kde_pct_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png"
+        plt.savefig(pct_kde_path)
         
+
+
+        # If pixel error, check if the annotation pixel error is smaller within those with pixel error
+        pixel_error_df = df_pond[df_pond['error_type'].isin(['Pixel Error', 'Both'])].copy()
+
+        print('$$$$$$$$$')
+        df_pond['annotation_pixel_error'] = abs(df_pond['pred_Distance_pixels'] - df_pond['Length_ground_truth_annotation_pixels'])
+        df_pond['annotation_pixel_error_mm'] = abs(df_pond['annotation_pixel_error'] * (1/df_pond['mean_scale']) * 10)
+        df_pond['annotation_pixel_error_smaller'] = df_pond['annotation_pixel_error_mm'] < abs_pixel_all
+        print(f"Percentage of points where the annotation pixel error is smaller (all pixel error samples): {df_pond['annotation_pixel_error_smaller'].mean()*100:.4f}%")
+        print(f"Number of points where the annotation pixel error is smaller (all pixel error samples): {df_pond['annotation_pixel_error_smaller'].sum()}")
+        # Out of the scale error, how much come from the same image name
+        # Only perform the shared-label analysis if the percentage of scale error is > 5%
+        df_pond['scale_error_percentage'] = abs_scale_all / df_pond['Length_fov(mm)'] * 100
+        shared_label_count = df_pond[df_pond['scale_error_percentage'] > 10]['Label'].duplicated(keep=False).sum()
+        percent_shared = 100 * shared_label_count / len(df_pond)
+        print(f"Percentage of scale error points that share the same image (Label) with at least one other scale error point (all samples): {percent_shared:.4f}%")
+        print(f"Number of scale error points that share the same image (Label) with at least one other scale error point (all samples): {shared_label_count}")
+        print(f"Total number of images with scale error: with shared label: {df_pond[df_pond['scale_error_percentage'] > 10]['Label'].nunique()}")
 
         # Optionally, print summary counts for analysis
-        # Updated: Print dominant error type counts for points with MARE > 5%
-        mare_gt5_counts = df_pond[df_pond['MARE'] > 5]['error_type'].value_counts()
         print(f"\nFor {pond_type}:")
-        print("Points with MARE > 5% by dominant error type:")
-        print(mare_gt5_counts)
+        print("Points by dominant error type (all samples):")
+        print(error_type_counts)
+        print('$$$$$$$$$')
+        # --- End of rewrite ---
+
+        # Explanation:
+        # - Removed all filtering by MARE > 5% (e.g., no more df_pond[df_pond['MARE'] > 5])
+        # - All statistics (percentages, means, counts) are now computed over the entire df_pond, i.e., all samples.
+        # - The error_type assignment is always performed, not gated by MARE.
+        # - Print statements and variable names updated to clarify "all samples" scope.
 
 
 
@@ -579,11 +710,10 @@ Key components:
 
         fig.write_html(f"fifty_one/measurements/results/analysis/with_std_bounds_colors_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html")
 
-
-
-        
-
-
+        export_cols = ['Label', 'PrawnID','Pond_Type', 'mean_length', 'Length_fov(mm)','mean_pixels', 'pred_Distance_pixels','Length_ground_truth_annotation_pixels','mean_scale', 'pred_scale'] 
+        # Added 'Pond_Type' to the export columns to include pond lines in the CSV
+        # Concatenate data for each pond type before processing df_pond and export to CSV
+      
 
         # Plot manual measurement means with error bars and model predictions for each prawn
         # Convert to Plotly with hover of mean±std, image name, prawnid
@@ -782,6 +912,8 @@ Key components:
                         x=error_points.index,
                         y=error_points['pixel_error_mm'],
                         marker_color='#1f77b4',
+                        showlegend=True,  # Show legend for this subplot
+                        legendgroup=f'group{idx}',  # Group legends by subplot
                         hovertemplate="Image: %{customdata[0]}<br>" +
                                     "Prawn ID: %{customdata[1]}<br>" +
                                     "Mean Length: %{customdata[2]:.1f}mm<br>" +
@@ -799,6 +931,8 @@ Key components:
                         x=error_points.index,
                         y=error_points['scale_error_mm'],
                         marker_color='#ff7f0e',
+                        showlegend=True,  # Show legend for this subplot
+                        legendgroup=f'group{idx}',  # Group legends by subplot
                         hovertemplate="Image: %{customdata[0]}<br>" +
                                     "Prawn ID: %{customdata[1]}<br>" +
                                     "Mean Length: %{customdata[2]:.1f}mm<br>" +
@@ -814,22 +948,15 @@ Key components:
             combined_fig.update_layout(
                 barmode='relative',  # Shows bars side by side
                 title_text='Error Components Analysis Across All Pond Types',
-                height=600,  # Reduced height since plots are side by side
-                width=1800,  # Increased width to accommodate side-by-side plots
+                height=600,
+                width=1800,
                 showlegend=True,
+                # Remove the horizontal legend at the top
                 legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="center",
-                    x=0.5
+                    traceorder='normal',
+                    font=dict(size=10),
                 )
             )
-            
-            # Update y-axis labels for all subplots
-            for i in range(1, 4):
-                combined_fig.update_yaxes(title_text="Error (mm)", row=1, col=i)
-                combined_fig.update_xaxes(title_text="Measurement Index", row=1, col=i)
             
             # Save combined plot
             combined_fig.write_html(f"fifty_one/measurements/results/analysis/error_components_combined_{args.type}_{args.weights_type}_{args.error_size}.html")
@@ -1141,8 +1268,8 @@ Key components:
 
 
         #remove outliers statistically
-        df = df[df['mpe'] < df['mpe'].std() * 3]
-        df = df[df['mae'] < df['mae'].std() * 3]
+        df = df[df['mpe'] < df['mpe'].std() * 5]
+        df = df[df['mae'] < df['mae'].std() * 5]
         
         df['mpe_with_sign'] = df[['mpe_with_sign_1', 'mpe_with_sign_2', 'mpe_with_sign_3']].median(axis=1)
         df['mae_with_sign'] = df[['mae_with_sign_1', 'mae_with_sign_2', 'mae_with_sign_3']].median(axis=1)
@@ -1256,8 +1383,8 @@ Key components:
        #df only outliers
 
         #remove outliers statistically 
-        df = df[df['mpe'] < df['mpe'].std() * 3]
-        df = df[df['mae'] < df['mae'].std() * 3]
+        df = df[df['mpe'] < df['mpe'].std() * 5]
+        df = df[df['mae'] < df['mae'].std() * 5]
 
 
 
@@ -1390,7 +1517,7 @@ Key components:
 
 
     # print(f'combined scale: {df["combined_scale"].describe()}')
-    # print(f'scale_normalized_1: {df["scale_normalized_1"].describe()}')
+    # print(f'scale_normalized_1: {df["scale_normalized_1"].ddescribe()}')
     # print(f'scale_normalized_2: {df["scale_normalized_2"].describe()}')
     # print(f'scale_normalized_3: {df["scale_normalized_3"].describe()}')
    
