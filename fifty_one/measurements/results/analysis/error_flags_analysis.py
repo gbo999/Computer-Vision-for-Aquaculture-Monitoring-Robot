@@ -228,7 +228,7 @@ Key components:
     df_outliers = df[(df['Length_fov(mm)'] >= df['mean_length'] + 5*std) | 
             (df['Length_fov(mm)'] <= df['mean_length'] - 5*std)]
 
-    concatenated_df = pd.concat([df[['Label', 'PrawnID','Pond_Type', 'mean_length', 'Length_fov(mm)','mean_pixels', 'pred_Distance_pixels','Length_ground_truth_annotation_pixels','mean_scale', 'pred_scale']]])
+    concatenated_df = pd.concat([df[['Label', 'PrawnID','Pond_Type', 'mean_length', 'std_length', 'Length_fov(mm)','mean_pixels', 'pred_Distance_pixels','Length_ground_truth_annotation_pixels','mean_scale', 'pred_scale']]])
     concatenated_df.to_csv(f"fifty_one/measurements/results/analysis/error_flags_analysis_{args.type}_{args.weights_type}_{args.error_size}.csv", index=False)
 
 

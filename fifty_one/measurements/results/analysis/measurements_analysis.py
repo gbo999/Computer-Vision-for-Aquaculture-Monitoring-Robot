@@ -36,7 +36,7 @@ def get_paths(weights_type):
         # predict_version = 'predict54'
         # predict_version = 'predict85'
         predict_version = 'predict89'
-    prediction_base = f"/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/runs/pose/{predict_version}/labels"
+    prediction_base = f"/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/runs/pose/{predict_version}/labels"
     ground_truth_base = "/Users/gilbenor/Downloads/Giant freshwater prawn carapace keypoint detection.v91i.yolov8/all/labels"
     
     paths = {
@@ -50,19 +50,19 @@ def get_paths(weights_type):
 def process_measurements(measurement_type, port, weights_type):
     # Define data file paths based on measurement type
     if measurement_type == 'carapace':
-        filtered_data_path = '/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/src/measurement/ImageJ/Filtered_Data.csv'
+        filtered_data_path = '/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/src/measurement/ImageJ/Filtered_Data.csv'
         output_file = f'updated_filtered_data_with_lengths_carapace-{weights_type}.xlsx'
         keypoint_classes = ["start-carapace", "eyes"]
         load_data_fn = load_data
         create_dataset_fn = create_dataset
     else:  # body
-        filtered_data_path = '/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/src/measurement/ImageJ/final_full_statistics_with_prawn_ids_and_uncertainty - Copy.xlsx'
+        filtered_data_path = '/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/src/measurement/ImageJ/final_full_statistics_with_prawn_ids_and_uncertainty - Copy.xlsx'
         output_file = f'updated_filtered_data_with_lengths_body-{weights_type}.xlsx'
         keypoint_classes = ["tail", "rostrum"]
         load_data_fn = load_data_body
         create_dataset_fn = create_dataset_body
 
-    metadata_path = "/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/data/test images.xlsx"
+    metadata_path = "/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/fifty_one/measurements/data/test images.xlsx"
     
     # Load data and create dataset
     filtered_df, metadata_df = load_data_fn(filtered_data_path, metadata_path)

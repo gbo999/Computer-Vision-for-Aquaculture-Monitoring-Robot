@@ -8,7 +8,7 @@ import glob
 from PIL import Image  # Add PIL for image operations
 
 # Use absolute paths for everything to avoid path issues
-BASE_DIR = "/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms"
+BASE_DIR = "/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms"
 LABELS_DIR = os.path.join(BASE_DIR, "runs/pose/predict83/labels")
 IMAGES_DIR = "/Users/gilbenor/Library/CloudStorage/OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
 CSV_FILE = os.path.join(BASE_DIR, "fifty_one/measurements/length_analysis_new_split.csv")
