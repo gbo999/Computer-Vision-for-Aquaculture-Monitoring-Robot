@@ -1,0 +1,5 @@
+Pond Type,Prawn Type,Ground Truth Total Length (mm),MAE Total Length (mm),MAPE Total Length (%),Ground Truth Carapace Length (mm),MAE Carapace Length (mm),MAPE Carapace Length (%),Total Length Count,Carapace Length Count
+Circle,Big,180,11.7,6.5,63,17.6,27.94,49,49
+Circle,Small,145,11.7,8.07,41,4.2,10.24,35,35
+Square,Big,180,12.55,6.97,63,13.3,21.11,6,6
+Square,Small,145,10.1,6.97,41,3.7,9.02,35,35
