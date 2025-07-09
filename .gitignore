@@ -1,3 +1,16 @@
+# Virtual environment
+.venv/
+venv/
+
+# Large binary files
+**/dist/
+**/build/
+*.pkg
+*.dylib
+
+# Large label files
+training and val output/runs/pose/predict80/labels/
+
 # FiftyOne datasets - large files
 fiftyone_datasets_for_drive/
 fiftyone_datasets.zip
