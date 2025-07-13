@@ -1,0 +1,5 @@
+Category,Pixel Error (%),Measurement Error (%),Net Error (%),Effect,Count
+Circle_big,8.82,7.95,16.76,Compound,58
+Circle_small,7.27,5.31,12.58,Compound,40
+Square_big,3.15,3.44,6.59,Compound,3
+Square_small,7.93,6.45,14.38,Compound,13

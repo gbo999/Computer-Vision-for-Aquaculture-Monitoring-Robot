@@ -1,4 +1,5 @@
 import os
+import random
 import pandas as pd
 import numpy as np
 import fiftyone as fo
@@ -16,10 +17,12 @@ EXPORTED_DATASET_DIR = os.path.join(BASE_DIR, "fiftyone_datasets/exuviae_keypoin
 
 CSV_FILE_SHAI = os.path.join(BASE_DIR, "fifty_one and analysis/measurements/exuviae/spreadsheet_files/Results-shai-exuviae.csv")
 
+# Process Shai's CSV file
 df_shai = pd.read_csv(CSV_FILE_SHAI)
 
-df_shai['image_name'] = df_shai['Label'].str.replace('Shai - exuviae:', 'colored_')
-
+# Clean up image names in Shai's data to match actual filenames
+df_shai['image_name'] = df_shai['Label'].str.replace('Shai - exuviae:', '') 
+df_shai['image_name'] = 'colored_' + df_shai['image_name']
 # Try to load the exported dataset first
 dataset_name = "prawn_keypoints"
 try:
@@ -39,15 +42,7 @@ except Exception as e:
     fo.delete_dataset("prawn_keypoints")
     dataset = fo.Dataset(dataset_name, overwrite=True)
 
-
-
-
-
-
-
-
-
-# The keypoint skeleton definition - use the one from YOLO formatxs
+# Set the default skeleton for the dataset
 dataset.default_skeleton = fo.KeypointSkeleton(
     labels=["start_carapace", "eyes", "rostrum", "tail"],
     edges=[
@@ -56,6 +51,17 @@ dataset.default_skeleton = fo.KeypointSkeleton(
         [0, 3]   # start_carapace to tail
     ]
 )
+
+# The keypoint skeleton definition - use the one from YOLO format
+KEYPOINT_SKELETON = {
+    "labels": ["start_carapace", "eyes", "rostrum", "tail"],
+    "edges": [
+        [0, 1],  # start_carapace to eyes
+        [1, 2],  # eyes to rostrum
+        [0, 3]   # start_carapace to tail
+    ]
+}
+
 def calculate_euclidean_distance(point1, point2):
     return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
@@ -63,6 +69,7 @@ def calculate_euclidean_distance(point1, point2):
 def process_poses(poses, is_ground_truth=False):
     """
     Process YOLO keypoint detections into FiftyOne format.
+    Uses nan values for keypoints at image edges.
 
     Args:
         poses (list): List of YOLO pose detections
@@ -73,15 +80,10 @@ def process_poses(poses, is_ground_truth=False):
         tuple: (keypoints_list, detections)
             - keypoints_list: List of FiftyOne Keypoint objects
             - detections: List of FiftyOne Detection objects
-
-    Keypoint order in YOLO format:
-        0: start_carapace
-        1: eyes
-        2: rostrum
-        3: tail
     """
     keypoints_list = []
     detections = []
+    EDGE_THRESHOLD = 0.01  # 1% from image edge
 
     for i, pose in enumerate(poses):
         if len(pose) == 17:  # 1 class + 4 bbox + 4 keypoints × 3 values
@@ -90,33 +92,53 @@ def process_poses(poses, is_ground_truth=False):
             x1_rel -= width_rel / 2
             y1_rel -= height_rel / 2
 
-            # Process keypoints
-            keypoints = [[pose[i], pose[i + 1]] for i in range(5, len(pose), 3)]
-            keypoint = fo.Keypoint(points=keypoints)
+            # Process keypoints and check for edge points
+            points = []
+            for i in range(5, len(pose), 3):
+                x, y, conf = pose[i:i+3]
+                # Check if point is at edge
+                if (x < EDGE_THRESHOLD or x > 1 - EDGE_THRESHOLD or 
+                    y < EDGE_THRESHOLD or y > 1 - EDGE_THRESHOLD):
+                    points.append([float('nan'), float('nan')])
+                else:
+                    points.append([x, y])
+
+            # Create detection first
+            detection_label = "prawn_truth" if is_ground_truth else "prawn"
+            detection = fo.Detection(
+                label=detection_label,
+                bounding_box=[x1_rel, y1_rel, width_rel, height_rel]
+            )
+            detections.append(detection)
+
+            # Create keypoint object with edges and labels
+            keypoint = fo.Keypoint(
+                points=points,
+                edges=[[0, 1], [1, 2], [0, 3]],  # Explicitly define edges
+                labels=["start_carapace", "eyes", "rostrum", "tail"]  # Add labels
+            )
+            
+            # Set keypoint attributes
+            keypoint.points.attributes = {
+                "color": "red",
+                "radius": 8,
+                "edge_color": "yellow",
+                "edge_width": 2
+            }
+            
+            # Create keypoints container
+            keypoints = fo.Keypoints(keypoints=[keypoint])
+            keypoints.default_attributes = {
+                "color": "red",
+                "radius": 8,
+                "edge_color": "yellow",
+                "edge_width": 2
+            }
+            
+            # Attach keypoints to detection
+            detection.keypoints = keypoints
             keypoints_list.append(keypoint)
 
-            # Create keypoints dictionary with correct order
-            keypoints_dict = {
-                'start_carapace': keypoints[0],  # Index 0 in YOLO format
-                'eyes': keypoints[1],            # Index 1 in YOLO format
-                'rostrum': keypoints[2],         # Index 2 in YOLO format
-                'tail': keypoints[3],            # Index 3 in YOLO format
-                'keypoint_ID': keypoint.id
-            }
-
-            # Create detection
-            if not is_ground_truth:
-                detections.append(fo.Detection(
-                    label="prawn",
-                    bounding_box=[x1_rel, y1_rel, width_rel, height_rel],
-                    attributes={'keypoints': keypoints_dict}
-                ))
-            else:
-                detections.append(fo.Detection(
-                    label=f"prawn_truth",
-                    bounding_box=[x1_rel, y1_rel, width_rel, height_rel],
-                    attributes={'keypoints': keypoints_dict}
-                ))
     return keypoints_list, detections
 
 # Function to parse YOLO keypoints file and process using process_poses
@@ -161,17 +183,23 @@ df = pd.read_csv(CSV_FILE)
 
 # Process each image
 processed_count = 0
-for image_name in df['image_name'].unique():
 
-    #get row from df
-    
-    # Construct paths - the file is already prefixed with 'colored_'
-    image_path = os.path.join(IMAGES_DIR, f"{image_name.replace('colored_', '')}.jpg")
+for image_name in df['image_name'].unique():
+    # The image_name in CSV already has the full prefix
+    base_name = image_name.replace('colored_undistorted_', '')
+    # Update image path to match actual file naming pattern
+    image_path = os.path.join(IMAGES_DIR, f"undistorted_{base_name}.jpg")
+    # Update label path to match actual file naming pattern - use the full image_name since it matches the label file
     label_path = os.path.join(LABELS_DIR, f"{image_name}.txt")
     
     # Check if image exists
     if not os.path.exists(image_path):
         print(f"Image not found: {image_path}")
+        continue
+        
+    # Check if label exists
+    if not os.path.exists(label_path):
+        print(f"Label not found: {label_path}")
         continue
     
     # Create FiftyOne sample
@@ -194,114 +222,108 @@ for image_name in df['image_name'].unique():
     pond_type = "Circle" if '10191' in image_name else "Square"
     sample["tags"].append(pond_type)
     
+    # Check if this image is in Shai's measurements - use the base name for matching
+    shai_measurements = df_shai[df_shai['image_name'] == image_name]
+    if not shai_measurements.empty:
+        sample["tags"].append("shai_measured")
+        # Add the number of measurements Shai made for this image
+        sample["tags"].append(f"shai_measurements_{len(shai_measurements)}")
+        print(f"Found Shai's measurements for {image_name}")
+    
     # Process keypoints if label file exists
     if os.path.exists(label_path):
-
         # Use the process_poses function
         keypoints_list, detections = parse_and_process_keypoints(label_path, img_width, img_height)
-        img_width_mm = 5312
-        img_height_mm = 2988
+        
+        # Process each detection
         for detection in detections:
-            # Properly scale x and y coordinates separately
-            # Assuming keypoint.points is a flat list [x1, y1, x2, y2, ...]
-            #coords of keypoints are in [x, y] format
-            #scale x and y coordinates separately for keypoints
-            # Get keypoints from detection attributes
-            keypoints_dict = detection.attributes["keypoints"]
-            tail_points = keypoints_dict["tail"]
-            rostrum_points = keypoints_dict["rostrum"]
-            eyes_points = keypoints_dict["eyes"]
-            start_carapace_points = keypoints_dict["start_carapace"]
-
-            #multiply x and y coordinates by img_width_mm and img_height_mm to get real world coordinates
-            tail_points = [tail_points[0] * img_width_mm, tail_points[1] * img_height_mm]
-            rostrum_points = [rostrum_points[0] * img_width_mm, rostrum_points[1] * img_height_mm]
-            eyes_points = [eyes_points[0] * img_width_mm, eyes_points[1] * img_height_mm]
-            start_carapace_points = [start_carapace_points[0] * img_width_mm, start_carapace_points[1] * img_height_mm]
-
-
-            #compute pixels between rostrum and tail
-            rostrum_tail_distance = calculate_euclidean_distance(rostrum_points, tail_points)
-
-            # Calculate distance between tail and rostrum keypoints
-            tail_rostrum_distance = calculate_euclidean_distance(tail_points, rostrum_points)
-
-            # Calculate distance between tail and eyes keypoints
-
-            # Get unique lobster sizes for this image
-            image_df = df[df['image_name'] == image_name]
-            matched = False
-            
-            # First, try to match with each unique lobster size
-            for lobster_size in image_df['lobster_size'].unique():
-                # Get row for this lobster size
-                size_rows = image_df[image_df['lobster_size'] == lobster_size]
-                if len(size_rows) == 0:
-                    continue
-                    
-                row = size_rows.iloc[0]  # Use the first row for this size
+            # Get keypoints from the detection's keypoints field
+            if not detection.keypoints or not detection.keypoints.keypoints:
+                continue
                 
-                # Check if this detection is a match for this row based on distance
-                is_match = abs(tail_rostrum_distance - float(row['pixels_total_length'])) < 30
-                
-                if is_match:
-                    detection["total_length"] = float(row['total_length'])
-                    detection['pixels_total_length'] = tail_rostrum_distance
-                    # detection["carapace_length"] = float(row['carapace_length']) if not pd.isna(row['total_length']) else None
-                    # sample["tags"].append(f"{lobster_size}_prawn_{row['total_length']:.1f}mm")
-                    # sample["tags"].append(f"{lobster_size}_prawn_{row['carapace_length']:.1f}mm")
-                    
-                    
-                    if row['lobster_size'] == 'big':
-                        mae=row['total_length']-180
-                        if abs(mae)/180*100 < 5:
-                            sample["tags"].append('big mpe<5')
-                        elif abs(mae)/180*100 < 10:
-                            sample["tags"].append('big mpe5<x<10')
-                        elif abs(mae)/180*100 < 20:
-                            sample["tags"].append('big mpe10<x<20')
-                        elif abs(mae)/180*100 < 30:
-                            sample["tags"].append('big mpe20<x<30')
-                        else:
-                            sample["tags"].append('big mpe>30')
-                    elif row['lobster_size'] == 'small':
-                        mae=row['total_length']-145
-                        if abs(mae)/145*100 < 5:
-                            sample["tags"].append('small mpe<5')
-                        elif abs(mae)/145*100 < 10:
-                            sample["tags"].append('small mpe5<x<10')
-                        elif abs(mae)/145*100 < 20:
-                            sample["tags"].append('small mpe10<x<20')
-                        elif abs(mae)/145*100 < 30:
-                            sample["tags"].append('small mpe20<x<30')
-                        else:
-                            sample["tags"].append('small mpe>30')
-                            
-                    detection['label'] = f"{lobster_size}_prawn"
-                    matched = True
-                    shai_df = df_shai[df_shai['image_name'] == image_name]
-                    for _,row in shai_df.iterrows():
-                        if abs(row['Length']-tail_rostrum_distance)/row['Length']*100 < 10:
-                            sample["tags"].append('<10')
-                        elif abs(row['Length']-tail_rostrum_distance)/row['Length']*100 < 20:
-                            sample["tags"].append('10<x<20')
-                        elif abs(row['Length']-tail_rostrum_distance)/row['Length']*100 < 30:
-                            sample["tags"].append('20<x<30')
-                        else:
-                            sample["tags"].append('>30')
-
-
-
-
-                    break
+            keypoint = detection.keypoints.keypoints[0]  # Get first keypoint from the keypoints list
+            points = keypoint.points
             
-            # If we went through all sizes and found no match
-            if not matched:
-                print(f"detection assigned as UNKNOWN prawn for {image_name}")
-            # Add keypoints and detections to sample
+            # Count points at edges (nan values)
+            low_visibility_count = sum(1 for point in points if np.isnan(point[0]) or np.isnan(point[1]))
+            if low_visibility_count > 0:
+                sample["tags"].append(f"{low_visibility_count}_low_visibility_keypoints")
+                
+            # Process measurements only if required keypoints are visible
+            # Points are ordered as: start_carapace, eyes, rostrum, tail
+            rostrum_points = points[2]  # Index 2 is rostrum
+            tail_points = points[3]     # Index 3 is tail
+            
+            if not (np.isnan(rostrum_points[0]) or np.isnan(rostrum_points[1]) or 
+                   np.isnan(tail_points[0]) or np.isnan(tail_points[1])):
+                
+                # Calculate real-world measurements
+                img_width_mm = 5312
+                img_height_mm = 2988
+                
+                # Convert to real-world coordinates
+                tail_points_mm = [tail_points[0] * img_width_mm, tail_points[1] * img_height_mm]
+                rostrum_points_mm = [rostrum_points[0] * img_width_mm, rostrum_points[1] * img_height_mm]
+                
+                # Calculate distance
+                tail_rostrum_distance = calculate_euclidean_distance(tail_points_mm, rostrum_points_mm)
+                
+                # Match with ground truth if available
+                image_df = df[df['image_name'] == image_name]
+                matched = False  # Track if we found a match
+                for _, row in image_df.iterrows():
+                    if abs(tail_rostrum_distance - float(row['pixels_total_length'])) < 30:
+                        detection["total_length"] = float(row['total_length'])
+                        detection['pixels_total_length'] = tail_rostrum_distance
+                        
+                        # Add MPE tags
+                        if row['lobster_size'] == 'big':
+                            mae = row['total_length'] - 180
+                            if abs(mae)/180*100 < 5:
+                                sample["tags"].append('big mpe<5')
+                            elif abs(mae)/180*100 < 10:
+                                sample["tags"].append('big mpe5<x<10')
+                            elif abs(mae)/180*100 < 20:
+                                sample["tags"].append('big mpe10<x<20')
+                            elif abs(mae)/180*100 < 30:
+                                sample["tags"].append('big mpe20<x<30')
+                            else:
+                                sample["tags"].append('big mpe>30')
+                        elif row['lobster_size'] == 'small':
+                            mae = row['total_length'] - 145
+                            if abs(mae)/145*100 < 5:
+                                sample["tags"].append('small mpe<5')
+                            elif abs(mae)/145*100 < 10:
+                                sample["tags"].append('small mpe5<x<10')
+                            elif abs(mae)/145*100 < 20:
+                                sample["tags"].append('small mpe10<x<20')
+                            elif abs(mae)/145*100 < 30:
+                                sample["tags"].append('small mpe20<x<30')
+                            else:
+                                sample["tags"].append('small mpe>30')
+                                
+                        detection['label'] = f"{row['lobster_size']}_prawn"
+                        matched = True
+                        break
+                
+                # If we went through all sizes and found no match
+                if not matched:
+                    print(f"Detection assigned as UNKNOWN prawn for {image_name}")
+                    detection['label'] = "unknown_prawn"
+            else:
+                # If required keypoints are not visible
+                detection['label'] = "low_visibility_prawn"
+                print(f"Detection has low visibility keypoints in {image_name}")
+        
+        # Add keypoints and detections to sample (do this only once)
         sample["keypoints"] = fo.Keypoints(keypoints=keypoints_list)
         sample["detections"] = fo.Detections(detections=detections)
-    
+        
+        # Set default keypoint options for this sample
+        sample.keypoints.default_attributes = {"color": "red", "radius": 8, "edge_color": "yellow", "edge_width": 2}
+        for keypoint in keypoints_list:
+            keypoint.points.attributes = {"color": "red", "radius": 8, "edge_color": "yellow", "edge_width": 2}
+            
     # Set a meaningful name for display in the app
     sample["name"] = f"{os.path.splitext(os.path.basename(image_path))[0]} - {pond_type}"
     
@@ -366,6 +388,7 @@ for image_name in df['image_name'].unique():
         print(f"Processed {processed_count} images")
 
 print(f"Dataset created with {len(dataset)} samples")
+print("You can filter samples with low visibility keypoints using: dataset.match_tags('*_low_visibility_keypoints')")
 print("You can now view the dataset with: dataset.app()")
 
 # Create some views for analysis
@@ -373,9 +396,13 @@ try:
     # Create views based on pond type
     circle_pond_view = dataset.match_tags("Circle")
     square_pond_view = dataset.match_tags("Square")
+    low_visibility_view = dataset.match_tags("*_low_visibility_keypoints")
+    shai_measured_view = dataset.match_tags("shai_measured")
     
     print(f"Found {len(circle_pond_view)} samples from Circle pond")
     print(f"Found {len(square_pond_view)} samples from Square pond")
+    print(f"Found {len(low_visibility_view)} samples with low visibility keypoints")
+    print(f"Found {len(shai_measured_view)} samples measured by Shai")
 except Exception as e:
     print(f"Error creating views: {str(e)}")
 
@@ -383,6 +410,25 @@ except Exception as e:
 dataset.persistent = True
 dataset.save() 
 
+def export_dataset(dataset, export_dir):
+    """
+    Export the dataset to the specified directory in FiftyOne format.
+    
+    Args:
+        dataset: FiftyOne dataset to export
+        export_dir: Directory to export the dataset to
+    """
+    print(f"Exporting dataset to {export_dir}...")
+    try:
+        # Export the dataset
+        dataset.export(
+            export_dir=export_dir,
+            dataset_type=fo.types.FiftyOneDataset,
+            export_media=True  # Set to True to copy images to export directory
+        )
+        print(f"Successfully exported dataset to {export_dir}")
+    except Exception as e:
+        print(f"Error exporting dataset: {e}")
 
 # After creating the dataset, add a default view to show keypoints
 print("Setting up default view options for keypoints display...")
@@ -393,29 +439,25 @@ try:
     
     # Launch the app but don't wait for it
     print("Launching FiftyOne app with dataset...")
-    session = fo.launch_app(dataset, port=5151)
+    port = random.randint(5151, 5200)
+    session = fo.launch_app(dataset, port=port)
     
     # Configure the view to show keypoints properly
     session.view = dataset.view()
-    session.config.show_confidence = True
-    session.config.show_attributes = True
-    session.config.show_keypoints = True
     
-    # Only export if we created a new dataset
-    if not os.path.exists(EXPORTED_DATASET_DIR):
-        print(f"Exporting dataset to {EXPORTED_DATASET_DIR}...")
-        dataset.export(
-            export_dir=EXPORTED_DATASET_DIR,
-            dataset_type=fo.types.FiftyOneDataset,
-            export_media=True
-        )
-        print("Dataset exported successfully")
+    # Set default keypoint display options using the new style
+    session.view.config.keypoints.show_edges = True  # Show edges between keypoints
+    session.view.config.keypoints.show_points = True  # Show keypoint points
+    session.view.config.keypoints.show_labels = True  # Show keypoint labels
+    session.view.config.keypoints.edge_color = "yellow"  # Set edge color
+    session.view.config.keypoints.edge_width = 2  # Set edge width
+    session.view.config.keypoints.point_color = "red"  # Set point color
+    session.view.config.keypoints.point_size = 8  # Set point radius
+    
+    datast
 
-    # Save the session configuration
-    session.wait()
-    
-    print("View configured to show keypoints. Access the app in your browser.")
-    print(f"App URL: http://localhost:5151")
+    # Set default detection display options
+    print("Dataset is ready to view in the app")
     
 except Exception as e:
     print(f"Error launching app: {e}")
@@ -424,6 +466,13 @@ if __name__ == "__main__":
     print("\nDataset is ready to view. You can:")
     print("1. Access it in the browser at http://localhost:5151")
     print("2. Load it in Python with: fo.load_dataset('prawn_keypoints')")
-    print("3. Export it again with: dataset.export(export_dir='path/to/export')")
-    session = fo.launch_app(dataset)
+    print("3. Export it to a new directory with: export_dataset(dataset, 'path/to/export')")
+    
+    # Export the dataset to the default export directory
+    export_dir = os.path.join(BASE_DIR, "exported_datasets/exuviae_keypoints")
+    os.makedirs(export_dir, exist_ok=True)
+    export_dataset(dataset, export_dir)
+    
+    port = random.randint(5151, 5200)
+    session = fo.launch_app(dataset, port=port)
     session.wait()

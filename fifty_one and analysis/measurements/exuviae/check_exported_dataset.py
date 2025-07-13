@@ -24,5 +24,5 @@ print(dataset.get_field_schema())
 
 # Launch the app to view the dataset
 print("\nLaunching FiftyOne app...")
-session = fo.launch_app(dataset)
+session = fo.launch_app(dataset, port=5173)
 session.wait() 

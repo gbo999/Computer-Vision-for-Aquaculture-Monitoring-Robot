@@ -1,0 +1,24 @@
+SCALE IMPACT RATIO ANALYSIS - SUMMARY TABLE
+==================================================
+
+TAB-SEPARATED FORMAT:
+Partition	Count	Mean ρ	MAE (mm)	MAPE (%)	Neutral %	Amplifying %	Compressing %
+Circle-big	31	0.9787	14.53	8.07	25.8	29.0	45.2
+Circle-small	19	9.7176	7.52	5.19	0.0	36.8	63.2
+Square-big	2	4.8574	5.73	3.18	0.0	50.0	50.0
+Square-small	11	0.8750	9.47	6.53	18.2	36.4	45.5
+
+CSV FORMAT:
+Partition,Count,Mean ρ,MAE (mm),MAPE (%),Neutral %,Amplifying %,Compressing %
+Circle-big,31,0.9787,14.53,8.07,25.8,29.0,45.2
+Circle-small,19,9.7176,7.52,5.19,0.0,36.8,63.2
+Square-big,2,4.8574,5.73,3.18,0.0,50.0,50.0
+Square-small,11,0.8750,9.47,6.53,18.2,36.4,45.5
+
+KEY INTERPRETATIONS:
+- ρ (Scale Impact Ratio): Δmm% / Δpx%
+- Ideal ρ ≈ 1.0 (neutral scaling)
+- ρ > 1.1: Amplifying (errors magnified)
+- ρ < 0.9: Compressing (errors reduced)
+- MAE: Mean Absolute Error in mm
+- MAPE: Mean Absolute Percentage Error

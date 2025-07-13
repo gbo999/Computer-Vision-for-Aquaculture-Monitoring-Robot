@@ -1,0 +1,5 @@
+pond_type,manual_size,count_individual_mae,mean_individual_mae,std_individual_mae,count_individual_mape,mean_individual_mape,std_individual_mape,count_pixel_difference_pct,mean_pixel_difference_pct,std_pixel_difference_pct,count_measurement_difference_pct,mean_measurement_difference_pct,std_measurement_difference_pct
+Circle,big,58,14.301,8.877,58,7.945,4.932,58,8.818,5.27,58,7.945,4.932
+Circle,small,40,7.704,8.166,40,5.313,5.632,40,7.267,7.862,40,5.313,5.632
+Square,big,3,6.195,1.614,3,3.442,0.896,3,3.146,2.489,3,3.442,0.896
+Square,small,13,9.357,5.205,13,6.453,3.59,13,7.93,3.856,13,6.453,3.59
