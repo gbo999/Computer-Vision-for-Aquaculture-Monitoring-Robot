@@ -5,8 +5,9 @@ TYPE="carapace"
 WEIGHTS_TYPE="all"
 ERROR_SIZE="mean"
 
-# Define the path to your Python script
-PYTHON_SCRIPT="fifty_one/measurements/results/analysis/measurements_analysis.py"
+# Define the path to your Python script - updated to correct path
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+PYTHON_SCRIPT="${SCRIPT_DIR}/measurements_analysis.py"
 
 # Function to display a menu
 display_menu() {
@@ -76,10 +77,8 @@ WEIGHTS_TYPE=${WEIGHTS_OPTIONS[$((WEIGHTS_TYPE-1))]}
 echo "Selected weights type: $WEIGHTS_TYPE"
 echo
 
-
-
 # Build the command
-CMD="python $PYTHON_SCRIPT --type $TYPE --weights_type $WEIGHTS_TYPE"
+CMD="python3 \"$PYTHON_SCRIPT\" --type \"$TYPE\" --weights_type \"$WEIGHTS_TYPE\""
 
 # Show the command to be executed
 echo -e "\nThe following command will be executed:"

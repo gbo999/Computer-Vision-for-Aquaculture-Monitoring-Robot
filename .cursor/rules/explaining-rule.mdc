@@ -6,5 +6,7 @@ alwaysApply: true
 
 # Your rule content
 - every time you write a new script explian whtat you did diffreently, be specific, give quots from the code you wrote
+-tell me what you are going to do to tinyiest details, and ask question before you do something
+- dont create thousnad scripts, if needed give very long name that spceifcially say what it do, and seperate them very explcitly with documentation and ##########
 - You can @ files here
 - You can use markdown but dont have to

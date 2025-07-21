@@ -46,10 +46,12 @@ class ObjectLengthMeasurer:
         return scale_x, scale_y
 
     def normalize_angle(self, angle):
-        
-      theta_norm = min(abs(angle % 180), 180 - abs(angle % 180))
+        """
+        Normalize the angle to [0°, 90°].
+        """
+        theta_norm = min(abs(angle % 180), 180 - abs(angle % 180))
 
-      return  theta_norm
+        return  theta_norm
 
     def compute_length(self, predicted_length, angle_deg):
         """
@@ -59,7 +61,7 @@ class ObjectLengthMeasurer:
         combined_scale = math.sqrt((self.scale_x * math.cos(angle_rad)) ** 2 + 
                                    (self.scale_y * math.sin(angle_rad)) ** 2)
         length_mm = predicted_length * combined_scale
-        return length_mm,combined_scale
+        return length_mm
 
     def compute_length_two_points(self, point1_low_res, point2_low_res):
         """
@@ -77,11 +79,10 @@ class ObjectLengthMeasurer:
         delta_x_low = point2_low_res[0] - point1_low_res[0]
         delta_y_low = point2_low_res[1] - point1_low_res[1]
         distance_px = math.sqrt(delta_x_low ** 2 + delta_y_low ** 2)
+
+
+
         
-
-
-
-
         # Calculate angle in degrees
         angle_rad = math.atan2(delta_y_low, delta_x_low)
         angle_deg = math.degrees(angle_rad)
@@ -91,9 +92,9 @@ class ObjectLengthMeasurer:
         # distance_px_high = distance_px_low * self.to_scale_x  # Assuming uniform scaling
         
         # Compute real-world distance
-        distance_mm,combined_scale = self.compute_length(distance_px, normalized_angle)
+        distance_mm = self.compute_length(distance_px, normalized_angle)
         
-        return distance_mm, combined_scale, normalized_angle, distance_px
+        return distance_mm, normalized_angle, distance_px
 
 def load_data(filtered_data_path, metadata_path):
     filtered_df = pd.read_csv(filtered_data_path)
@@ -107,72 +108,76 @@ def load_data_body(filtered_data_path, metadata_path):
     return filtered_df, metadata_df
 
 
-def create_dataset(measurement_type,weights_type):
-
-    if not os.path.exists(f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}"):
-        print(f"Dataset {measurement_type}_{weights_type} does not exist")
-        dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
-        dataset.default_skeleton = fo.KeypointSkeleton(
-                labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
-                edges=[
-                    [0, 1],  # start_carapace to eyes
-                    [1, 2],  # eyes to rostrum
-                    [0, 3]   # start_carapace to tail
-                ]
-            )
-        return dataset,False
-
-    else:
+def create_dataset(measurement_type, weights_type):
+    """
+    Create a FiftyOne dataset for prawn measurements.
+    Returns:
+        tuple: (dataset, exists_flag)
+            - dataset: The FiftyOne dataset
+            - exists_flag: Boolean indicating if the dataset already existed
+    """
+    dataset_name = f"prawn_dataset_{measurement_type}_{weights_type}"
+    dataset_dir = f"fiftyone_datasets/{measurement_type}_{weights_type}"
+    
+    # Check if dataset exists in the fiftyone_datasets directory
+    if os.path.exists(dataset_dir):
         try:
-            dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
-            if dataset:
-                print(f"Dataset {measurement_type}_{weights_type} exists")
-                return dataset,True
-        except:
-            print(f"Dataset {measurement_type}_{weights_type} does not exist")
-            dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
-            dataset.default_skeleton = fo.KeypointSkeleton(
-                    labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
-                    edges=[
-                        [0, 1],  # start_carapace to eyes
-                        [1, 2],  # eyes to rostrum
-                        [0, 3]   # start_carapace to tail
-                    ]
-                )
-            return dataset,False
-            
-
-def create_dataset_body(measurement_type,weights_type):
-    #dataset exists
-    if not os.path.exists(f"/Users/gilbenor/Library/CloudStorage/OneDrive-post.bgu.ac.il/thesisi/thesis document/{measurement_type}_{weights_type}"):
-        print(f"Dataset {measurement_type}_{weights_type} does not exist")
-        dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
-        dataset.default_skeleton = fo.KeypointSkeleton(
-                labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
-                edges=[
-                    [0, 1],  # start_carapace to eyes
-                    [1, 2],  # eyes to rostrum
-                    [0, 3]   # start_carapace to tail
-                ]
+            dataset = fo.Dataset.from_dir(
+                dataset_dir=dataset_dir,
+                dataset_type=fo.types.FiftyOneDataset,
+                name=dataset_name
             )
-        return dataset,False
+            return dataset, True
+        except Exception as e:
+            print(f"Error loading dataset from {dataset_dir}: {e}")
+    
+    # Create new dataset if it doesn't exist
+    dataset = fo.Dataset(dataset_name, overwrite=True, persistent=True)
+    dataset.default_skeleton = fo.KeypointSkeleton(
+        labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
+        edges=[
+            [0, 1],  # start_carapace to eyes
+            [1, 2],  # eyes to rostrum
+            [0, 3]   # start_carapace to tail
+        ]
+    )
+    return dataset, False
 
-    try:
-        dataset = fo.load_dataset(f"prawn_dataset_{measurement_type}_{weights_type}")
-        if dataset:
-            print(f"Dataset {measurement_type}_{weights_type} exists")
-            return dataset,True
-    except:
-        dataset = fo.Dataset(f"prawn_dataset_{measurement_type}_{weights_type}", overwrite=True, persistent=True)
-        dataset.default_skeleton = fo.KeypointSkeleton(
-            labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
-            edges=[
-                [0, 1],  # start_carapace to eyes
-                [1, 2],  # eyes to rostrum
-                [0, 3]   # start_carapace to tail
-            ]
-        )
-        return dataset,False
+
+def create_dataset_body(measurement_type, weights_type):
+    """
+    Create a FiftyOne dataset for prawn body measurements.
+    Returns:
+        tuple: (dataset, exists_flag)
+            - dataset: The FiftyOne dataset
+            - exists_flag: Boolean indicating if the dataset already existed
+    """
+    dataset_name = f"prawn_dataset_{measurement_type}_{weights_type}"
+    dataset_dir = f"fiftyone_datasets/{measurement_type}_{weights_type}"
+    
+    # Check if dataset exists in the fiftyone_datasets directory
+    if os.path.exists(dataset_dir):
+        try:
+            dataset = fo.Dataset.from_dir(
+                dataset_dir=dataset_dir,
+                dataset_type=fo.types.FiftyOneDataset,
+                name=dataset_name
+            )
+            return dataset, True
+        except Exception as e:
+            print(f"Error loading dataset from {dataset_dir}: {e}")
+    
+    # Create new dataset if it doesn't exist
+    dataset = fo.Dataset(dataset_name, overwrite=True, persistent=True)
+    dataset.default_skeleton = fo.KeypointSkeleton(
+        labels=["start_carapace", "eyes", "rostrum", "tail"],  # Match YOLO order
+        edges=[
+            [0, 1],  # start_carapace to eyes
+            [1, 2],  # eyes to rostrum
+            [0, 3]   # start_carapace to tail
+        ]
+    )
+    return dataset, False
 
 def process_poses(poses, is_ground_truth=False):
     """
@@ -955,118 +960,26 @@ def process_detection(closest_detection, sample, filename, prawn_id, filtered_df
     focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
     
     
-    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 76.2, 46, height_mm)
-
-    # object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
-
-    distance_mm,combined_scale, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
     
-
-
-    #distance in pixels using df['BoundingBox_1'](B_x 2996.016573,B_y 737.0050179, B_w 159.9996606, B_h 166.0006386)
-    #get the top left and bottom right of the bounding box
-
-    bbox = ast.literal_eval(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'BoundingBox_1'].values[0])
-    bbox = tuple(float(coord) for coord in bbox)
-            
-    x_min = bbox[0]
-    y_min = bbox[1]
-    width = bbox[2]
-    height = bbox[3]
-
-
-
-    top_left_1 = [x_min, y_min]
-    top_right_1 = [x_min + width, y_min]
-    bottom_left_1 = [x_min, y_min + height]
-    bottom_right_1 = [x_min + width, y_min + height]
-
-
-    bbox_2 = ast.literal_eval(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'BoundingBox_2'].values[0])
-    bbox_2 = tuple(float(coord) for coord in bbox_2)
-
-    x_min_2 = bbox_2[0]
-    y_min_2 = bbox_2[1]
-    width_2 = bbox_2[2]
-    height_2 = bbox_2[3]
-
-    top_left_2 = [x_min_2, y_min_2]
-    top_right_2 = [x_min_2 + width_2, y_min_2]
-    bottom_left_2 = [x_min_2, y_min_2 + height_2]
-    bottom_right_2 = [x_min_2 + width_2, y_min_2 + height_2]
-
-    bbox_3 = ast.literal_eval(filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'BoundingBox_3'].values[0])
-    bbox_3 = tuple(float(coord) for coord in bbox_3)
-
-    x_min_3 = bbox_3[0]
-    y_min_3 = bbox_3[1]
-    width_3 = bbox_3[2]
-    height_3 = bbox_3[3]
-
-    top_left_3 = [x_min_3, y_min_3]
-    top_right_3 = [x_min_3 + width_3, y_min_3]
-    bottom_left_3 = [x_min_3, y_min_3 + height_3]
-    bottom_right_3 = [x_min_3 + width_3, y_min_3 + height_3]
-
-    distance_px_bounding_box_3 = calculate_euclidean_distance(top_left_3, bottom_right_3)
-    distance_px_bounding_box_3_top_right_bottom_left = calculate_euclidean_distance(top_right_3, bottom_left_3)
-
+    distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
-
-
-    
-    
-    
-    
-    
-    
-
-
-    distance_px_bounding_box_2 = calculate_euclidean_distance(top_left_2, bottom_right_2)
-    #top right to bottom left
-    distance_px_bounding_box_2_top_right_bottom_left = calculate_euclidean_distance(top_right_2, bottom_left_2)
-
-
-
-    distance_px_bounding_box_1 = calculate_euclidean_distance(top_left_1, bottom_right_1)
-    #top right to bottom left
-    distance_px_bounding_box_1_top_right_bottom_left = calculate_euclidean_distance(top_right_1, bottom_left_1)
-
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale'] = combined_scale
-
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_1_1'] = distance_px_bounding_box_1_top_right_bottom_left
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_1_2'] = distance_px_bounding_box_1
-
-
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_2_1'] = distance_px_bounding_box_2_top_right_bottom_left
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_2_2'] = distance_px_bounding_box_2
-
-
-
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_3_1'] = distance_px_bounding_box_3_top_right_bottom_left
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_bounding_box_3_2'] = distance_px_bounding_box_3
-
-    
-
-
-
-
     ####
     keypoints_dict_ground = ground.attributes["keypoints"]
     keypoints_ground = [keypoints_dict_ground['start_carapace'], keypoints_dict_ground['eyes']]
     keypoint1_scaled_ground = [keypoints_ground[0][0] * 5312, keypoints_ground[0][1] * 2988]
     keypoint2_scaled_ground = [keypoints_ground[1][0] * 5312, keypoints_ground[1][1] * 2988]
 
-    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 76.2, 46, height_mm)
+    object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
 
-    distance_mm_ground,combined_scale_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
+    distance_mm_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     
     #distance_mm_ground to table
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation_pixels'] = distance_px_ground
     filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'pred_Distance_pixels'] = distance_px
 
-    filtered_df.loc[(filtered_df['Label'] == f'carapace:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale_ground'] = combined_scale_ground
+    
     
     # fov=75.2
     # FOV_width=2*height_mm*math.tan(math.radians(fov/2))
@@ -1259,15 +1172,11 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
        
         # prediction_txt_path = os.path.join(prediction_folder_path, f"{identifier}.txt")
 
-
-        prediction_txt_path = None  
         for pred_file in os.listdir(prediction_folder_path):
             if identifier in pred_file:
                 prediction_txt_path = os.path.join(prediction_folder_path, pred_file)
                 break
-        if prediction_txt_path is None:
-            print(f"No prediction file found for {identifier}")
-            continue
+
 
 
         for gt_file in ground_truth_paths_text:
@@ -1315,7 +1224,7 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
         dataset.add_sample(sample)
     if measurement_type == 'carapace':  
-        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_carapacssse_Filtered_Data_with_real_length.xlsx' 
+        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_carapace_Filtered_Data_with_real_length.xlsx' 
     else:
         output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_full_body_Filtered_Data_with_real_length.xlsx' 
 
@@ -1458,9 +1367,9 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
     focal_real_length_cm = calculate_real_width(focal_length, height_mm, euclidean_distance_pixels, pixel_size)
     
     
-    object_length_measurer = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
+    object_length_measurer = ObjectLengthMeasurer(5312, 2988,83.6,52.8 , height_mm)
     
-    distance_mm,combined_scale, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
+    distance_mm, angle_deg, distance_px = object_length_measurer.compute_length_two_points(keypoint1_scaled, keypoint2_scaled)
     
     ####
     keypoints_dict_ground = ground.attributes["keypoints"]
@@ -1470,7 +1379,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
 
     object_length_measurer_ground = ObjectLengthMeasurer(5312, 2988, 75.2, 46, height_mm)
 
-    distance_mm_ground,combined_scale_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
+    distance_mm_ground, angle_deg_ground, distance_px_ground = object_length_measurer_ground.compute_length_two_points(keypoint1_scaled_ground, keypoint2_scaled_ground)
     
     #distance_mm_ground to table
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'Length_ground_truth_annotation(mm)'] = distance_mm_ground
@@ -1478,9 +1387,7 @@ def process_detection_body(closest_detection, sample, filename, prawn_id, filter
     
     #distnace in pixels to table
     filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'pred_Distance_pixels'] = distance_px
-    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale'] = combined_scale
-
-    filtered_df.loc[(filtered_df['Label'] == f'full body:{filename}') & (filtered_df['PrawnID'] == prawn_id), 'combined_scale_ground'] = combined_scale_ground
+    
     # fov=75.2
     # FOV_width=2*height_mm*math.tan(math.radians(fov/2))
     # length_fov=FOV_width*euclidean_distance_pixels/5312
