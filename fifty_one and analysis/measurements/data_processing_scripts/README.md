@@ -149,7 +149,7 @@ python gamma_all.py
 **Statistical Calculations**:
 ```python
 avg_length = np.mean(lengths)
-
+```
 
 **Input Files**:
 - `final_full_data_1_with_prawn_ids.xlsx`
@@ -161,9 +161,9 @@ avg_length = np.mean(lengths)
 
 ---
 
-### 3. Video Processing Pipeline
+## Video Processing Pipeline
 
-#### `video_processing/` Directory
+## Video Processing Directory
 **Purpose**: Comprehensive video processing system for extracting high-quality frames from underwater research videos.
 
 **What I did differently**: I implemented a multi-stage quality filtering pipeline that combines blur detection (Laplacian variance), similarity checking (optical flow), and black frame detection (luminance analysis) to ensure only high-quality, distinct frames are extracted.
