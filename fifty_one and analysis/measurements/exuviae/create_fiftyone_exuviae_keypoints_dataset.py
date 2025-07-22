@@ -1,3 +1,12 @@
+"""
+This script processes prawn keypoint data using the FiftyOne library. It loads image and label data, processes keypoints
+from YOLO format into FiftyOne format, and creates a dataset for visualization and analysis. The script handles both 
+predicted and ground truth keypoints, calculates distances between keypoints, and matches them with ground truth data 
+from a CSV file. It also exports the dataset for further use and provides options to view the dataset in a web app. 
+The script is designed to work with specific directory structures and file naming conventions, and it includes error 
+handling for missing files and data inconsistencies.
+"""
+
 import os
 import random
 import pandas as pd
@@ -63,6 +72,16 @@ KEYPOINT_SKELETON = {
 }
 
 def calculate_euclidean_distance(point1, point2):
+    """
+    Calculate the Euclidean distance between two points.
+
+    Args:
+        point1 (tuple): The first point (x, y).
+        point2 (tuple): The second point (x, y).
+
+    Returns:
+        float: The Euclidean distance between the two points.
+    """
     return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
 
 
@@ -345,7 +364,7 @@ for image_name in df['image_name'].unique():
             img_height_mm = 2988
 
             #add polylines of diagonal of bounding box
-            bounding_box =[BX/img_width_mm, BY/img_height_mm, Width/img_width_mm, Height/img_height_mm] 
+            bounding_box =[BX/img_width_mm, BY/img_height_mm, Width/img_width_mm, Height/img_width_mm] 
             #add polylines of diagonal of bounding box
             
 
@@ -463,6 +482,9 @@ except Exception as e:
     print(f"Error launching app: {e}")
 
 if __name__ == "__main__":
+    """
+    Main execution block for the script. It provides options to view, load, and export the dataset.
+    """
     print("\nDataset is ready to view. You can:")
     print("1. Access it in the browser at http://localhost:5151")
     print("2. Load it in Python with: fo.load_dataset('prawn_keypoints')")

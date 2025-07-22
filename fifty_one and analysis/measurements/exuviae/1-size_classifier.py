@@ -189,33 +189,31 @@ def calculate_euclidean_distance(point1, point2):
     """
     return math.sqrt((point2[0] - point1[0])**2 + (point2[1] - point1[1])**2)
 
-def determine_size(total_length_mm):
+def determine_size(length_mm):
     """
-    Determine size category of an exuvia based on its total length.
+    Determine the size category of an exuviae based on its total length.
     
-    Size Categories:
-        - Big: 165-220mm
-        - Small: 116-164mm (based on expected length of 145mm ±20%)
-        
+    This function categorizes a single length into 'BIG', 'SMALL', or 'REJECTED'
+    based on predefined thresholds. If the length is greater than or equal to 165mm, 
+    it is categorized as 'BIG'. If it is between 116mm and 164mm, it is categorized as 'SMALL'.
+    Lengths outside these ranges are categorized as 'REJECTED'.
+    
     Args:
-        total_length_mm (float): Total length of the exuvia in millimeters
+        length_mm (float): Total length of an exuviae in millimeters
         
     Returns:
-        str: Size category ('BIG', 'SMALL', or 'REJECTED')
+        str: Size category, either 'BIG', 'SMALL', or 'REJECTED'
     """
-
-    print(f"total_length_mm: {total_length_mm}")
-
-    # Big: fixed range
-    if 165<= total_length_mm <= 220:
-        # print(f"BIG: {total_length_mm}")
-        return "BIG"
     
-    # Small: percentage range
-    elif 116<= total_length_mm <= 164:
-        return "SMALL"
+    big_threshold = 165
+    small_threshold = 116
     
-    return "REJECTED"
+    if length_mm >= big_threshold:
+        return 'BIG'
+    elif small_threshold <= length_mm < big_threshold:
+        return 'SMALL'
+    else:
+        return 'REJECTED'
 
 def analyze_good_detections():
     """
