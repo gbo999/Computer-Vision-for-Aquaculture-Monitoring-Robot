@@ -113,9 +113,8 @@ def process_directory(input_dir, output_dir):
 
 if __name__ == "__main__":
     # Configuration
-    input_dir = r"/Users/gilbenor/Downloads/Giant freshwater prawn carapace keypoint detection.v94i.yolov8/valid/images"
-    output_dir = r"/Users/gilbenor/Downloads/Giant freshwater prawn carapace keypoint detection.v94i.yolov8/valid/images/undistorted"
-    
+    input_dir = "path/to/your/input/directory"
+    output_dir = "path/to/your/output_undistorted/directory"
     # Run processing
     process_directory(input_dir, output_dir)
     print("Processing completed.")

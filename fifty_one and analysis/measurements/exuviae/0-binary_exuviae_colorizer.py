@@ -123,8 +123,8 @@ def process_folder(input_folder: str, output_folder: str) -> None:
 
 if __name__ == "__main__":
     # Default paths - modify these or add command line arguments as needed
-    input_folder = "/Users/gilbenor/Library/CloudStorage/OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
-    output_folder = "/Users/gilbenor/Library/CloudStorage/OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized/segmented"
+    input_folder = "path/to/your/input/directory"
+    output_folder = "path/to/your/output_segmented/directory"
     
     # Process all images
     process_folder(input_folder, output_folder) 

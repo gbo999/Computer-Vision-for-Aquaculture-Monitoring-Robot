@@ -108,8 +108,11 @@ python run_exuviae_fiftyone.py
 - **COCO-style evaluation** with IoU thresholds
 
 ### External Dataset Sources
-- **[Giant Freshwater Prawn Keypoint Detection](https://universe.roboflow.com/prawns/giant-freshwater-prawn-keypoint-detection-umvh3/dataset/97)**: Roboflow dataset for pose estimation and keypoint detection
-- **[Giant Freshwater Prawns Counting](https://universe.roboflow.com/prawns/giant-freshwater-prawns-counting)**: Roboflow dataset for prawn counting and detection
+- **[Giant Freshwater Prawn Keypoint Detection](https://universe.roboflow.com/prawns/giant-freshwater-prawn-keypoint-detection-umvh3/dataset/97)**: Roboflow annotated dataset for pose estimation and keypoint detection
+- **[Giant Freshwater Prawns Counting](https://universe.roboflow.com/prawns/giant-freshwater-prawns-counting)**: Roboflow annotated dataset for prawn counting and detection
+- **[Measurement Videos](https://www.dropbox.com/scl/fo/trqlm4vmtv8jvnp0elfwk/AE4zGySEXogXVy-wM3gV-Qg?rlkey=nf5ux0akhgvk4zh8d8w8i9wxn&st=wkb86tkv&dl=0)**: Raw videos for the measurements application
+- **[Detection Videos & Images](https://www.dropbox.com/scl/fo/driniq5l5vxs3m0ierda7/ABYKsrhaldHocoy3i4155gg?rlkey=bchfanv8mceqvjnaroa32fxms&st=r0fhfjhi&dl=0)**: Raw videos for the counting application
+- **[Exuviae Images](https://1drv.ms/f/c/d7017e80123f7d82/EoJ9PxKAfgEggNdkaQUAAAABdT9z8ut3lTr-Lw6qfs8G0w?e=bszuZj)**: Collection of exuviae (molted prawn shells) images for length validation analysis after preprocessing the videos
 
 ## 🔬 Analysis Framework
 
@@ -136,9 +139,9 @@ The project uses **FiftyOne** for comprehensive dataset management and analysis:
 
 ![Carapace Length vs Ground Truth](fifty_one%20and%20analysis/measurements/imagej/images/carapace%20lengtj%20vs%20ground%20truth.png)
 
-*Comparison of automated carapace length measurements with ground truth data*
+*Comparison of automated carapace length measurements with ground truth data (red line- and its' data)*
 
-### Exuviae Analysis Interface
+### Exuviae Analysis Interface for two prawns (big and small)
 
 ![Exuviae Analysis Interface](fifty_one%20and%20analysis/measurements/exuviae/images/interface.png)
 
@@ -146,7 +149,7 @@ The project uses **FiftyOne** for comprehensive dataset management and analysis:
 
 ![Exuviae Measurement Results](fifty_one%20and%20analysis/measurements/exuviae/images/Screenshot_mes_result.png)
 
-*Measurement results and analysis for exuviae samples*
+*Measurement results and analysis for exuviae sample, showing the pred length of the prawn (187mm) the grount truth is 180*
 
 
 ### Key Analysis Capabilities
@@ -183,7 +186,7 @@ All training results are stored in `training and val output/`:
 - **Performance metrics**: Detailed evaluation results
 
 ### Pre-trained Model Weights
-- **🛠 Object Detection (Counting)**: [Model weights for prawn counting](https://drive.google.com/drive/folders/1KJ1FOhahT8TRm1uN4n8PedH_XHyj0UDV?usp=sharing)
+- **🛠 Object Detection (Counting)**: [Model weights for prawn object detection](https://drive.google.com/drive/folders/1KJ1FOhahT8TRm1uN4n8PedH_XHyj0UDV?usp=sharing)
 - **🧠 Keypoint Detection (Measurement)**: [Model weights for pose estimation](https://drive.google.com/drive/folders/1ioh-IC-7wVVUydyJIQqEKEEHEaK9d7gP?usp=drive_link)
 
 ## 📈 Key Features
@@ -261,7 +264,15 @@ All training results are stored in `training and val output/`:
 
 ## 📄 License
 
-This project is licensed under the terms specified in the `LICENSE` file.
+This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)**.
+
+**What this means:**
+- ✅ **Research & Academic Use**: Free to use for research and educational purposes
+- ✅ **Modification & Distribution**: Can adapt and share the work
+- ❌ **Commercial Use**: Cannot use for commercial purposes without permission
+- 📝 **Attribution Required**: Must give proper credit to the original author
+
+For full license details, see the [`LICENSE`](LICENSE) file. For commercial licensing inquiries, please contact the copyright holder.
 
 ## 🙏 Acknowledgments
 

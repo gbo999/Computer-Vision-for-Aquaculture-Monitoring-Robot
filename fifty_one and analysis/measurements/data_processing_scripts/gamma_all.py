@@ -53,5 +53,5 @@ def adjust_gamma_folder(folder, gamma=2.2):
         if not os.path.exists(folder_to_save):
             os.makedirs(folder_to_save)
         cv2.imwrite(os.path.join(folder_to_save, new_file_name), gamma_corrected)
-folder_path = "C:/Users/gbo10/OneDrive/research/italy/torino/computer vision/01.04.2024-splitted videos/56"
+folder_path = "path/to/your/folder"
 adjust_gamma_folder(folder_path, 2.2)
