@@ -9,7 +9,7 @@ ERROR_SIZE="mean"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 # Define the path to your Python script
-PYTHON_SCRIPT="${SCRIPT_DIR}/error_flags_analysis.py"
+PYTHON_SCRIPT="${SCRIPT_DIR}/error_flags_analysis_and_filtered_dataset.py"
 
 # Function to display a menu
 display_menu() {

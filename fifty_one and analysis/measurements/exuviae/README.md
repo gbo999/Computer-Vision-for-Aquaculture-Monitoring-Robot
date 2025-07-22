@@ -90,6 +90,8 @@ flowchart TD
 - Background (originally dark): Turquoise [31, 156, 212] for contrast
 - Processes images with "segmented_" prefix in output folder
 
+![Binary Colorization Process](images/image.png)
+
 **Usage**:
 ```python
 python 0-binary_exuviae_colorizer.py
@@ -207,23 +209,11 @@ The analysis pipeline produces a comprehensive FiftyOne dataset for interactive 
 - **Real-time filtering** and metadata exploration
 - **Grid view** of all processed images
 
-### Detection and Measurement Example
+# fiftyone interface used in the project
 
-The system successfully detects and measures prawns with high accuracy:
+![FiftyOne Dataset Interface](images/interface.png)
 
-- **Big Prawn Detection**:
-  - Total length: 187.100mm
-  - Pixel length: 1006.004 pixels
-  - Bounding box classification: "big_prawn"
-  
-- **Small Prawn Detection**:
-  - Accurate size classification
-  - Precise keypoint placement
-  - Real-world measurement conversion
-
-![FiftyOne Dataset Interface](fiftyOne_screenshots/interface.png)
-
-![fiftyone example Measurement Results](fiftyOne_screenshots/Screenshot_mes_result.png)
+![fiftyone example Measurement Results](images/Screenshot_mes_result.png)
 
 ## Key Measurements
 

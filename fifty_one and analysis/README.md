@@ -1,34 +1,127 @@
-# Image Directories Used in FiftyOne Analysis
+# FiftyOne Analysis Framework for Prawn Research
 
-This document lists the image directories that are referenced and used in the FiftyOne analysis code.
+This directory contains comprehensive analysis tools using FiftyOne for prawn research, including measurement analysis and counting detection. The framework provides interactive visualization and analysis capabilities for computer vision research in aquaculture.
 
-## Main Image Directories
+## 📁 Directory Structure
 
-### 1. imagej Measurements
-Base path: `/measurements/carapace/`
-- `right/` - Female prawn images
-- `left/` - Male prawn images
-- `car/` - Square pond images
+```
+fifty_one and analysis/
+├── README.md                           # This documentation file
+├── DATA_ACCESS.md                      # Dataset access and storage information
+├── counting/                           # Prawn counting analysis
+│   ├── README.md                       # Counting analysis documentation
+│   ├── run_fiftyone_counting.py       # FiftyOne launcher for counting dataset
+│   └── counting-fiftyone_dataset_creation_and_analysis.ipynb # Main analysis notebook
+└── measurements/                       # Prawn measurement analysis
+    ├── README.md                       # Measurement analysis documentation
+    ├── imagej/                         # Live prawn measurement analysis
+    ├── data_processing_scripts/        # Data preprocessing and video processing
+    └── exuviae/                        # Exuviae (molted shell) analysis
+```
 
-Used in: `measurements_analysis.py` for keypoint detection and measurement analysis
+## 🎯 Research Areas
 
-### 2. Molt/Exuviae Analysis
-Base path: `/measurement_paper_images/molt/all molt/undistorted/resized/`
-- Contains undistorted and resized molt images
-- `segmented/` subdirectory contains colorized versions
+### 1. **Prawn Counting Analysis** (`counting/`)
+- **Purpose**: Analyze prawn counting accuracy in underwater imagery
+- **Features**: 
+  - YOLO-based detection model evaluation
+  - Multi-threshold confidence analysis
+  - Interactive FiftyOne visualization
+  - Performance metrics and error analysis
+- **Dataset**: Uses `exported_datasets/prawn_counting/` for model evaluation
 
-Used in: `binary_exuviae_colorizer.py` and `exuviae_measurement_analyzer.py`
+### 2. **Prawn Measurement Analysis** (`measurements/`)
+- **Purpose**: Automated length measurement and validation
+- **Components**:
+  - **Live Prawn Measurements** (`imagej/`): Body and carapace measurements using ImageJ data
+  - **Data Processing** (`data_processing_scripts/`): Image undistortion and video processing
+  - **Exuviae Analysis** (`exuviae/`): Molted shell measurement analysis
 
-### 3. Drone Detection
-Base path: `/measurement_paper_images/detection drone/`
-- Contains aerial pond images
-- `runs-detections-drone-14.08/` contains model outputs
+## 🚀 Quick Start
 
-Used in: `counting.ipynb` for prawn counting analysis
+### Prerequisites
 
-## Note on Data Storage
-These image directories are stored in OneDrive and referenced by absolute paths in the code. When running the analysis:
+1. **Install FiftyOne**:
+   ```bash
+   pip install fiftyone
+   ```
 
-1. Make sure you have access to the OneDrive folders
-2. Update the paths in the code to match your OneDrive locations
-3. The images are not included in the git repository due to their size 
+2. **Install additional dependencies**:
+   ```bash
+   pip install ultralytics pillow pytesseract matplotlib seaborn opencv-python
+   ```
+
+
+### Running Analysis
+
+#### Counting Analysis
+```bash
+cd counting/
+python run_fiftyone_counting.py
+```
+
+#### Measurement Analysis
+```bash
+cd measurements/imagej/
+python run_fiftyone_body.py      # For body measurements
+python run_fiftyone_carapace.py  # For carapace measurements
+```
+
+#### Exuviae Analysis
+```bash
+cd measurements/exuviae/
+python run_exuviae_fiftyone.py
+```
+
+## 📊 Dataset Requirements
+
+### Counting Dataset
+- **Location**: `exported_datasets/prawn_counting/`
+- **Contents**: Underwater images, bounding box annotations, ground truth labels
+
+
+### Measurement Datasets
+- **ImageJ Measurements**: Live prawn measurement images 
+- **Molt/Exuviae**: Processed molt images 
+- **Drone Detection**: Aerial imagery and detection results 
+
+## 🔧 Configuration
+
+### FiftyOne Settings
+- **Dataset Management**: Automatic dataset loading and cleanup
+- **Visualization**: Interactive web interface for data exploration
+- **Performance**: Optimized for large-scale image analysis
+
+### Model Integration
+- **YOLO Models**: RT-DETR and YOLOv8 for detection and keypoint estimation
+- **Evaluation**: Multi-threshold confidence analysis
+- **Validation**: Ground truth comparison and error metrics
+
+## 📈 Analysis Capabilities
+
+### Interactive Visualization
+- **Image Browsing**: Navigate through large image datasets
+- **Detection Overlay**: Visualize model predictions and ground truth
+- **Filtering**: Filter by confidence, error type, or measurement criteria
+- **Statistics**: Real-time performance metrics and error analysis
+
+### Automated Processing
+- **Batch Processing**: Handle large datasets efficiently
+- **Error Analysis**: Calculate MAE, MAPE, and position errors
+- **Data Export**: Generate reports and visualizations
+- **Quality Control**: Identify and flag problematic samples
+
+## 📚 Documentation
+
+- **`DATA_ACCESS.md`**: Complete guide for accessing and managing datasets
+- **`counting/README.md`**: Detailed counting analysis documentation
+- **`measurements/README.md`**: Comprehensive measurement analysis guide
+
+## 🔍 Key Features
+
+1. **Multi-Modal Analysis**: Support for counting, measurement, and exuviae analysis
+2. **Interactive Interface**: FiftyOne web interface for data exploration
+3. **Automated Validation**: Compare automated predictions with ground truth
+4. **Error Analysis**: Comprehensive error metrics and visualization
+5. **Scalable Architecture**: Handle large-scale datasets efficiently
+

@@ -18,21 +18,27 @@ Dependencies:
 import os
 import fiftyone as fo
 
-# Path to the exported dataset
-EXPORTED_DATASET_DIR = "fiftyone_datasets/exuviae_keypoints"
+# Adjust the path to point to the exported_datasets directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up 3 levels to reach the project root, then to exported_datasets
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+EXPORTED_DATASET_DIR = os.path.join(project_root, "exported_datasets/exuviae_keypoints")
 
 print(f"Attempting to load dataset from {EXPORTED_DATASET_DIR}...")
 
+
+
+
 # Delete existing dataset if it exists
-if fo.dataset_exists("prawn_keypoints"):
+if fo.dataset_exists("prawn_counting"):
     print("Deleting existing dataset...")
-    fo.delete_dataset("prawn_keypoints")
+    fo.delete_dataset("prawn_counting")
 
 # Try to load the dataset
 dataset = fo.Dataset.from_dir(
     dataset_dir=EXPORTED_DATASET_DIR,
     dataset_type=fo.types.FiftyOneDataset,
-    name="prawn_keypoints"
+    name="prawn_counting"
 )
 
 print(f"\nLoaded dataset with {len(dataset)} samples")

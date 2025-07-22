@@ -7,7 +7,7 @@ ERROR_SIZE="mean"
 
 # Define the path to your Python script - updated to correct path
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-PYTHON_SCRIPT="${SCRIPT_DIR}/measurements_analysis.py"
+PYTHON_SCRIPT="${SCRIPT_DIR}/fiftyone_dataset_creation.py"
 
 # Function to display a menu
 display_menu() {
