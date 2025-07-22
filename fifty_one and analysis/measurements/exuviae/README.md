@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains a comprehensive suite of tools for analyzing prawn exuviae (molted shells) measurements using computer vision techniques and the FiftyOne dataset management platform. The analysis pipeline processes images of white prawn molts, applies realistic coloring for better visualization, performs keypoint detection, and calculates real-world measurements.
+This directory contains a comprehensive suite of tools for analyzing prawn exuviae (molted shells) measurements using computer vision techniques and the FiftyOne dataset management platform. The analysis pipeline processes images of white prawn molts, applies realistic coloring for better detection, performs keypoint detection, and calculates real-world measurements.
 
 ## Directory Structure
 
@@ -192,6 +192,38 @@ python scripts/bbox_compare_shai_exuviae.py
 4. **Dataset Creation**: FiftyOne datasets created for visualization and analysis
 5. **Analysis**: Statistical analysis and visualization generation
 6. **Results**: Spreadsheet files contain processed measurements and analysis results
+
+## Example Results
+
+### FiftyOne Dataset Visualization
+
+The analysis pipeline produces a comprehensive FiftyOne dataset for interactive exploration. The interface shows:
+
+- **144 samples** of prawn exuviae with keypoint detections
+- **Multiple annotation types**:
+  - Keypoints (teal/cyan): Anatomical points for measurement
+  - Detections (blue): Bounding boxes around prawns
+  - Manual annotations (purple): imagej pixel measurements
+- **Real-time filtering** and metadata exploration
+- **Grid view** of all processed images
+
+### Detection and Measurement Example
+
+The system successfully detects and measures prawns with high accuracy:
+
+- **Big Prawn Detection**:
+  - Total length: 187.100mm
+  - Pixel length: 1006.004 pixels
+  - Bounding box classification: "big_prawn"
+  
+- **Small Prawn Detection**:
+  - Accurate size classification
+  - Precise keypoint placement
+  - Real-world measurement conversion
+
+![FiftyOne Dataset Interface](fiftyOne_screenshots/interface.png)
+
+![fiftyone example Measurement Results](fiftyOne_screenshots/Screenshot_mes_result.png)
 
 ## Key Measurements
 
