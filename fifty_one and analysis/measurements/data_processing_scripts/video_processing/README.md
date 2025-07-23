@@ -207,6 +207,10 @@ The system generates:
 - scikit-image (`skimage`) - Image quality metrics
 - piexif - EXIF metadata manipulation
 
+## License Information
+
+This video processing module includes code derived from [OpenDroneMap](https://github.com/OpenDroneMap/ODM), which is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). As such, this module is also licensed under AGPL-3.0.
+
 ## Performance Considerations
 
 - **Internal Resolution**: Frames are resized to 800px for processing efficiency

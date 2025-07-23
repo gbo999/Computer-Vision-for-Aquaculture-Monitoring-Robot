@@ -14,6 +14,10 @@ Key Features:
 
 Author: Research Team
 Purpose: Underwater prawn counting and measurement research
+
+This module includes code derived from OpenDroneMap (https://github.com/OpenDroneMap/ODM),
+which is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+As such, this module is also licensed under AGPL-3.0.
 """
 
 import datetime

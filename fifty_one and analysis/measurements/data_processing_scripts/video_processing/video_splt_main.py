@@ -21,6 +21,10 @@ Configuration:
 
 Author: Research Team
 Purpose: Underwater prawn counting and measurement research
+
+This script includes code derived from OpenDroneMap (https://github.com/OpenDroneMap/ODM),
+which is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+As such, this script is also licensed under AGPL-3.0.
 """
 
 import os

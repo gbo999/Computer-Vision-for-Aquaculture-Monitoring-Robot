@@ -221,6 +221,10 @@ mkdir -p input_images output_images
 mkdir -p video_processing/input video_processing/output
 ```
 
+## License Information
+
+The video processing components in this directory include code derived from [OpenDroneMap](https://github.com/OpenDroneMap/ODM), which is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). As such, these components are also licensed under AGPL-3.0.
+
 ## Usage Workflow
 
 ### 1. Image Processing Workflow

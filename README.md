@@ -264,15 +264,24 @@ All training results are stored in `training and val output/`:
 
 ## 📄 License
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)**.
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
-**What this means:**
-- ✅ **Research & Academic Use**: Free to use for research and educational purposes
-- ✅ **Modification & Distribution**: Can adapt and share the work
-- ❌ **Commercial Use**: Cannot use for commercial purposes without permission
-- 📝 **Attribution Required**: Must give proper credit to the original author
+### License Change Notice
 
-For full license details, see the [`LICENSE`](LICENSE) file. For commercial licensing inquiries, please contact the copyright holder.
+**Important**: This project was previously licensed under Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0). The license has been changed to AGPL-3.0 because this project includes video processing code derived from [OpenDroneMap](https://github.com/OpenDroneMap/ODM), which is licensed under AGPL-3.0.
+
+### What AGPL-3.0 means:
+- ✅ **Free Software**: You can use, modify, and distribute this software
+- ✅ **Source Code Access**: You must have access to the source code
+- ✅ **Network Use**: If you run this software on a network server, you must provide source code access to users
+- ✅ **Copyleft**: Any modifications must also be licensed under AGPL-3.0
+- 📝 **Attribution Required**: Must preserve copyright notices and license information
+
+### OpenDroneMap Attribution
+
+This project includes video processing code from [OpenDroneMap](https://github.com/OpenDroneMap/ODM), which is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). The video processing pipeline in `fifty_one and analysis/measurements/data_processing_scripts/video_processing/` is based on OpenDroneMap's video processing components.
+
+For full license details, see the [`LICENSE`](LICENSE) file.
 
 ## 🙏 Acknowledgments
 
