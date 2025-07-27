@@ -1,5 +1,0 @@
-Category,Signed Pixel Error (%),Signed Measurement Error (%),Net Error (%),MAE (mm),MAPE (%),Effect,Count
-Circle_big,-6.79,-5.75,-12.54,14.53,8.07,Compound,31
-Circle_small,-1.92,-1.39,-3.31,7.52,5.19,Compound,19
-Square_big,-2.16,-0.78,-2.93,5.73,3.18,Compound,2
-Square_small,-6.67,-5.20,-11.88,9.47,6.53,Compound,11

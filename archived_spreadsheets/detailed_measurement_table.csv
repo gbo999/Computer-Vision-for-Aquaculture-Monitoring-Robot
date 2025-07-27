@@ -1,4 +1,0 @@
-Pond Type,Sample Size,MAE Total (mm),MAE Carapace (mm),MAPE Total (%),MAPE Carapace (%),Pixel Error (px),Scale Error (%),Median Total Error (%),Median Carapace Error (%)
-Circle,17,5.09 ± 3.08,6.33 ± 2.57,3.51 ± 2.12,15.43 ± 6.28,33.00 ± 29.62,3.51 ± 2.12,2.93,13.74
-Square,11,9.47 ± 5.51,8.05 ± 1.56,6.53 ± 3.80,19.63 ± 3.79,102.54 ± 53.26,6.53 ± 3.80,6.72,19.52
-Overall,28,6.81 ± 4.65,7.00 ± 2.36,4.69 ± 3.20,17.08 ± 5.75,60.32 ± 52.60,4.69 ± 3.20,4.35,17.58

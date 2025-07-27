@@ -55,8 +55,8 @@ def get_paths(weights_type):
         predict_version = 'predict90'
     else:
         predict_version = 'predict89'
-    prediction_base = f"/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/training and val output/runs/pose/{predict_version}/labels"
-    ground_truth_base = "/Users/gilbenor/Downloads/Giant freshwater prawn carapace keypoint detection.v91i.yolov8/all/labels"
+    prediction_base = f"training and val output/runs/pose/{predict_version}/labels"
+    ground_truth_base = "Downloads/Giant freshwater prawn carapace keypoint detection.v91i.yolov8/all/labels"
     
     paths = {
         'folders': list(images_paths.values()),
@@ -79,19 +79,19 @@ def process_measurements(measurement_type, port, weights_type):
         fo.Session: The FiftyOne session for visualization.
     """
     if measurement_type == 'carapace':
-        filtered_data_path = '/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/fifty_one and analysis/measurements/imagej/spreadsheet_files/Filtered_Data.csv'
+        filtered_data_path = 'fifty_one and analysis/measurements/imagej/spreadsheet_files/Filtered_Data.csv'
         output_file = f'updated_filtered_data_with_lengths_carapace-{weights_type}.xlsx'
         keypoint_classes = ["start-carapace", "eyes"]
         load_data_fn = load_data
         create_dataset_fn = create_dataset
     else:  # body
-        filtered_data_path = '/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/fifty_one and analysis/measurements/imagej/spreadsheet_files/final_full_statistics_with_prawn_ids_and_uncertainty - Copy.xlsx'
+        filtered_data_path = 'fifty_one and analysis/measurements/imagej/spreadsheet_files/final_full_statistics_with_prawn_ids_and_uncertainty - Copy.xlsx'
         output_file = f'updated_filtered_data_with_lengths_body-{weights_type}.xlsx'
         keypoint_classes = ["tail", "rostrum"]
         load_data_fn = load_data_body
         create_dataset_fn = create_dataset_body
 
-    metadata_path = "/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/fifty_one and analysis/measurements/imagej/spreadsheet_files/test images.xlsx"
+    metadata_path = "fifty_one and analysis/measurements/imagej/spreadsheet_files/test images.xlsx"
     
     filtered_df, metadata_df = load_data_fn(filtered_data_path, metadata_path)
 

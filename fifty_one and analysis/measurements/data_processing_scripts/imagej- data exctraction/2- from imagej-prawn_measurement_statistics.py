@@ -117,7 +117,9 @@ def main():
     6. Save results to Excel file
     """
     # Change to the ImageJ directory
-    os.chdir(r"C:\Users\gbo10\Videos\research\counting_research_algorithms\src\measurement\ImageJ")
+    # os.chdir(r"C:\Users\gbo10\Videos\research\counting_research_algorithms\src\measurement\ImageJ")
+# Use relative path or environment variable instead
+os.chdir(os.path.join(os.getcwd(), "src", "measurement", "ImageJ"))
 
     # Load the processed data from the Excel files
     global final_data_1, final_data_2, final_data_3

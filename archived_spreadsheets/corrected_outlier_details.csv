@@ -1,6 +1,0 @@
-image_name,pond_type,violated_metrics,total_length_mm,carapace_length_mm,pixel_error,shai_iou,keypoints_valid
-undistorted_GX010191_106_1320.jpg,Circle,"total_error_mm, carapace_error_mm, pixel_error",38.2101435989179,10.112468746305249,538.024110672837,0.0836836892437414,4
-undistorted_GX010191_110_1355.jpg,Circle,"total_error_mm, carapace_error_mm, pixel_error",32.59514982881077,7.821599457593754,554.2122161421221,0.4906720944732868,4
-undistorted_GX010191_14_460.jpg,Circle,total_error_mm,106.99335930628354,26.559887146861456,247.38708257815154,0.0194951241527878,4
-undistorted_GX010191_41_1322.jpg,Circle,"total_error_mm, carapace_error_mm",90.3003745333648,21.563525556515017,291.0467148261195,0.2056013502735137,4
-undistorted_GX010191_42_457.jpg,Circle,"total_error_mm, carapace_error_mm",96.70971012353016,19.15682097191834,276.48888618986297,0.1120505441908291,4

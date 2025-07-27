@@ -18,9 +18,11 @@ import glob
 from PIL import Image  # Add PIL for image operations
 
 # Use absolute paths for everything to avoid path issues
-BASE_DIR = "/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 LABELS_DIR = os.path.join(BASE_DIR, "training and val output/runs/pose/predict83/labels")
-IMAGES_DIR = "/Users/gilbenor/Library/CloudStorage/OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
+# IMAGES_DIR = "/Users/gilbenor/Library/CloudStorage/OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
+# Keep OneDrive path for data sharing
+IMAGES_DIR = "OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
 CSV_FILE = os.path.join(BASE_DIR, "fifty_one and analysis/measurements/exuviae/spreadsheet_files/length_analysis_new_split.csv")
 EXPORTED_DATASET_DIR = os.path.join(BASE_DIR, "fiftyone_datasets/exuviae_keypoints")
 

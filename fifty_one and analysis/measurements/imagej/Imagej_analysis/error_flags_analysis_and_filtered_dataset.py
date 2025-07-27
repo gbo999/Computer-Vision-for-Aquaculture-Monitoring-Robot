@@ -77,7 +77,7 @@ Key components:
 # ----- Data Loading and Preprocessing -----
 
 # Load the dataset from Excel file
-    data_path = f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/updated_filtered_data_with_lengths_{args.type}-{args.weights_type}.xlsx'
+    data_path = f'updated_filtered_data_with_lengths_{args.type}-{args.weights_type}.xlsx'
 
 
 
@@ -1980,7 +1980,7 @@ Key components:
             trace.name = f"{category} (n={count})"
 
         os.makedirs(f'graphs/{args.type}', exist_ok=True)
-        pond_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        pond_fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
 
 
         # Create scatter plot with error bands
@@ -2050,7 +2050,7 @@ Key components:
         )
 
         # Save the scatter plot
-        scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        scatter_fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
 
         # Create pixel-to-pixel scatter plot
         pixel_scatter_fig = go.Figure()
@@ -2111,7 +2111,7 @@ Key components:
         )
         
         # Save the pixel scatter plot
-        pixel_scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixels_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        pixel_scatter_fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixels_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
 
 
 
@@ -2166,7 +2166,7 @@ Key components:
     )
 
     # Save the scatter plot
-    scatter_fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_expert_mean_annotation_length_{args.type}_{args.weights_type}_{args.error_size}.html')
+    scatter_fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_expert_mean_annotation_length_{args.type}_{args.weights_type}_{args.error_size}.html')
     
 
 
@@ -2223,7 +2223,7 @@ Key components:
         )
 
         # Save the 3D scatter plot for this pond type
-        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/3d_scatter_avg_scale_error_avg_pixel_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/3d_scatter_avg_scale_error_avg_pixel_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
     
         #create a 2d scatter plot of pixel error mpe
         fig = go.Figure()
@@ -2261,7 +2261,7 @@ Key components:
             width=1000
         )
         # Save the scatter plot
-        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixel_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixel_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
         
         
 
@@ -2301,7 +2301,7 @@ Key components:
             width=1000
         )
         # Save the scatter plot
-        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_scale_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_scale_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
         
         
         
@@ -2342,7 +2342,7 @@ Key components:
             width=1000
         )
         # Save the scatter plot
-        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixel_scale_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scatter_pixel_scale_error_mpe_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
         
         
     #measument uncertainty distribution across dataset
@@ -2375,7 +2375,7 @@ Key components:
         plt.title(f"Measurement Uncertainty (Mean ± Half Range) for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2386,7 +2386,7 @@ Key components:
         plt.title(f"Range Distribution for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2408,7 +2408,7 @@ Key components:
         plt.title(f"Pixel Measurement Uncertainty (Mean ± Half Range) for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2419,7 +2419,7 @@ Key components:
         plt.title(f"Pixel Range Distribution for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2446,7 +2446,7 @@ Key components:
         plt.title(f"Scale Measurement Uncertainty (Mean ± Half Range) for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scale_measurement_uncertainty_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2456,7 +2456,7 @@ Key components:
         plt.title(f"Scale Range Distribution for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scale_range_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2468,7 +2468,7 @@ Key components:
         plt.title(f"Scale Error Distribution for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/scale_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/scale_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2479,7 +2479,7 @@ Key components:
         plt.title(f"Pixel Error Distribution for {pond_type}")
         plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
+        plt.savefig(f'fifty_one/measurements/results/analysis/graphs/{args.type}/pixel_error_distribution_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.png')
         # plt.show()
 
 
@@ -2493,7 +2493,7 @@ Key components:
                 zaxis_title='Scale'
             )
         )
-        fig.write_html(f'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/results/analysis/graphs/{args.type}/length_pixels_scale_scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
+        fig.write_html(f'fifty_one/measurements/results/analysis/graphs/{args.type}/length_pixels_scale_scatter_{args.type}_{args.weights_type}_{args.error_size}_{pond_type}.html')
         # fig.show()
 
 

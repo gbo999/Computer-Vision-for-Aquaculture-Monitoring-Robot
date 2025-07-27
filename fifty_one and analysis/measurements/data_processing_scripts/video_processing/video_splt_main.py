@@ -40,8 +40,8 @@ work_dir = os.getcwd()
 # Modify these values to customize the processing behavior
 args = { 
     # INPUT/OUTPUT CONFIGURATION
-    "input": f"C:/Users/gbo10/Dropbox/research videos/31.12/65-31.12/GX010065.MP4",  # Default input (will be overridden in loop)
-    "output": r"C:\Users\gbo10\Dropbox\research videos\for ice\try",  # Output directory for processed frames
+    "input": f"Dropbox/research videos/31.12/65-31.12/GX010065.MP4",  # Default input (will be overridden in loop)
+    "output": r"Dropbox\research videos\for ice\try",  # Output directory for processed frames
     
     # FRAME RANGE SETTINGS
     "start": 0,           # Starting frame index (0 = beginning of video)
@@ -78,7 +78,7 @@ args = {
     
     # METADATA AND LOGGING
     "use-srt": None,  # Enable SRT file processing for GPS/camera metadata (currently disabled)
-    "stats_file": "C:/Users/gbo10/Videos/research/counting_research_algorithms/src/data/data_processing/stats.csv"  # Statistics output file
+    "stats_file": "src/data/data_processing/stats.csv"  # Statistics output file
 }
 
 # BATCH PROCESSING SETUP
@@ -93,7 +93,7 @@ video_paths = []  # This will store all video files to be processed
 
 # Example: Process specific video file(s)
 # The current pattern looks for a specific file with a complex name pattern
-for video_path in glob.glob(r"C:\Users\gbo10\Dropbox\research videos\for ice\GX0102422222222222_Video.mp4"):
+for video_path in glob.glob(r"Dropbox\research videos\for ice\GX0102422222222222_Video.mp4"):
     video_paths.append(video_path)
     print(f"Found video for processing: {video_path}")
 

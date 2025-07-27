@@ -1224,9 +1224,9 @@ def process_images(image_paths, prediction_folder_path, ground_truth_paths_text,
 
         dataset.add_sample(sample)
     if measurement_type == 'carapace':  
-        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_carapace_Filtered_Data_with_real_length.xlsx' 
+        output_file_path = r'fifty_one/measurements/Updated_carapace_Filtered_Data_with_real_length.xlsx' 
     else:
-        output_file_path = r'/Users/gilbenor/Documents/code projects/msc/counting_research_algorithms/fifty_one/measurements/Updated_full_body_Filtered_Data_with_real_length.xlsx' 
+        output_file_path = r'fifty_one/measurements/Updated_full_body_Filtered_Data_with_real_length.xlsx' 
 
         # print(filtered_df.columns) # Change this path accordingly
     filtered_df.to_excel(output_file_path, index=False)

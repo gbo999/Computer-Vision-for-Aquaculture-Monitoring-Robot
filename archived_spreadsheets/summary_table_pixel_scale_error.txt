@@ -1,5 +1,0 @@
-pond_type manual_size    mae_mm  mape_pct  pixel_error_pct_mean  pixel_error_pct_std  scale_error_pct_mean  scale_error_pct_std  count
-   Circle         big 14.301192  7.945107             -6.010430             8.374294              0.348605             4.565345     58
-   Circle       small  7.703589  5.312820             -1.408204            10.674555              0.130670             6.000396     40
-   Square         big  6.195201  3.441778             -2.964235             2.802590              1.126915             0.872828      3
-   Square       small  9.356796  6.452963             -7.062427             5.381762              1.732698             3.530812     13

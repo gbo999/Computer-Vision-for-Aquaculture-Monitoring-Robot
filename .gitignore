@@ -18,3 +18,14 @@ fiftyone_datasets.zip
 # Keep only these datasets
 !fiftyone_datasets/body_all/
 !fiftyone_datasets/carapace_all/
+
+# Archived directories with personal information
+ archived_code_notebooks/
+archived_spreadsheets/
+
+# Personal information and sensitive files
+*.env
+.env*
+secrets.json
+credentials.json
+config.json

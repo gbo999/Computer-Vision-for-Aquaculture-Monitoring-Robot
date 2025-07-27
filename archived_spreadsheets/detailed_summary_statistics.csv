@@ -1,7 +1,0 @@
-,,individual_mae,individual_mae,individual_mae,individual_mae,individual_mae,individual_mape,individual_mape,individual_mape,individual_mape,individual_mape,pixel_difference_pct,pixel_difference_pct,pixel_difference_pct,pixel_difference_pct,pixel_difference_pct,measurement_difference_pct,measurement_difference_pct,measurement_difference_pct,measurement_difference_pct,measurement_difference_pct
-,,count,mean,std,min,max,count,mean,std,min,max,count,mean,std,min,max,count,mean,std,min,max
-pond_type,manual_size,,,,,,,,,,,,,,,,,,,,
-Circle,big,58,14.301,8.877,0.28,35.34,58,7.945,4.932,0.156,19.633,58,8.818,5.27,2.244,23.334,58,7.945,4.932,0.156,19.633
-Circle,small,40,7.704,8.166,0.153,38.007,40,5.313,5.632,0.106,26.211,40,7.267,7.862,0.067,31.235,40,5.313,5.632,0.106,26.211
-Square,big,3,6.195,1.614,4.332,7.127,3,3.442,0.896,2.407,3.959,3,3.146,2.489,0.272,4.582,3,3.442,0.896,2.407,3.959
-Square,small,13,9.357,5.205,0.844,18.645,13,6.453,3.59,0.582,12.858,13,7.93,3.856,2.948,14.21,13,6.453,3.59,0.582,12.858
