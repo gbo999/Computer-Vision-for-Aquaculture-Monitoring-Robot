@@ -33,8 +33,7 @@ counting_research_algorithms/
 │   └── measurements/               # Length measurement analysis
 ├── 🚀 colab_notebook/              # Google Colab training notebooks
 ├── 📈 training and val output/     # Model training outputs and validation results
-├── 📋 archived_spreadsheets/       # Analysis results and processed data not used
-└── 📚 archived_code_notebooks/     # Historical analysis notebooks
+└── 🖼️ images/                      # Project images and demonstrations
 ```
 
 ## 🚀 Quick Start
