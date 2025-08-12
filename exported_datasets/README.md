@@ -178,7 +178,7 @@ Several datasets include evaluation results:
 ## Related Files
 
 These datasets are used in conjunction with:
-- Analysis scripts in `fifty_one and analysis/`
+- Analysis scripts in `fifty_one_and_analysis/`
 - Training outputs in `training and val output/`
 - Archived spreadsheets in `archived_spreadsheets/`
 - Visualization tools throughout the project

@@ -28,7 +28,7 @@ counting_research_algorithms/
 │   ├── carapace_all/               # 71 images with carapace-specific 
 │   ├── exuviae_keypoints/          # 144 images for molting analysis
 │   └── prawn_counting/             # 675 images for population counting
-├── 🔬 fifty_one and analysis/      # Interactive analysis framework
+├── 🔬 fifty_one_and_analysis/      # Interactive analysis framework
 │   ├── counting/                   # Prawn counting analysis tools
 │   └── measurements/               # Length measurement analysis
 ├── 🚀 colab_notebook/              # Google Colab training notebooks
@@ -59,18 +59,18 @@ counting_research_algorithms/
 #### Interactive Dataset Exploration
 ```bash
 # Launch counting analysis
-cd "fifty_one and analysis/counting/"
+cd "fifty_one_and_analysis/counting/"
 python run_fiftyone_counting.py
 
 # Launch measurement analysis
-cd "fifty_one and analysis/measurements/imagej/"
+cd "fifty_one_and_analysis/measurements/imagej/"
 python run_fiftyone_body.py
 
 or 
 python run_fiftyone_carapace.py
 
 #lunch exuviae analysis
-cd "fifty_one and analysis/measurements/exuviae"
+cd "fifty_one_and_analysis/measurements/exuviae"
 python run_exuviae_fiftyone.py
 
 
@@ -226,13 +226,13 @@ All training results are stored in `training and val output/`:
 ### Detailed Guides
 - **`colab_notebook/README.md`**: Complete training setup and workflow
 - **`exported_datasets/README.md`**: Dataset descriptions and usage
-- **`fifty_one and analysis/README.md`**: Analysis framework overview
+- **`fifty_one_and_analysis/README.md`**: Analysis framework overview
 - **`training and val output/README.md`**: Model training outputs
 
 ### Subdirectory Documentation
-- **Counting Analysis**: `fifty_one and analysis/counting/README.md`
-- **Measurement Analysis**: `fifty_one and analysis/measurements/README.md`
-- **Data Processing**: `fifty_one and analysis/measurements/data_processing_scripts/README.md`
+- **Counting Analysis**: `fifty_one_and_analysis/counting/README.md`
+- **Measurement Analysis**: `fifty_one_and_analysis/measurements/README.md`
+- **Data Processing**: `fifty_one_and_analysis/measurements/data_processing_scripts/README.md`
 
 ## 🔍 Research Contributions
 
@@ -278,7 +278,7 @@ This project is licensed under the **GNU Affero General Public License v3.0 (AGP
 
 ### OpenDroneMap Attribution
 
-This project includes video processing code from [OpenDroneMap](https://github.com/OpenDroneMap/ODM), which is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). The video processing pipeline in `fifty_one and analysis/measurements/data_processing_scripts/video_processing/` is based on OpenDroneMap's video processing components.
+This project includes video processing code from [OpenDroneMap](https://github.com/OpenDroneMap/ODM), which is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). The video processing pipeline in `fifty_one_and_analysis/measurements/data_processing_scripts/video_processing/` is based on OpenDroneMap's video processing components.
 
 For full license details, see the [`LICENSE`](LICENSE) file.
 
