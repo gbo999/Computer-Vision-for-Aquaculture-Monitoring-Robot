@@ -475,7 +475,7 @@ try:
     session.view.config.keypoints.point_color = "red"  # Set point color
     session.view.config.keypoints.point_size = 8  # Set point radius
     
-    datast
+    
 
     # Set default detection display options
     print("Dataset is ready to view in the app")

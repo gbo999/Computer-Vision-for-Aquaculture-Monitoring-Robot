@@ -203,9 +203,9 @@ def main():
 # file_2_path = r"OneDrive\measurement_paper_images\compile 3 files/2_Full_body.xlsx"
 # file_3_path = r"OneDrive\measurement_paper_images\compile 3 files/3_Full_body.xlsx"
 # Use OneDrive paths for data sharing - keeping these as they're needed for collaboration
-file_1_path = r"OneDrive\measurement_paper_images\compile 3 files/1_Full_body.xlsx"
-file_2_path = r"OneDrive\measurement_paper_images\compile 3 files/2_Full_body.xlsx"
-file_3_path = r"OneDrive\measurement_paper_images\compile 3 files/3_Full_body.xlsx"
+    file_1_path = r"OneDrive\measurement_paper_images\compile 3 files/1_Full_body.xlsx"
+    file_2_path = r"OneDrive\measurement_paper_images\compile 3 files/2_Full_body.xlsx"
+    file_3_path = r"OneDrive\measurement_paper_images\compile 3 files/3_Full_body.xlsx"
 
     data_1 = pd.read_excel(file_1_path)
     data_2 = pd.read_excel(file_2_path)

@@ -78,7 +78,7 @@ Key components:
 # ----- Data Loading and Preprocessing -----
 
 # Load the dataset from Excel file
-    data_path = f'updated_filtered_data_with_lengths_{args.type}-{args.weights_type}.xlsx'
+    data_path = f'fifty_one_and_analysis/measurements/imagej/spreadsheet_files/updated_filtered_data_with_lengths_{args.type}-{args.weights_type}.xlsx'
 
 
 
@@ -234,7 +234,7 @@ Key components:
     df_outliers = df[(df['Length_fov(mm)'] >= df['mean_length'] + 5*std) | 
             (df['Length_fov(mm)'] <= df['mean_length'] - 5*std)]
 
-    concatenated_df = pd.concat([df[['Label', 'PrawnID','Pond_Type', 'mean_length', 'std_length', 'Length_fov(mm)','mean_pixels', 'pred_Distance_pixels','Length_ground_truth_annotation_pixels','mean_scale', 'pred_scale','std_scale','std_pixels']]])
+    concatenated_df = pd.concat([df[['Label', 'PrawnID','Pond_Type', 'mean_length', 'std_length', 'Length_fov(mm)','mean_pixels', 'pred_Distance_pixels','Length_ground_truth_annotation_pixels','mean_scale', 'pred_scale','std_scale','Scale_1','Scale_2','Scale_3','std_pixels']]])
     concatenated_df.to_csv(f"fifty_one_and_analysis/measurements/imagej/spreadsheet_files/error_flags_analysis_{args.type}_{args.weights_type}_{args.error_size}.csv", index=False)
 
 
