@@ -19,21 +19,21 @@ from PIL import Image  # Add PIL for image operations
 
 # Use absolute paths for everything to avoid path issues
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-LABELS_DIR = os.path.join(BASE_DIR, "training and val output/runs/pose/predict83/labels")
-# IMAGES_DIR = "/Users/gilbenor/Library/CloudStorage/OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
+LABELS_DIR = "/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/training and val output/runs/pose/predict83/labels"
+IMAGES_DIR = "/Users/gilbenor/Library/CloudStorage/OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
 # Keep OneDrive path for data sharing
-IMAGES_DIR = "OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
-CSV_FILE = os.path.join(BASE_DIR, "fifty_one_and_analysis/measurements/exuviae/spreadsheet_files/length_analysis_new_split.csv")
+# IMAGES_DIR = "OneDrive-Personal/measurement_paper_images/molt/all molt/undistorted/resized"
+CSV_FILE = '/Users/gilbenor/Documents/code_projects/msc/counting_research_algorithms/fifty_one_and_analysis/measurements/exuviae/length_analysis_new_split_without_nulls.csv'
 EXPORTED_DATASET_DIR = os.path.join(BASE_DIR, "fiftyone_datasets/exuviae_keypoints")
 
-CSV_FILE_SHAI = os.path.join(BASE_DIR, "fifty_one_and_analysis/measurements/exuviae/spreadsheet_files/Results-shai-exuviae.csv")
+# CSV_FILE_SHAI = os.path.join(BASE_DIR, "fifty_one_and_analysis/measurements/exuviae/spreadsheet_files/Results-shai-exuviae.csv")
 
 # Process Shai's CSV file
-df_shai = pd.read_csv(CSV_FILE_SHAI)
+# df_shai = pd.read_csv(CSV_FILE_SHAI)
 
 # Clean up image names in Shai's data to match actual filenames
-df_shai['image_name'] = df_shai['Label'].str.replace('Shai - exuviae:', '') 
-df_shai['image_name'] = 'colored_' + df_shai['image_name']
+# df_shai['image_name'] = df_shai['Label'].str.replace('Shai - exuviae:', '') 
+# df_shai['image_name'] = 'colored_' + df_shai['image_name']
 # Try to load the exported dataset first
 dataset_name = "prawn_keypoints"
 try:
@@ -207,11 +207,11 @@ processed_count = 0
 
 for image_name in df['image_name'].unique():
     # The image_name in CSV already has the full prefix
-    base_name = image_name.replace('colored_undistorted_', '')
+    # base_name = image_name.replace('colored_undistorted_', '')
     # Update image path to match actual file naming pattern
-    image_path = os.path.join(IMAGES_DIR, f"undistorted_{base_name}.jpg")
+    image_path = os.path.join(IMAGES_DIR, f"{image_name}.jpg")
     # Update label path to match actual file naming pattern - use the full image_name since it matches the label file
-    label_path = os.path.join(LABELS_DIR, f"{image_name}.txt")
+    label_path = os.path.join(LABELS_DIR, f"colored_{image_name}.txt")
     
     # Check if image exists
     if not os.path.exists(image_path):
@@ -243,13 +243,13 @@ for image_name in df['image_name'].unique():
     pond_type = "Circle" if '10191' in image_name else "Square"
     sample["tags"].append(pond_type)
     
-    # Check if this image is in Shai's measurements - use the base name for matching
-    shai_measurements = df_shai[df_shai['image_name'] == image_name]
-    if not shai_measurements.empty:
-        sample["tags"].append("shai_measured")
-        # Add the number of measurements Shai made for this image
-        sample["tags"].append(f"shai_measurements_{len(shai_measurements)}")
-        print(f"Found Shai's measurements for {image_name}")
+    # # Check if this image is in Shai's measurements - use the base name for matching
+    # shai_measurements = df_shai[df_shai['image_name'] == image_name]
+    # if not shai_measurements.empty:
+    #     sample["tags"].append("shai_measured")
+    #     # Add the number of measurements Shai made for this image
+    #     sample["tags"].append(f"shai_measurements_{len(shai_measurements)}")
+    #     print(f"Found Shai's measurements for {image_name}")
     
     # Process keypoints if label file exists
     if os.path.exists(label_path):
@@ -265,76 +265,111 @@ for image_name in df['image_name'].unique():
             keypoint = detection.keypoints.keypoints[0]  # Get first keypoint from the keypoints list
             points = keypoint.points
             
-            # Count points at edges (nan values)
-            low_visibility_count = sum(1 for point in points if np.isnan(point[0]) or np.isnan(point[1]))
-            if low_visibility_count > 0:
-                sample["tags"].append(f"{low_visibility_count}_low_visibility_keypoints")
+            # # Count points at edges (nan values)
+            # low_visibility_count = sum(1 for point in points if np.isnan(point[0]) or np.isnan(point[1]))
+            # if low_visibility_count > 0:
+            #     sample["tags"].append(f"{low_visibility_count}_low_visibility_keypoints")
                 
             # Process measurements only if required keypoints are visible
             # Points are ordered as: start_carapace, eyes, rostrum, tail
+            eyes_points = points[1]     # Index 1 is eyes
             rostrum_points = points[2]  # Index 2 is rostrum
             tail_points = points[3]     # Index 3 is tail
             
-            if not (np.isnan(rostrum_points[0]) or np.isnan(rostrum_points[1]) or 
-                   np.isnan(tail_points[0]) or np.isnan(tail_points[1])):
+            # Check if eyes keypoint is visible for matching
+            if not (np.isnan(eyes_points[0]) or np.isnan(eyes_points[1])):
                 
-                # Calculate real-world measurements
-                img_width_mm = 5312
-                img_height_mm = 2988
+                # Convert detected eye coordinates to real-world pixel coordinates
+                detected_eye_x = eyes_points[0] * img_width
+                detected_eye_y = eyes_points[1] * img_height
                 
-                # Convert to real-world coordinates
-                tail_points_mm = [tail_points[0] * img_width_mm, tail_points[1] * img_height_mm]
-                rostrum_points_mm = [rostrum_points[0] * img_width_mm, rostrum_points[1] * img_height_mm]
-                
-                # Calculate distance
-                tail_rostrum_distance = calculate_euclidean_distance(tail_points_mm, rostrum_points_mm)
-                
-                # Match with ground truth if available
+                # Match with ground truth based on eye coordinates using euclidean distance
                 image_df = df[df['image_name'] == image_name]
-                matched = False  # Track if we found a match
-                for _, row in image_df.iterrows():
-                    if abs(tail_rostrum_distance - float(row['pixels_total_length'])) < 30:
-                        detection["total_length"] = float(row['total_length'])
-                        detection['pixels_total_length'] = tail_rostrum_distance
-                        
-                        # Add MPE tags
-                        if row['lobster_size'] == 'big':
-                            mae = row['total_length'] - 180
-                            if abs(mae)/180*100 < 5:
-                                sample["tags"].append('big mpe<5')
-                            elif abs(mae)/180*100 < 10:
-                                sample["tags"].append('big mpe5<x<10')
-                            elif abs(mae)/180*100 < 20:
-                                sample["tags"].append('big mpe10<x<20')
-                            elif abs(mae)/180*100 < 30:
-                                sample["tags"].append('big mpe20<x<30')
-                            else:
-                                sample["tags"].append('big mpe>30')
-                        elif row['lobster_size'] == 'small':
-                            mae = row['total_length'] - 145
-                            if abs(mae)/145*100 < 5:
-                                sample["tags"].append('small mpe<5')
-                            elif abs(mae)/145*100 < 10:
-                                sample["tags"].append('small mpe5<x<10')
-                            elif abs(mae)/145*100 < 20:
-                                sample["tags"].append('small mpe10<x<20')
-                            elif abs(mae)/145*100 < 30:
-                                sample["tags"].append('small mpe20<x<30')
-                            else:
-                                sample["tags"].append('small mpe>30')
-                                
-                        detection['label'] = f"{row['lobster_size']}_prawn"
-                        matched = True
-                        break
+                matched = False
+                best_match = None
+                min_distance = float('inf')
                 
-                # If we went through all sizes and found no match
-                if not matched:
-                    print(f"Detection assigned as UNKNOWN prawn for {image_name}")
+                # Find the closest match based on eye coordinates
+                for _, row in image_df.iterrows():
+                    # Skip rows with missing eye coordinates
+                    if pd.isna(row['eye_x']) or pd.isna(row['eye_y']):
+                        continue
+                        
+                    csv_eye_x = float(row['eye_x'])
+                    csv_eye_y = float(row['eye_y'])
+                    
+                    # Calculate euclidean distance between detected and CSV eye coordinates
+                    eye_distance = calculate_euclidean_distance([detected_eye_x, detected_eye_y], [csv_eye_x, csv_eye_y])
+                    
+                    # Use a threshold of 100 pixels for matching (adjustable)
+                    if eye_distance < 100 and eye_distance < min_distance:
+                        min_distance = eye_distance
+                        best_match = row
+                        matched = True
+                
+                if matched and best_match is not None:
+                    # Use the matched row data
+                    row = best_match
+                    detection["total_length"] = float(row['total_length'])
+                    detection['pixels_total_length'] = float(row['pixels_total_length'])
+                    detection['eye_match_distance'] = min_distance
+                    
+                    # Use new_class for size classification instead of lobster_size
+                    size_class = row['new_class']
+                    
+                    # Add MPE tags based on size_class
+                    if size_class == 'big':
+                        mae = row['total_length'] - 180
+                        if abs(mae)/180*100 < 5:
+                            sample["tags"].append('big mpe<5')
+                        elif abs(mae)/180*100 < 10:
+                            sample["tags"].append('big mpe5<x<10')
+                        elif abs(mae)/180*100 < 20:
+                            sample["tags"].append('big mpe10<x<20')
+                        elif abs(mae)/180*100 < 30:
+                            sample["tags"].append('big mpe20<x<30')
+                        else:
+                            sample["tags"].append('big mpe>30')
+                    elif size_class == 'small':
+                        mae = row['total_length'] - 145
+                        if abs(mae)/145*100 < 5:
+                            sample["tags"].append('small mpe<5')
+                        elif abs(mae)/145*100 < 10:
+                            sample["tags"].append('small mpe5<x<10')
+                        elif abs(mae)/145*100 < 20:
+                            sample["tags"].append('small mpe10<x<20')
+                        elif abs(mae)/145*100 < 30:
+                            sample["tags"].append('small mpe20<x<30')
+                        else:
+                            sample["tags"].append('small mpe>30')
+                            
+                    detection['label'] = f"{size_class}_prawn ,total_length:{row['total_length']}mm "
+                    print(f"Matched detection for {image_name} with eye distance: {min_distance:.2f}")
+                else:
+                    print(f"No eye coordinate match found for detection in {image_name}")
                     detection['label'] = "unknown_prawn"
-            else:
-                # If required keypoints are not visible
-                detection['label'] = "low_visibility_prawn"
-                print(f"Detection has low visibility keypoints in {image_name}")
+            
+            # # If rostrum and tail are visible, calculate rostrum-tail distance for additional measurement
+            # elif not (np.isnan(rostrum_points[0]) or np.isnan(rostrum_points[1]) or 
+            #          np.isnan(tail_points[0]) or np.isnan(tail_points[1])):
+                
+            #     # Calculate real-world measurements as fallback
+            #     img_width_mm = 5312
+            #     img_height_mm = 2988
+                
+            #     # Convert to real-world coordinates
+            #     tail_points_mm = [tail_points[0] * img_width_mm, tail_points[1] * img_height_mm]
+            #     rostrum_points_mm = [rostrum_points[0] * img_width_mm, rostrum_points[1] * img_height_mm]
+                
+            #     # Calculate distance
+            #     tail_rostrum_distance = calculate_euclidean_distance(tail_points_mm, rostrum_points_mm)
+            #     detection['calculated_length_mm'] = tail_rostrum_distance
+            #     detection['label'] = "unmeasured_prawn"
+            #     print(f"Calculated rostrum-tail distance for {image_name}: {tail_rostrum_distance:.2f}mm")
+            # else:
+            #     # If required keypoints are not visible
+            #     detection['label'] = "low_visibility_prawn"
+            #     print(f"Detection has low visibility keypoints in {image_name}")
         
         # Add keypoints and detections to sample (do this only once)
         sample["keypoints"] = fo.Keypoints(keypoints=keypoints_list)
@@ -350,46 +385,46 @@ for image_name in df['image_name'].unique():
     
 
     # add bounding box to sample from df_shai
-    shai_df = df_shai[df_shai['image_name'] == image_name]
-    shai_detections = []
-    shai_polyline1 = []
-    shai_polyline2 = []
-    if not shai_df.empty:
-        for _,row in shai_df.iterrows():
-            #convert BX, BY, Width, Height to int
-            BX = row['BX']
-            BY = row['BY']
-            Width = row['Width']
-            Height = row['Height']
+    # shai_df = df_shai[df_shai['image_name'] == image_name]
+    # shai_detections = []
+    # shai_polyline1 = []
+    # shai_polyline2 = []
+    # if not shai_df.empty:
+    #     for _,row in shai_df.iterrows():
+    #         #convert BX, BY, Width, Height to int
+    #         BX = row['BX']
+    #         BY = row['BY']
+    #         Width = row['Width']
+    #         Height = row['Height']
 
-            img_width_mm = 5312
-            img_height_mm = 2988
+    #         img_width_mm = 5312
+    #         img_height_mm = 2988
 
-            #add polylines of diagonal of bounding box
-            bounding_box =[BX/img_width_mm, BY/img_height_mm, Width/img_width_mm, Height/img_width_mm] 
-            #add polylines of diagonal of bounding box
+    # #         #add polylines of diagonal of bounding box
+    # #         bounding_box =[BX/img_width_mm, BY/img_height_mm, Width/img_width_mm, Height/img_width_mm] 
+    # #         #add polylines of diagonal of bounding box
             
 
-            top_left_max = [BX/img_width_mm, BY/img_height_mm]
-            top_right_max = [BX/img_width_mm + Width/img_width_mm, BY/img_height_mm]
-            bottom_left_max = [BX/img_width_mm, BY/img_height_mm + Height/img_height_mm]
-            bottom_right_max = [BX/img_width_mm + Width/img_width_mm, BY/img_height_mm + Height/img_height_mm]
+    # #         top_left_max = [BX/img_width_mm, BY/img_height_mm]
+    # #         top_right_max = [BX/img_width_mm + Width/img_width_mm, BY/img_height_mm]
+    # #         bottom_left_max = [BX/img_width_mm, BY/img_height_mm + Height/img_height_mm]
+    # #         bottom_right_max = [BX/img_width_mm + Width/img_width_mm, BY/img_height_mm + Height/img_height_mm]
 
-            # Diagonals
-            diagonal1_max = [top_left_max, bottom_right_max]
-            diagonal2_max = [top_right_max, bottom_left_max]
+    # #         # Diagonals
+    # #         diagonal1_max = [top_left_max, bottom_right_max]
+    # #         diagonal2_max = [top_right_max, bottom_left_max]
 
 
-            diagonal_polyline1 = fo.Polyline(points=[diagonal1_max])
-            diagonal_polyline2 = fo.Polyline(points=[diagonal2_max])
-            shai_polyline1.append(diagonal_polyline1)
-            shai_polyline2.append(diagonal_polyline2)
+    # #         diagonal_polyline1 = fo.Polyline(points=[diagonal1_max])
+    # #         diagonal_polyline2 = fo.Polyline(points=[diagonal2_max])
+    # #         shai_polyline1.append(diagonal_polyline1)
+    # #         shai_polyline2.append(diagonal_polyline2)
             
-            shai_detections.append(fo.Detection(bounding_box=bounding_box,label=str(row['Length'])))
-    sample["shai_polyline1"] = fo.Polylines(polylines=shai_polyline1)
-    sample["shai_polyline2"] = fo.Polylines(polylines=shai_polyline2)
+    # #         shai_detections.append(fo.Detection(bounding_box=bounding_box,label=str(row['Length'])))
+    # # sample["shai_polyline1"] = fo.Polylines(polylines=shai_polyline1)
+    # # sample["shai_polyline2"] = fo.Polylines(polylines=shai_polyline2)
 
-    sample["bounding_box"] = fo.Detections(detections=shai_detections)
+    # sample["bounding_box"] = fo.Detections(detections=shai_detections)
       
         
 
@@ -417,13 +452,13 @@ try:
     # Create views based on pond type
     circle_pond_view = dataset.match_tags("Circle")
     square_pond_view = dataset.match_tags("Square")
-    low_visibility_view = dataset.match_tags("*_low_visibility_keypoints")
-    shai_measured_view = dataset.match_tags("shai_measured")
+    # low_visibility_view = dataset.match_tags("*_low_visibility_keypoints")
+    # shai_measured_view = dataset.match_tags("shai_measured")
     
     print(f"Found {len(circle_pond_view)} samples from Circle pond")
     print(f"Found {len(square_pond_view)} samples from Square pond")
-    print(f"Found {len(low_visibility_view)} samples with low visibility keypoints")
-    print(f"Found {len(shai_measured_view)} samples measured by Shai")
+    # print(f"Found {len(low_visibility_view)} samples with low visibility keypoints")
+    # print(f"Found {len(shai_measured_view)} samples measured by Shai")
 except Exception as e:
     print(f"Error creating views: {str(e)}")
 
