@@ -229,11 +229,11 @@ for image_name in df['image_name'].unique():
     # Get image dimensions using PIL
     try:
         with Image.open(image_path) as img:
-            img_width, img_height = img.size
+            img_width, img_height = 5312, 2988
     except Exception as e:
         print(f"Error reading image dimensions for {image_path}: {e}")
-        img_width = 1920  # Default fallback width
-        img_height = 1080  # Default fallback height
+        img_width = 5312  # Default fallback width
+        img_height = 2988  # Default fallback height
     
     # Add metadata from CSV
     sample["metadata"] = fo.ImageMetadata(width=img_width, height=img_height)
@@ -302,7 +302,7 @@ for image_name in df['image_name'].unique():
                     eye_distance = calculate_euclidean_distance([detected_eye_x, detected_eye_y], [csv_eye_x, csv_eye_y])
                     
                     # Use a threshold of 100 pixels for matching (adjustable)
-                    if eye_distance < 100 and eye_distance < min_distance:
+                    if eye_distance < 600 and eye_distance < min_distance:
                         min_distance = eye_distance
                         best_match = row
                         matched = True
@@ -343,8 +343,8 @@ for image_name in df['image_name'].unique():
                         else:
                             sample["tags"].append('small mpe>30')
                             
-                    detection['label'] = f"{size_class}_prawn ,total_length:{row['total_length']}mm "
-                    print(f"Matched detection for {image_name} with eye distance: {min_distance:.2f}")
+                    detection['label'] = f"predicted_total_length:{row['total_length']}mm "
+                    # print(f"Matched detection for {image_name} with eye distance: {min_distance:.2f}")
                 else:
                     print(f"No eye coordinate match found for detection in {image_name}")
                     detection['label'] = "unknown_prawn"

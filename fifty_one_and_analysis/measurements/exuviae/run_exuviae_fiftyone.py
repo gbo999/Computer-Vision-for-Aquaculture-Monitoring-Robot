@@ -38,7 +38,7 @@ if fo.dataset_exists("prawn_counting"):
 dataset = fo.Dataset.from_dir(
     dataset_dir=EXPORTED_DATASET_DIR,
     dataset_type=fo.types.FiftyOneDataset,
-    name="prawn_counting"
+    name='exuviae_keypoints'
 )
 
 print(f"\nLoaded dataset with {len(dataset)} samples")
