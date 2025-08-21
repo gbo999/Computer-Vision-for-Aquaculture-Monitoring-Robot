@@ -125,28 +125,28 @@ The project uses **FiftyOne** for comprehensive dataset management and analysis:
 - **Scalable Architecture**: Handle large-scale datasets efficiently
 
 ### Counting Analysis Interface
-
-![Counting Analysis Interface](fifty_one%20and%20analysis/counting/images/image.png)
+-
+![Counting Analysis Interface](fifty_one_and_analysis/counting/images/image.png)
 
 *Interactive FiftyOne interface for prawn counting analysis and evaluation*
 
 ### Measurement Analysis Examples
 
-![Total Length Measurement Example](fifty_one%20and%20analysis/measurements/imagej/images/total%20length%20example.png)
+![Total Length Measurement Example](fifty_one_and_analysis/measurements/imagej/images/total%20length%20example.png)
 
 *Example of automated total length measurement with keypoint detection*
 
-![Carapace Length vs Ground Truth](fifty_one%20and%20analysis/measurements/imagej/images/carapace%20lengtj%20vs%20ground%20truth.png)
+![Carapace Length vs Ground Truth](fifty_one_and_analysis/measurements/imagej/images/carapace%20lengtj%20vs%20ground%20truth.png)
 
 *Comparison of automated carapace length measurements with ground truth data (red line- and its' data)*
 
 ### Exuviae Analysis Interface for two prawns (big and small)
 
-![Exuviae Analysis Interface](fifty_one%20and%20analysis/measurements/exuviae/images/interface.png)
+![Exuviae Analysis Interface](fifty_one_and_analysis/measurements/exuviae/images/interface.png)
 
 *FiftyOne interface for exuviae (molted shells) analysis and keypoint detection*
 
-![Exuviae Measurement Results](fifty_one%20and%20analysis/measurements/exuviae/images/Screenshot_mes_result.png)
+![Exuviae Measurement Results](fifty_one_and_analysis/measurements/exuviae/images/Screenshot_mes_result.png)
 
 *Measurement results and analysis for exuviae sample, showing the pred length of the prawn (187mm) the grount truth is 180*
 
